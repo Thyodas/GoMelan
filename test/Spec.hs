@@ -10,7 +10,7 @@ import System.Exit
 import Data.Maybe
 import Test.HUnit.Text
 import Control.Exception (ErrorCall(ErrorCall), evaluate)
-import Ast (Env, EnvKey, EnvValue, envInsert, envLookup, Ast(..))
+import Ast (Env, EnvKey, EnvValue, envInsert, envLookup, Ast(..), evalAST)
 
 testEnv :: Env
 testEnv = [
@@ -31,11 +31,18 @@ testLookupExists = TestCase $ assertEqual "Element exists" (Just (ASymbol "value
 testLookupNotExists :: Test
 testLookupNotExists = TestCase $ assertEqual "Element not exists" Nothing (envLookup testEnv "key5")
 
+testAST :: Test
+testAST = TestCase $ assertEqual "AST" expected result
+    where
+        result = evalAST [] (ACall "*" [ACall "+" [ANumber 4, ANumber 3], ANumber 6])
+        expected = Just (ANumber 42)
+
 testList :: Test
 testList = TestList [
     testInsert,
     testLookupExists,
-    testLookupNotExists
+    testLookupNotExists,
+    testAST
     ]
 
 main :: IO ()
