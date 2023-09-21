@@ -3,3 +3,5 @@
 glados
 glados.cabal
 stack.yaml.lock
+.vscode/
+*.pdf

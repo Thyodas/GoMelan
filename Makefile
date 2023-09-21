@@ -12,6 +12,9 @@ all:
 	@stack build
 	@cp "$(BINARY_PATH)/bin/$(NAME)-exe" "./$(NAME)"
 
+tests_run:
+	@stack test --coverage
+
 clean:
 	@stack clean
 
