@@ -31,18 +31,38 @@ testLookupExists = TestCase $ assertEqual "Element exists" (Just (ASymbol "value
 testLookupNotExists :: Test
 testLookupNotExists = TestCase $ assertEqual "Element not exists" Nothing (envLookup testEnv "key5")
 
-testAST :: Test
-testAST = TestCase $ assertEqual "AST" expected result
+testAst :: Test
+testAst = TestCase $ assertEqual "Ast basic" expected result
     where
         result = evalAST [] (ACall "*" [ACall "+" [ANumber 4, ANumber 3], ANumber 6])
         expected = Just (ANumber 42)
+
+testAstEnv :: Test
+testAstEnv = TestCase $ assertEqual "Ast basic env" expected result
+    where
+        result = evalAST env (ACall "*" [ACall "+" [ASymbol "x", ANumber 3], ASymbol "y"])
+        expected = Just (ANumber 42)
+        env = [ADefine "x" (ANumber 4), ADefine "y" (ANumber 6)]
+
+testAstConditon :: Test
+testAstConditon = TestCase $ assertEqual "Ast condition" expected result
+    where
+        result = evalAST env (ACondition {
+                condition = ASymbol "x",
+                ifTrue = ANumber 42,
+                ifFalse = ANumber 0
+            })
+        expected = Just (ANumber 42)
+        env = [ADefine "x" (ABoolean True)]
 
 testList :: Test
 testList = TestList [
     testInsert,
     testLookupExists,
     testLookupNotExists,
-    testAST
+    testAst,
+    testAstEnv,
+    testAstConditon
     ]
 
 main :: IO ()

@@ -5,3 +5,5 @@ glados.cabal
 stack.yaml.lock
 .vscode/
 *.pdf
+.idea/
+glados.iml

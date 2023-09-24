@@ -39,6 +39,8 @@ printTree (List exprs) = Just ("a List with " ++ formatList exprs)
 
 data Ast = ADefine { symbol :: String, expression :: Ast }
         | ACall { function :: String, arguments :: [Ast] }
+        | ACondition { condition :: Ast, ifTrue :: Ast, ifFalse :: Ast }
+        | AFunction { parameters :: [String], body :: Ast }
         | ANumber Int
         | ASymbol String
         | AString String
@@ -77,23 +79,29 @@ envLookup env key = find checkKey env >>= Just . expression
     checkKey (ADefine sym _) = sym == key
     checkKey _ = False
 
-resolveSymbol :: Env -> Ast -> Maybe Ast
-resolveSymbol env (ASymbol sym) = envLookup env sym
-resolveSymbol env other = Just other
+evalASTCondition :: Env -> Ast -> Maybe Ast
+evalASTCondition env (ACondition cond ifTrue ifFalse) = case evalAST env cond of
+    Just (ABoolean True) -> evalAST env ifTrue
+    Just (ABoolean False) -> evalAST env ifFalse
+    Just (ANumber 0) -> evalAST env ifFalse
+    Just (ANumber _) -> evalAST env ifTrue
+    other -> other
+evalASTCondition _ _ = Just (ANumber 11)
 
-handleArgs :: Env -> [Ast] -> Maybe [Ast]
-handleArgs env args = (traverse (evalAST env) args) >>= (traverse (resolveSymbol env))
+evalASTCall :: Env -> Ast -> Maybe Ast
+evalASTCall _ (ACall "+" args) = evalAddition args
+evalASTCall _ (ACall "-" args) = evalSoustraction args
+evalASTCall _ (ACall "*" args) = evalMultiplication args
+evalASTCall _ (ACall "div" args) = evalDivision args
+evalASTCall _ (ACall "mod" args) = evalModulo args
+evalASTCall _ _ = Nothing
 
 evalAST :: Env -> Ast -> Maybe Ast
-evalAST env (ANumber n) = Just (ANumber n)
-evalAST env (ASymbol _) = Nothing
+evalAST env (ASymbol sym) = envLookup env sym
 evalAST env (ADefine key expr) = evalAST env expr -- envInsert env key (evalAST expr)
-evalAST env (ACall "+" args) = handleArgs env args >>= evalAddition
-evalAST env (ACall "-" args) = handleArgs env args >>= evalSoustraction
-evalAST env (ACall "*" args) = handleArgs env args >>= evalMultiplication
-evalAST env (ACall "/" args) = handleArgs env args >>= evalDivision
-evalAST env (ACall "%" args) = handleArgs env args >>= evalModulo
-evalAST _ _ = Nothing
+evalAST env cond@(ACondition {}) = evalASTCondition env cond
+evalAST env (ACall func args) = traverse (evalAST env) args >>= evalASTCall env . ACall func
+evalAST _ ast = Just ast
 
 -- Evaluate addition
 evalAddition :: [Ast] -> Maybe Ast
