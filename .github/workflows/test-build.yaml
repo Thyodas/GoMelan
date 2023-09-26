@@ -1,6 +1,7 @@
 name: Run tests and build
 
 on:
+  workflow_call:
   push:
     branches-ignore:
       - main
