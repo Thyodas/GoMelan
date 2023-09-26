@@ -1,54 +1,112 @@
 module Parser where
-import Data.IntMap (restrictKeys)
-import Control.Monad.ST.Lazy (strictToLazyST)
+import Control.Applicative (Alternative(..))
 
 type ErrorMsg = String
 
-type Parser a = String -> Either ErrorMsg (a, String)
+newtype Parser a = Parser {
+    runParser :: String -> Either ErrorMsg (a, String)
+}
+
+instance Functor Parser where
+    fmap fct parser = case parser of
+        Parser p -> Parser $ \str -> case p str of
+            Right (result, str') -> Right (fct result, str')
+            Left err -> Left err
+
+instance Applicative Parser where
+    -- pure takes a value and returns a parser that always succeeds with that value
+    pure x = Parser $ \str -> Right (x, str)
+
+    -- <*> applies a function within a parser to a value within a parser
+    (Parser p1) <*> (Parser p2) = Parser $ \str -> case p1 str of
+        Right (fct, str') -> case p2 str' of
+            Right (result, str'') -> Right (fct result, str'')
+            Left err -> Left err
+        Left err -> Left err
+
+instance Alternative Parser where
+    -- empty represents a parser that always fails
+    empty = Parser $ \_ -> Left "Empty parser"
+
+    -- <|> tries the first parser and if it fails, it tries the second parser
+    (Parser p1) <|> (Parser p2) = parseOr (Parser p1) (Parser p2)
+
+instance Monad Parser where
+    -- pure already exists in Applicative, no need to define return
+
+    -- (>>=) applies a parser to a value, and then applies a function to the result
+    (Parser p) >>= f = Parser $ \str -> case p str of
+        Right (x, str') -> runParser (f x) str'
+        Left err -> Left err
 
 parseChar :: Char -> Parser Char
-parseChar char (x:str)  | x == char = Right (char, str)
-                        | otherwise = Left ("Expected '" ++ [char]
-                            ++ "' but got '" ++ [x] ++ "'.")
-parseChar char [] = Left ("Expected '" ++ [char] ++ "' but got empty string.")
+parseChar char = Parser $ \str -> case str of
+    (x:str') | x == char -> Right (char, str')
+             | otherwise -> Left ("Expected '" ++ [char]
+                ++ "' but got '" ++ [x] ++ "'.")
+    [] -> Left ("Expected '" ++ [char] ++ "' but got empty string.")
 
 parseAnyChar :: String -> Parser Char
-parseAnyChar toFind (x:str) | x `elem` toFind = Right (x, str)
-                            | otherwise = Left ("Expected one of '" ++ toFind
-                                ++ "' but got '" ++ [x] ++ "'.")
-parseAnyChar toFind [] = Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
+parseAnyChar toFind = Parser $ \str -> case str of
+    (x:str') | x `elem` toFind -> Right (x, str')
+             | otherwise -> Left ("Expected one of '" ++ toFind
+                ++ "' but got '" ++ [x] ++ "'.")
+    [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
 
 parseOr :: Parser a -> Parser a -> Parser a
-parseOr parser1 parser2 str = case parser1 str of
-    Left _ -> parser2 str
+parseOr parser1 parser2 = Parser $ \str -> case runParser parser1 str of
+    Left _ -> runParser parser2 str
     other -> other
 
 parseAnd :: Parser a -> Parser b -> Parser (a, b)
-parseAnd parser1 parser2 str = case parser1 str of
-    Right (result1, str1) -> case parser2 str1 of
+parseAnd parser1 parser2 = Parser $ \str -> case runParser parser1 str of
+    Right (result1, str1) -> case runParser parser2 str1 of
         Right (result2, str2) -> Right ((result1, result2), str2)
         Left err -> Left err
     Left err -> Left err
 
 parseAndWith :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
-parseAndWith func parser1 parser2 str = case parseAnd parser1 parser2 str of
-    Right ((x, y), str') -> Right (func x y, str')
+parseAndWith func parser1 parser2 = Parser $ \str -> case runParser parser1 str of
+    Right (x, str1) -> case runParser parser2 str1 of
+        Right (y, str2) -> Right (func x y, str2)
+        Left err -> Left err
     Left err -> Left err
 
 parseMany :: Parser a -> Parser [a]
-parseMany _ "" = Right ([], "")
-parseMany parser str = case parser str of
-    Right (acc, rest) -> parseMany parser rest >>= (\(acc', rest') -> Right (acc : acc', rest'))
-    Left _ -> Right ([], str)
+parseMany parser = Parser $ \str -> case str of
+    "" -> Right ([], "")
+    _ -> case runParser parser str of
+        Right (acc, rest) -> case runParser (parseMany parser) rest of
+            Right (acc', rest') -> Right (acc : acc', rest')
+            Left _ -> Right ([], str)
+        Left _ -> Right ([], str)
 
 parseSome :: Parser a -> Parser [a]
-parseSome parser = parseAndWith (:) parser (parseMany parser)
+parseSome parser = (:) <$> parser <*> parseMany parser
 
 parseUInt :: Parser Int
-parseUInt str = parseSome (parseAnyChar ['0'..'9']) str >>= (\(digits, str') -> Right (read digits, str'))
+parseUInt = read <$> parseSome (parseAnyChar ['0'..'9'])
 
 parseInt :: Parser Int
-parseInt str = case parseOr (parseChar '-') (parseChar '+') str of
-    Right ('-', rest) -> parseUInt rest >>= (\(acc', rest') -> Right (acc' * (-1), rest'))
-    Right ('+', rest) -> parseUInt rest
-    _ -> parseUInt str
+parseInt = negate <$> (parseChar '-' *> parseUInt)
+    <|> (parseChar '+' *> parseUInt)
+    <|> parseUInt
+
+parsePair :: Parser a -> Parser (a, a)
+parsePair parser = do
+    _ <- parseChar '('
+    _ <- parseMany (parseChar ' ')
+    left <- parser
+    _ <- parseMany (parseChar ' ')
+    right <- parser
+    _ <- parseMany (parseChar ' ')
+    _ <- parseChar ')'
+    return (left, right)
+
+parseList :: Parser a -> Parser [a]
+parseList parser = do
+    _ <- parseChar '('
+    _ <- parseMany (parseChar ' ')
+    result <- parseMany (parser <* parseMany (parseChar ' '))
+    _ <- parseChar ')'
+    return result

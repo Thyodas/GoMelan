@@ -7,10 +7,6 @@
 
 import Test.HUnit
 import System.Exit
-import Data.Maybe
-import Test.HUnit.Text
-import Control.Exception (ErrorCall(ErrorCall), evaluate)
-import Ast (Env, EnvKey, EnvValue, envInsert, envLookup, Ast(..), evalAST)
 import AstTest (astTestList)
 import ParserTest (parserTestList)
 
