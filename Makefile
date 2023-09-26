@@ -9,14 +9,14 @@ BINARY_PATH	:=	$(shell stack path --local-install-root)
 NAME		=	glados
 
 all:
-	@stack build
+	@stack build --allow-different-user
 	@cp "$(BINARY_PATH)/bin/$(NAME)-exe" "./$(NAME)"
 
 tests_run:
-	@stack test --coverage
+	@stack test --coverage --allow-different-user
 
 clean:
-	@stack clean
+	@stack clean --allow-different-user
 
 fclean: clean
 	@rm -f $(NAME)

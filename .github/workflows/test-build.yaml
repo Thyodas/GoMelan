@@ -1,0 +1,34 @@
+name: Run tests and build
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    container:
+      image: haskell:9.4.7-slim
+    name: Run tests and build job
+    steps:
+      - uses: actions/checkout@v3
+      - name: Compile and run tests with 10m timeout
+        run: |
+          chown -R $(id -un):$(id -gn) ~
+          stack --allow-different-user config set system-ghc --global true
+          timeout 10m make tests_run
+
+      # Determine the binary path using "stack path" command
+      - name: Determine binary path
+        id: binary-path
+        run: |
+          BINARY_PATH=$(stack path --local-install-root)
+          echo "::set-output name=binary-path::$BINARY_PATH"
+
+      # Upload the compiled binary as an artifact using the determined path
+      - name: Upload compiled binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: glados-exe
+          path: ${{ steps.binary-path.outputs.binary-path }}/bin/glados-exe
