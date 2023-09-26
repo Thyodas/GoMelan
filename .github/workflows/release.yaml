@@ -26,17 +26,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  execute_tests_build:
+    uses: ./.github/workflows/test-build.yaml
+    name: Execute tests and build
+
   upload_binary:
     runs-on: ubuntu-latest
-    needs: update_release_draft
-    container:
-      image: haskell:9.4.7-slim
-    name: Run tests, build and upload binary
+    needs:
+      - update_release_draft
+      - execute_tests_build
+    name: Upload binary to release draft
     steps:
-      - name: Execute tests and build
-        id: test-build
-        uses: ./.github/workflows/test-build.yaml
-
       - name: Download Compiled Binary Artifact
         uses: actions/download-artifact@v2
         with:
