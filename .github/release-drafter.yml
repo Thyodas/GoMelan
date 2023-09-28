@@ -28,22 +28,19 @@ categories:
     labels:
       - 'docs'
       - 'documentation'
-      - 'test'
   - title: '🏁 Testing'
     labels:
       - 'test'
   - title: '💄 Style'
     labels:
       - 'style'
-      - 'test'
   - title: '🏗️ Build'
     labels:
       - 'build'
-      - 'test'
   - title: '🔧 CI/CD'
     labels:
       - 'ci'
-      - 'test'
+      - 'cd'
 
 autolabeler:
   - label: 'build'

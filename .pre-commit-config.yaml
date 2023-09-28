@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+    - id: tests-run
+      name: Run Haskell tests
+      description: Use makefile to run stack tests
+      entry: make tests_run
+      language: system
+      stages: [pre-push]
+      pass_filenames: false
