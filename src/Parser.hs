@@ -59,27 +59,13 @@ parseOr parser1 parser2 = Parser $ \str -> case runParser parser1 str of
     other -> other
 
 parseAnd :: Parser a -> Parser b -> Parser (a, b)
-parseAnd parser1 parser2 = Parser $ \str -> case runParser parser1 str of
-    Right (result1, str1) -> case runParser parser2 str1 of
-        Right (result2, str2) -> Right ((result1, result2), str2)
-        Left err -> Left err
-    Left err -> Left err
+parseAnd parser1 parser2 = (,) <$> parser1 <*> parser2
 
 parseAndWith :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
-parseAndWith func parser1 parser2 = Parser $ \str -> case runParser parser1 str of
-    Right (x, str1) -> case runParser parser2 str1 of
-        Right (y, str2) -> Right (func x y, str2)
-        Left err -> Left err
-    Left err -> Left err
+parseAndWith func parser1 parser2 = func <$> parser1 <*> parser2
 
 parseMany :: Parser a -> Parser [a]
-parseMany parser = Parser $ \str -> case str of
-    "" -> Right ([], "")
-    _ -> case runParser parser str of
-        Right (acc, rest) -> case runParser (parseMany parser) rest of
-            Right (acc', rest') -> Right (acc : acc', rest')
-            Left _ -> Right ([], str)
-        Left _ -> Right ([], str)
+parseMany parser = (:) <$> parser <*> parseMany parser <|> pure []
 
 parseSome :: Parser a -> Parser [a]
 parseSome parser = (:) <$> parser <*> parseMany parser
