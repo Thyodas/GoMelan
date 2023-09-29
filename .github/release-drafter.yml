@@ -3,27 +3,23 @@ tag-template: 'v$RESOLVED_VERSION'
 categories:
   - title: '🚀 Features'
     labels:
-      - 'feat'
+      - 'feature'
       - 'enhancement'
-      - 'test'
   - title: '🐛 Bug Fixes'
     labels:
       - 'fix'
       - 'bugfix'
       - 'bug'
-      - 'test'
+      - 'hotfix'
   - title: '🧰 Maintenance'
     labels:
       - 'chore'
-      - 'test'
   - title: '🛠️ Refactors'
     labels:
       - 'refactor'
-      - 'test'
   - title: '🔄 Reverts'
     labels:
       - 'revert'
-      - 'test'
   - title: '📝 Documentation'
     labels:
       - 'docs'
