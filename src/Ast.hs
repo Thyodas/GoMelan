@@ -1,6 +1,7 @@
 module Ast where
 
 import Data.List
+import Data.Maybe
 
 data SExpr = Number Int
     | Symbol String
@@ -11,16 +12,13 @@ getSymbol :: SExpr -> Maybe String
 getSymbol (Symbol string) = Just string
 getSymbol _ = Nothing
 
-
 getInteger :: SExpr -> Maybe Int
 getInteger (Number int) = Just int
 getInteger _ = Nothing
 
-
 getList :: SExpr -> Maybe SExpr
 getList (List list) = Just (List list)
 getList _ = Nothing
-
 
 printTree :: SExpr -> Maybe String
 printTree (Number numba) = Just ("a Number '" ++ show numba ++ "' ")
@@ -40,7 +38,8 @@ printTree (List exprs) = Just ("a List with " ++ formatList exprs)
 data Ast = ADefine { symbol :: String, expression :: Ast }
         | ACall { function :: String, arguments :: [Ast] }
         | ACondition { condition :: Ast, ifTrue :: Ast, ifFalse :: Ast }
-        | AFunction { parameters :: [String], body :: Ast }
+        | ADefun { argumentNames :: [String], body :: Ast }
+        | AFunction { argumentNames :: [String], body :: Ast }
         | ANumber Int
         | ASymbol String
         | AString String
@@ -56,6 +55,14 @@ sexprToAST (List [Symbol "define", Symbol s, e]) = case sexprToAST e of
 sexprToAST (List [Symbol s, arg1, arg2]) = case ((sexprToAST arg1), (sexprToAST arg2)) of
     ((Just arg1'), (Just arg2')) -> Just (ACall {function = s, arguments = [arg1', arg2']})
     (_, _) -> Nothing
+sexprToAST (List [Symbol "defun", Symbol name, List params, List core]) =
+    let
+        paramNames = map (\(Symbol p) -> p) params
+        functionBodyMaybe = sexprToAST (List core)
+    in
+    case functionBodyMaybe of
+        Just functionBody -> Just (ADefine { symbol = name, expression = ADefun { argumentNames = paramNames, body = functionBody }})
+        Nothing -> Nothing
 sexprToAST _ = Nothing
 
 type Env = [Ast]

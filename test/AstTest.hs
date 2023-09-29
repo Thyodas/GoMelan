@@ -12,7 +12,7 @@ import System.Exit
 import Data.Maybe
 import Test.HUnit.Text
 import Control.Exception (ErrorCall(ErrorCall), evaluate)
-import Ast (Env, EnvKey, EnvValue, envInsert, envLookup, Ast(..), evalAST)
+import Ast (Env, EnvKey, EnvValue, envInsert, envLookup, Ast(..), SExpr(..), evalAST, sexprToAST)
 
 testEnv :: Env
 testEnv = [
@@ -57,6 +57,12 @@ testAstConditon = TestCase $ assertEqual "Ast condition" expected result
         expected = Just (ANumber 42)
         env = [ADefine "x" (ABoolean True)]
 
+testSexprToAST :: Test
+testSexprToAST = "sexprToAST" ~: do
+  let input = List [Symbol "defun", Symbol "add", List [Symbol "a", Symbol "b"], List [Symbol "*", Symbol "a", Symbol "b"]]
+  let expected = Just (ADefine { symbol = "add", expression = ADefun { argumentNames = ["a", "b"], body = ACall { function = "*", arguments = [ASymbol "a", ASymbol "b"] } }})
+  assertEqual "should parse defun expression" expected (sexprToAST input)
+
 astTestList :: Test
 astTestList = TestList [
     testInsert,
@@ -64,5 +70,6 @@ astTestList = TestList [
     testLookupNotExists,
     testAst,
     testAstEnv,
-    testAstConditon
+    testAstConditon,
+    testSexprToAST
     ]
