@@ -94,6 +94,12 @@ sexprToAST (List [Symbol "defun", Symbol name, List params, List core]) =
     case functionBodyMaybe of
         Just functionBody -> Just (ADefine { symbol = name, expression = ADefun { argumentNames = paramNames, body = functionBody }})
         Nothing -> Nothing
+sexprToAST (List [Symbol "if", cond, ifTrue, ifFalse]) = case (sexprToAST cond, sexprToAST ifTrue, sexprToAST ifFalse) of
+  (Just cond', Just ifTrue', Just ifFalse') -> Just (ACondition { condition = cond', ifTrue = ifTrue', ifFalse = ifFalse' })
+  (_, _, _) -> Nothing
+sexprToAST (List (Symbol s:xs)) = case traverse sexprToAST xs of
+    Just xs' -> Just (ACall {function = s, arguments = xs'})
+    Nothing -> Nothing
 sexprToAST _ = Nothing
 
 type Env = [Ast]

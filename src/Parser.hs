@@ -1,5 +1,6 @@
 module Parser where
 import Control.Applicative (Alternative(..))
+import Ast (SExpr(..))
 
 type ErrorMsg = String
 
@@ -38,6 +39,12 @@ instance Monad Parser where
     (Parser p) >>= f = Parser $ \str -> case p str of
         Right (x, str') -> runParser (f x) str'
         Left err -> Left err
+
+parserWhitespaceChar :: String
+parserWhitespaceChar = " \n\t"
+
+parserTokenChar :: String
+parserTokenChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_+-*/<>="
 
 parseChar :: Char -> Parser Char
 parseChar char = Parser $ \str -> case str of
@@ -81,18 +88,38 @@ parseInt = negate <$> (parseChar '-' *> parseUInt)
 parsePair :: Parser a -> Parser (a, a)
 parsePair parser = do
     _ <- parseChar '('
-    _ <- parseMany (parseChar ' ')
+    _ <- parseMany (parseAnyChar parserWhitespaceChar)
     left <- parser
-    _ <- parseMany (parseChar ' ')
+    _ <- parseMany (parseAnyChar parserWhitespaceChar)
     right <- parser
-    _ <- parseMany (parseChar ' ')
+    _ <- parseMany (parseAnyChar parserWhitespaceChar)
     _ <- parseChar ')'
     return (left, right)
 
 parseList :: Parser a -> Parser [a]
 parseList parser = do
     _ <- parseChar '('
-    _ <- parseMany (parseChar ' ')
-    result <- parseMany (parser <* parseMany (parseChar ' '))
+    _ <- parseMany (parseAnyChar " \n\t")
+    result <- parseSome (parser <* parseMany
+        (parseAnyChar parserWhitespaceChar))
     _ <- parseChar ')'
     return result
+
+parseSymbol :: Parser SExpr
+parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
+
+parseNumber :: Parser SExpr
+parseNumber = Number <$> parseInt
+
+parseAtom :: Parser SExpr
+parseAtom =  parseNumber <|> parseSymbol
+
+parseSExpr :: Parser SExpr
+parseSExpr = do
+    _ <- parseMany (parseAnyChar parserWhitespaceChar)
+    parsed <- parseAtom <|> List <$> parseList parseSExpr
+    _ <- parseMany (parseAnyChar parserWhitespaceChar)
+    return parsed
+
+parseCodeToSExpr :: Parser [SExpr]
+parseCodeToSExpr = parseMany parseSExpr
