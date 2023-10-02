@@ -14,12 +14,12 @@ evalList env (ast:rest) = do
         evalSingle :: Env -> Ast -> EvalResult (Env, Ast)
         evalSingle env ast = evalAST env ast
 
-runAllAst :: Env -> [Ast] -> Either ErrorMsg [Ast]
+runAllAst :: Env -> [Ast] -> Either ErrorMsg (Env, [Ast])
 runAllAst env asts = case evalList env asts of
-    EvalResult (Right (_, results)) -> Right results
+    EvalResult (Right results) -> Right results
     EvalResult (Left (EvalError msg _)) -> Left msg
 
-runCode :: Env -> String -> Either ErrorMsg [Ast]
+runCode :: Env -> String -> Either ErrorMsg (Env, [Ast])
 runCode env code = do
     (sexpr, a) <- runParser parseCodeToSExpr code
     unevaluatedAst <- case traverse sexprToAST sexpr of
