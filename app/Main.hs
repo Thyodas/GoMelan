@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Ast (printTree, SExpr(..))
+import Ast (internalEnv)
 import Execution (runCode)
 import File (readFileEither)
 import System.Environment (getArgs, getProgName)
@@ -27,7 +27,7 @@ main = do
     file <- readFileEither path
     case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
-        Right content -> case runCode content of
+        Right content -> case runCode internalEnv content of
             Left err -> putStrLn err >> exitWith (ExitFailure 84)
             Right asts -> mapM_ (putStrLn . show) asts
 
