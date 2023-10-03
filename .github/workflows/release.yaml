@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    types: [closed]
-    branches:
-      - main
 
 jobs:
   update_release_draft:
@@ -44,7 +40,7 @@ jobs:
 
       - name: Generate Unique Asset Name
         id: unique-asset-name
-        run: echo "ASSET_NAME=glados $(TZ=Europe/Paris date +'(%d/%m/%Y %H:%M:%S %Z)')" >> $GITHUB_ENV
+        run: echo "ASSET_NAME=glados $(TZ=Europe/Paris date +'(%d/%m/%Y %H:%M:%S %Z)').bin" >> $GITHUB_ENV
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
