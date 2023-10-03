@@ -1,4 +1,4 @@
-module Execution where
+module Execution (runCode) where
 
 import Parser (ErrorMsg, parseCodeToSExpr, Parser(..))
 import Ast (Ast, evalAST, EvalResult (..), sexprToAST,
@@ -12,7 +12,7 @@ evalList env (ast:rest) = do
   pure (finalEnv, result : results)
     where
         evalSingle :: Env -> Ast -> EvalResult (Env, Ast)
-        evalSingle env ast = evalAST env ast
+        evalSingle env' ast' = evalAST env' ast'
 
 runAllAst :: Env -> [Ast] -> Either ErrorMsg (Env, [Ast])
 runAllAst env asts = case evalList env asts of
@@ -21,7 +21,7 @@ runAllAst env asts = case evalList env asts of
 
 runCode :: Env -> String -> Either ErrorMsg (Env, [Ast])
 runCode env code = do
-    (sexpr, a) <- runParser parseCodeToSExpr code
+    (sexpr, _) <- runParser parseCodeToSExpr code
     unevaluatedAst <- case traverse sexprToAST sexpr of
                 Just ast -> Right ast
                 Nothing -> Left "Could not parse SExpr"

@@ -1,4 +1,4 @@
-module Prompt where
+module Prompt (replLoop) where
 
 import System.IO
 import System.Exit

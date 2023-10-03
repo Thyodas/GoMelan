@@ -1,4 +1,7 @@
-module Parser where
+module Parser (
+    ErrorMsg, parseCodeToSExpr, Parser(..), parseChar, parseAnyChar, parseOr,
+    parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
+) where
 import Control.Applicative (Alternative(..))
 import Ast (SExpr(..))
 
