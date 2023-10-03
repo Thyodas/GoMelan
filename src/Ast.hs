@@ -9,7 +9,6 @@ module Ast (
     InternalFunction(..),
     evalAST,
     evalASTCall,
-    internalEnv,
     Env,
     EnvKey,
     EnvValue,
@@ -21,6 +20,7 @@ import Data.List (deleteBy, find)
 
 data SExpr = Number Int
     | Symbol String
+    | Boolean Bool
     | List [SExpr]
     deriving (Show, Eq)
 
@@ -67,6 +67,7 @@ instance Monad EvalResult where
 sexprToAST :: SExpr -> Maybe Ast
 sexprToAST (Number n) = Just (ANumber n)
 sexprToAST (Symbol s) = Just (ASymbol s)
+sexprToAST (Boolean b) = Just (ABoolean b)
 sexprToAST (List [Symbol "define", Symbol s, e]) = sexprToDefine s e
 sexprToAST (List [Symbol s, arg1, arg2]) = sexprToCall s [arg1, arg2]
 sexprToAST (List [Symbol "defun", name, params, core]) = sexprToDefun name params core
@@ -132,16 +133,6 @@ evalASTCondition env (ACondition condExpr thenExpr elseExpr) = do
     other -> EvalResult (Left (EvalError "Condition must evaluate to a boolean value" [other]))
 evalASTCondition _ other =  EvalResult (Left (EvalError "Condition must be a condition" [other]))
 
-internalEnv :: Env
-internalEnv = [
-    ADefine "+" (AInternalFunction evalAddition),
-    ADefine "-" (AInternalFunction evalSoustraction),
-    ADefine "*" (AInternalFunction evalMultiplication),
-    ADefine "div" (AInternalFunction evalDivision),
-    ADefine "mod" (AInternalFunction evalModulo),
-    ADefine ">" (AInternalFunction evalGreaterThan)
-  ]
-
 evalASTCall :: Env -> Ast -> EvalResult Ast
 evalASTCall env (ACall name args) = case envLookup env name of
   Just (AFunction argNames funcBody) -> evalAST env' funcBody >>= pure . snd
@@ -162,71 +153,3 @@ evalAST env cond@(ACondition {}) = evalASTCondition env cond
 evalAST env (ACall func args) = traverse (evalAST env) args >>= evalASTCall env . ACall func . map snd >>= pure . ((,) env )
 evalAST env (ADefun {argumentNames = argNames, body = funcBody}) = pure (env, AFunction argNames funcBody)
 evalAST env ast = pure (env, ast)
-
--- Evaluate addition
-evalAddition :: InternalFunction
-evalAddition = InternalFunction $ \args -> pure $ ANumber (sumNumbers args)
-
-sumNumbers :: [Ast] -> Int
-sumNumbers = sum . map getNumberValue
-
-
--- Evaluate multiplication
-evalMultiplication :: InternalFunction
-evalMultiplication = InternalFunction $ \args -> pure $ ANumber (productNumbers args)
-
-productNumbers :: [Ast] -> Int
-productNumbers = product . map getNumberValue
-
-
--- Evaluate soustraction
-evalSoustraction :: InternalFunction
-evalSoustraction = InternalFunction $ \args -> pure $ ANumber (subtractNumbers args)
-
-subtractAll :: Num a => [a] -> a
-subtractAll [] = error "Empty list"
-subtractAll (x:xs) = foldl (-) x xs
-
-subtractNumbers :: [Ast] -> Int
-subtractNumbers = subtractAll . map getNumberValue
-
-
--- Evaluate division
-evalDivision :: InternalFunction
-evalDivision = InternalFunction $ \args -> pure $ ANumber (diviseNumbers args)
-
-divideAll :: [Int] -> Int
-divideAll [] = error "Empty list"
-divideAll (x:xs) = foldl div x xs
-
-diviseNumbers :: [Ast] -> Int
-diviseNumbers = divideAll . map getNumberValue
-
-
--- Evaluate modulo
-evalModulo :: InternalFunction
-evalModulo = InternalFunction $ \args -> pure $ ANumber (moduloNumbers args)
-
-moduloAll :: [Int] -> Int
-moduloAll [] = error "Empty list"
-moduloAll (x:xs) = foldl mod x xs
-
-moduloNumbers :: [Ast] -> Int
-moduloNumbers = moduloAll . map getNumberValue
-
-
-
-getNumberValue :: Ast -> Int
-getNumberValue (ANumber n) = n
-getNumberValue _ = error "Tried to get the number value of a non-number AST node"
-
-
--- Evaluate greater than
-evalGreaterThan :: InternalFunction
-evalGreaterThan = InternalFunction $ \args -> pure $ ABoolean (greaterThan args)
-
-greaterThan :: [Ast] -> Bool
-greaterThan [] = error "Empty list"
-greaterThan [_] = error "List with only one element"
-greaterThan [ANumber x, ANumber y] = x > y
-greaterThan _ = error "Invalid number of arguments"

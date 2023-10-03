@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Ast (internalEnv)
+import InternalFunctions (internalEnv)
 import Execution (runCode)
 import File (readFileEither)
 import System.Environment (getArgs)

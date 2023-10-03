@@ -9,8 +9,9 @@ module AstTest (astTestList) where
 
 import Test.HUnit
 import Data.Maybe
+import InternalFunctions (internalEnv)
 import Ast (Env, envInsert, envLookup, Ast(..), evalAST,
-   EvalResult(..), internalEnv, SExpr(..), sexprToAST)
+   EvalResult(..), SExpr(..), sexprToAST)
 
 testEnv :: Env
 testEnv = internalEnv ++ [
