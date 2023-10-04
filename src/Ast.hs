@@ -69,10 +69,15 @@ sexprToAST (Number n) = Just (ANumber n)
 sexprToAST (Symbol s) = Just (ASymbol s)
 sexprToAST (Boolean b) = Just (ABoolean b)
 sexprToAST (List [Symbol "define", Symbol s, e]) = sexprToDefine s e
-sexprToAST (List [Symbol s, arg1, arg2]) = sexprToCall s [arg1, arg2]
-sexprToAST (List [Symbol "defun", name, params, core]) = sexprToDefun name params core
-sexprToAST (List [Symbol "if", cond, trueBody, falseBody]) = sexprToCondition cond trueBody falseBody
+sexprToAST (List [Symbol "defun", name, params, core]) =
+    sexprToDefun name params core
+sexprToAST (List [Symbol "define", List (Symbol name:params), core]) =
+    sexprToDefun (Symbol name) (List params) core
+sexprToAST (List [Symbol "lambda", params, core]) = sexprToLambda params core
+sexprToAST (List [Symbol "if", cond, trueBody, falseBody]) =
+    sexprToCondition cond trueBody falseBody
 sexprToAST (List (Symbol s:xs)) = sexprToCall s xs
+sexprToAST (List [Symbol s, arg1, arg2]) = sexprToCall s [arg1, arg2]
 sexprToAST _ = Nothing
 
 sexprToDefine :: String -> SExpr -> Maybe Ast
@@ -84,6 +89,13 @@ sexprToCall :: String -> [SExpr] -> Maybe Ast
 sexprToCall s args = do
   args' <- traverse sexprToAST args
   Just (ACall {function = s, arguments = args'})
+
+sexprToLambda :: SExpr -> SExpr -> Maybe Ast
+sexprToLambda (List params) core@(List _) = do
+  paramNames <- traverse extractSymbol params
+  functionBody <- sexprToAST core
+  Just (AFunction { argumentNames = paramNames, body = functionBody})
+sexprToLambda _ _ = Nothing
 
 sexprToDefun :: SExpr -> SExpr -> SExpr -> Maybe Ast
 sexprToDefun (Symbol name) (List params) core@(List _) = do

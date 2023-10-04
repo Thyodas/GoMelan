@@ -56,8 +56,20 @@ testAstConditon = TestCase $ assertEqual "Ast condition" expected result
         expected = EvalResult $ Right (env, ANumber 42)
         env = internalEnv ++ [ADefine "x" (ABoolean True)]
 
-testSexprToAST :: Test
-testSexprToAST = "sexprToAST" ~: do
+testLambdaSexprToAST :: Test
+testLambdaSexprToAST = "testLambdaSexprToAST" ~: do
+    let input = List [Symbol "define", Symbol "add", List [Symbol "lambda", List [Symbol "a", Symbol "b"], List [Symbol "+", Symbol "a", Symbol "b"]]]
+    let expected = ADefine {symbol = "add", expression = AFunction {argumentNames = ["a","b"], body = ACall {function = "+", arguments = [ASymbol "a",ASymbol "b"]}}}
+    assertEqual "should parse lambda expression" expected (fromJust (sexprToAST input))
+
+testDefineSexprToAST :: Test
+testDefineSexprToAST = "sexprDefineToAST" ~: do
+    let input = List [Symbol "define", List [Symbol "add", Symbol "a", Symbol "b"], List [Symbol "+", Symbol "a", Symbol "b"]]
+    let expected = Just (ADefine {symbol = "add", expression = ADefun {argumentNames = ["a","b"], body = ACall {function = "+", arguments = [ASymbol "a",ASymbol "b"]}}})
+    assertEqual "should parse define expression" expected (sexprToAST input)
+
+testDefunSexprToAST :: Test
+testDefunSexprToAST = "sexprDefunToAST" ~: do
   let input = List [Symbol "defun", Symbol "add", List [Symbol "a", Symbol "b"], List [Symbol "*", Symbol "a", Symbol "b"]]
   let expected = Just (ADefine { symbol = "add", expression = ADefun { argumentNames = ["a", "b"], body = ACall { function = "*", arguments = [ASymbol "a", ASymbol "b"] } }})
   assertEqual "should parse defun expression" expected (sexprToAST input)
@@ -81,6 +93,8 @@ astTestList = TestList [
     testAst,
     testAstEnv,
     testAstConditon,
-    testSexprToAST,
-    testRecursiveFunction
+    testDefunSexprToAST,
+    testRecursiveFunction,
+    testLambdaSexprToAST,
+    testDefineSexprToAST
     ]
