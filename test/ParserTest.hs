@@ -1,8 +1,9 @@
 module ParserTest (parserTestList) where
-
+import Ast (SExpr(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
-    parseMany, parseSome, parseInt, parsePair, parseList, Parser, runParser)
+    parseMany, parseSome, parseInt, parsePair, parseList, Parser, runParser,
+    parserTokenChar, parseSymbol, parseNumber)
 
 testParseChar :: Test
 testParseChar = TestCase $ assertEqual "parseChar" expected result
@@ -57,6 +58,7 @@ testParseOrBothFail = TestCase $ assertEqual "parseOr both failure" expected res
     where
         result = runParser (parseOr (parseChar 'c') (parseChar 'b')) "defg"
         expected = Left "Expected 'b' but got 'd'."
+
 
 testParseAnd :: Test
 testParseAnd = TestCase $ assertEqual "parseAnd valid" expected result
@@ -166,6 +168,28 @@ testParseListFail = TestCase $ assertEqual "parseList fail" expected result
         result = runParser (parseList parseInt) "(  1 2 3 5 7 11 13    17    "
         expected = Left "Expected ')' but got empty string."
 
+testParserTokenChar :: Test
+testParserTokenChar = TestCase $ assertEqual "all characters valid" expected result
+    where
+        result = parserTokenChar
+        expected = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*/<>=?"
+
+testParseSymbol :: Test
+testParseSymbol = TestCase $ assertEqual "parseSymbol valid" expected result
+    where
+        result = runParser parseSymbol "foobar"
+        expected = Right (Symbol "foobar", "")
+
+testParseNumber :: Test
+testParseNumber = TestCase $ assertEqual "parseNumber valid" expected result
+    where
+        result = runParser parseNumber "42"
+        expected = Right (Number 42, "")
+
+
+-- parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
+
+
 parserTestList :: Test
 parserTestList = TestList [
     testParseChar,
@@ -194,5 +218,8 @@ parserTestList = TestList [
     testParsePair,
     testParsePairFail,
     testParseList,
-    testParseListFail
+    testParseListFail,
+    testParserTokenChar,
+    testParseSymbol,
+    testParseNumber
     ]
