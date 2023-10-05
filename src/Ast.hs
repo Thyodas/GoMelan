@@ -1,3 +1,10 @@
+{-
+-- EPITECH PROJECT, 2023
+-- B-FUN-500-STG-5-1-glados-marie.giacomel [WSL: Ubuntu]
+-- File description:
+-- Ast
+-}
+
 {-# OPTIONS_GHC -fno-warn-partial-fields #-}
 
 module Ast (
@@ -77,7 +84,6 @@ sexprToAST (List [Symbol "lambda", params, core]) = sexprToLambda params core
 sexprToAST (List [Symbol "if", cond, trueBody, falseBody]) =
     sexprToCondition cond trueBody falseBody
 sexprToAST (List (Symbol s:xs)) = sexprToCall s xs
-sexprToAST (List [Symbol s, arg1, arg2]) = sexprToCall s [arg1, arg2]
 sexprToAST _ = Nothing
 
 sexprToDefine :: String -> SExpr -> Maybe Ast
@@ -101,7 +107,8 @@ sexprToDefun :: SExpr -> SExpr -> SExpr -> Maybe Ast
 sexprToDefun (Symbol name) (List params) core@(List _) = do
   paramNames <- traverse extractSymbol params
   functionBody <- sexprToAST core
-  Just (ADefine { symbol = name, expression = ADefun { argumentNames = paramNames, body = functionBody }})
+  Just (ADefine { symbol = name, expression =
+    ADefun { argumentNames = paramNames, body = functionBody }})
 sexprToDefun _ _ _ = Nothing
 
 sexprToCondition :: SExpr -> SExpr -> SExpr -> Maybe Ast
@@ -109,7 +116,8 @@ sexprToCondition cond trueBody falseBody = do
   cond' <- sexprToAST cond
   trueBody' <- sexprToAST trueBody
   falseBody' <- sexprToAST falseBody
-  Just (ACondition { condition = cond', ifTrue = trueBody', ifFalse = falseBody' })
+  Just (ACondition
+    { condition = cond', ifTrue = trueBody', ifFalse = falseBody' })
 
 extractSymbol :: SExpr -> Maybe String
 extractSymbol (Symbol s) = Just s
@@ -142,26 +150,35 @@ evalASTCondition env (ACondition condExpr thenExpr elseExpr) = do
   case condVal of
     ABoolean True -> evalAST condEnv thenExpr
     ABoolean False -> evalAST condEnv elseExpr
-    other -> EvalResult (Left (EvalError "Condition must evaluate to a boolean value" [other]))
-evalASTCondition _ other =  EvalResult (Left (EvalError "Condition must be a condition" [other]))
+    other -> EvalResult (Left (EvalError
+      "Condition must evaluate to a boolean value" [other]))
+evalASTCondition _ other =  EvalResult (Left (EvalError
+  "Condition must be a condition" [other]))
 
 evalASTCall :: Env -> Ast -> EvalResult Ast
 evalASTCall env (ACall name args) = case envLookup env name of
   Just (AFunction argNames funcBody) -> evalAST env' funcBody >>= pure . snd
-    where env' = foldl (\acc (name', arg) -> envInsert acc name' arg) env (zip argNames args)
+    where env' = foldl (\acc (n',a) -> envInsert acc n' a)
+                 env (zip argNames args)
   Just (AInternalFunction (InternalFunction fct)) -> fct args
-  Just sym -> EvalResult (Left (EvalError ("Symbol in env '" ++ name ++ "' is not a function.") [sym]))
-  Nothing -> EvalResult (Left (EvalError ("Function '" ++ name ++ "' not found in env.") []))
-evalASTCall _ other = EvalResult (Left (EvalError "evalASTCall: AST must be a call" [other]))
+  Just sym -> EvalResult (Left (EvalError ("Symbol in env '" ++ name ++
+    "' is not a function.") [sym]))
+  Nothing -> EvalResult (Left (EvalError ("Function '" ++ name ++
+    "' not found in env.") []))
+evalASTCall _ other = EvalResult (Left (EvalError
+  "evalASTCall: AST must be a call" [other]))
 
 evalAST :: Env -> Ast -> EvalResult (Env, Ast)
 evalAST env (ASymbol sym) = case envLookup env sym of
   Just val -> pure (env, val)
-  Nothing -> EvalResult (Left (EvalError ("Symbol '" ++ sym ++ "' not found in env") []))
+  Nothing -> EvalResult (Left (EvalError ("Symbol '" ++ sym ++
+    "' not found in env") []))
 evalAST env (ADefine key expr) = do
   (_, evaluated) <- evalAST env expr
   pure (envInsert env key evaluated, evaluated)
 evalAST env cond@(ACondition {}) = evalASTCondition env cond
-evalAST env (ACall func args) = traverse (evalAST env) args >>= evalASTCall env . ACall func . map snd >>= pure . ((,) env )
-evalAST env (ADefun {argumentNames = argNames, body = funcBody}) = pure (env, AFunction argNames funcBody)
+evalAST env (ACall func args) = traverse (evalAST env) args >>=
+    evalASTCall env . ACall func . map snd >>= pure . ((,) env )
+evalAST env (ADefun {argumentNames = argNames, body = funcBody}) =
+    pure (env, AFunction argNames funcBody)
 evalAST env ast = pure (env, ast)

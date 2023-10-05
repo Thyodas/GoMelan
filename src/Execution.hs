@@ -1,3 +1,10 @@
+{-
+-- EPITECH PROJECT, 2023
+-- B-FUN-500-STG-5-1-glados-marie.giacomel [WSL: Ubuntu]
+-- File description:
+-- Execution
+-}
+
 module Execution (runCode) where
 
 import Parser (ErrorMsg, parseCodeToSExpr, Parser(..))
