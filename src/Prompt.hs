@@ -1,3 +1,10 @@
+{-
+-- EPITECH PROJECT, 2023
+-- B-FUN-500-STG-5-1-glados-marie.giacomel [WSL: Ubuntu]
+-- File description:
+-- Prompt
+-}
+
 module Prompt (replLoop) where
 
 import System.IO
@@ -35,17 +42,16 @@ getLines str = do
 handleEOF :: IOException -> IO String
 handleEOF _ = putStrLn "\nExit..." >> exitSuccess >> pure ""
 
+processInput :: Env -> String -> IO ()
+processInput _ ":q"= putStrLn "Exit..." >> exitSuccess
+processInput env input = case runCode env input of
+        Left err -> putStrLn err >> replLoop env
+        Right (newEnv, asts) ->
+            mapM_ (putStrLn . show) asts >> replLoop newEnv
+
 replLoop :: Env -> IO ()
 replLoop env = do
     putStr promptString
     hFlush stdout
     input <- catch (getLines "") handleEOF
-    if input == ":q"
-        then
-            putStrLn "Exit..." >>
-            exitSuccess
-        else
-            case runCode env input of
-                Left err -> putStrLn err >> replLoop env
-                Right (newEnv, asts) -> mapM_ (putStrLn . show) asts
-                    >> replLoop newEnv
+    processInput env input
