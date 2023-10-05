@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 module Prompt where
+=======
+module Prompt (replLoop) where
+>>>>>>> main
 
 import System.IO
 import System.Exit

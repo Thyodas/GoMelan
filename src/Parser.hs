@@ -1,4 +1,7 @@
-module Parser where
+module Parser (
+    ErrorMsg, parseCodeToSExpr, Parser(..), parseChar, parseAnyChar, parseOr,
+    parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
+) where
 import Control.Applicative (Alternative(..))
 import Ast (SExpr(..))
 
@@ -44,7 +47,7 @@ parserWhitespaceChar :: String
 parserWhitespaceChar = " \n\t"
 
 parserTokenChar :: String
-parserTokenChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_+-*/<>="
+parserTokenChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_+-*/<>=?"
 
 parseChar :: Char -> Parser Char
 parseChar char = Parser $ \str -> case str of
@@ -111,14 +114,36 @@ parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
 parseNumber :: Parser SExpr
 parseNumber = Number <$> parseInt
 
+parseBoolean :: Parser SExpr
+parseBoolean = do
+    _ <- parseChar '#'
+    parsed <- parseAnyChar "tf"
+    return (Boolean (parsed == 't'))
+
 parseAtom :: Parser SExpr
-parseAtom =  parseNumber <|> parseSymbol
+parseAtom =  parseBoolean <|> parseNumber <|> parseSymbol
+
+-- parse until any of the given characters is found
+parseUntilAny :: String -> Parser String
+parseUntilAny toFind = Parser $ \str -> case str of
+    (x:str') | x `elem` toFind -> Right ("", str)
+             | otherwise -> case runParser (parseUntilAny toFind) str' of
+                Right (result, str'') -> Right (x:result, str'')
+                Left err -> Left err
+    [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
+
+parseComment :: Parser String
+parseComment = do
+    _ <- parseChar ';'
+    parseUntilAny "\n"
 
 parseSExpr :: Parser SExpr
 parseSExpr = do
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
+    _ <- parseMany (parseComment)
     parsed <- parseAtom <|> List <$> parseList parseSExpr
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
+    _ <- parseMany (parseComment)
     return parsed
 
 parseCodeToSExpr :: Parser [SExpr]

@@ -1,4 +1,4 @@
-module File where
+module File (readFileEither) where
 
 import Control.Exception (IOException, catch)
 
