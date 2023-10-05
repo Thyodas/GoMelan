@@ -1,25 +1,43 @@
+{-
+-- EPITECH PROJECT, 2023
+-- B-FUN-500-STG-5-1-glados-marie.giacomel [WSL: Ubuntu]
+-- File description:
+-- InternalFunctions
+-}
+
 module InternalFunctions (internalEnv) where
 
 import Ast (Ast(..), InternalFunction(..), Env)
 
-internalEnv :: Env
-internalEnv = [
+calculationList :: Env
+calculationList = [
     ADefine "+" (AInternalFunction evalAddition),
     ADefine "-" (AInternalFunction evalSoustraction),
     ADefine "*" (AInternalFunction evalMultiplication),
     ADefine "div" (AInternalFunction evalDivision),
-    ADefine "mod" (AInternalFunction evalModulo),
+    ADefine "mod" (AInternalFunction evalModulo)
+  ]
+
+compList :: Env
+compList = [
     ADefine ">" (AInternalFunction evalGreaterThan),
     ADefine "<" (AInternalFunction evalLessThan),
     ADefine ">=" (AInternalFunction evalGreaterEqual),
     ADefine "<=" (AInternalFunction evalLowerEqual),
-    ADefine "=" (AInternalFunction evalEqual),
-    ADefine "eq?" (AInternalFunction evalEqual),
+    ADefine "=" (AInternalFunction evalEqual)
+  ]
+
+compListTwo :: Env
+compListTwo = [
+  ADefine "eq?" (AInternalFunction evalEqual),
     ADefine "eq" (AInternalFunction evalEqual),
     ADefine "and" (AInternalFunction evalAnd),
     ADefine "or" (AInternalFunction evalOr),
     ADefine "not" (AInternalFunction evalNot)
   ]
+
+internalEnv :: Env
+internalEnv = calculationList ++ compList ++ compListTwo
 
 -- Evaluate not
 evalNot :: InternalFunction
@@ -60,7 +78,8 @@ sumNumbers = sum . map getNumberValue
 
 -- Evaluate multiplication
 evalMultiplication :: InternalFunction
-evalMultiplication = InternalFunction $ \args -> pure $ ANumber (productNumbers args)
+evalMultiplication = InternalFunction $ \args -> pure $ ANumber
+  (productNumbers args)
 
 productNumbers :: [Ast] -> Int
 productNumbers = product . map getNumberValue
@@ -68,7 +87,8 @@ productNumbers = product . map getNumberValue
 
 -- Evaluate soustraction
 evalSoustraction :: InternalFunction
-evalSoustraction = InternalFunction $ \args -> pure $ ANumber (subtractNumbers args)
+evalSoustraction = InternalFunction $ \args -> pure $ ANumber
+  (subtractNumbers args)
 
 subtractAll :: Num a => [a] -> a
 subtractAll [] = error "Empty list"
@@ -105,12 +125,14 @@ moduloNumbers = moduloAll . map getNumberValue
 
 getNumberValue :: Ast -> Int
 getNumberValue (ANumber n) = n
-getNumberValue _ = error "Tried to get the number value of a non-number AST node"
+getNumberValue _ = error
+  "Tried to get the number value of a non-number AST node"
 
 
 -- Evaluate greater than
 evalGreaterThan :: InternalFunction
-evalGreaterThan = InternalFunction $ \args -> pure $ ABoolean (greaterThan args)
+evalGreaterThan = InternalFunction $ \args -> pure $
+  ABoolean (greaterThan args)
 
 greaterThan :: [Ast] -> Bool
 greaterThan [] = error "Empty list"
@@ -140,8 +162,10 @@ equal _ = error "Invalid number of arguments"
 
 -- Evaluate lower equal
 evalLowerEqual :: InternalFunction
-evalLowerEqual = InternalFunction $ \args -> pure $ ABoolean (not $ greaterThan args)
+evalLowerEqual = InternalFunction $ \args -> pure $ ABoolean
+  (not $ greaterThan args)
 
 -- Evaluate greater equal
 evalGreaterEqual :: InternalFunction
-evalGreaterEqual = InternalFunction $ \args -> pure $ ABoolean (not $ lessThan args)
+evalGreaterEqual = InternalFunction $ \args -> pure $ ABoolean
+  (not $ lessThan args)
