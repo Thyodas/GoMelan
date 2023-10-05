@@ -1,15 +1,23 @@
 module ParserTest (parserTestList) where
 import Ast (SExpr(..))
+import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseMany, parseSome, parseInt, parsePair, parseList, Parser, runParser,
-    parserTokenChar, parseSymbol, parseNumber)
+    parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
+    parseUntilAny, parseComment, parseSExpr, parseCodeToSExpr)
 
 testParseChar :: Test
-testParseChar = TestCase $ assertEqual "parseChar" expected result
+testParseChar = TestList
+    [ TestCase $ assertEqual "parseChar invalid" expected1 result1
+    , TestCase $ assertEqual "parseChar valid" expected2 result2
+    ]
     where
-        result = runParser (parseChar 'a') "abcd"
-        expected = Right ('a', "bcd")
+        result1 = runParser (parseChar 'a') "1bcd"
+        expected1 = Left "Expected 'a' but got '1'."
+
+        result2 = runParser (parseChar 'a') "a"
+        expected2 = Right ('a', "")
 
 testParseCharFail :: Test
 testParseCharFail = TestCase $ assertEqual "parseChar failure" expected result
@@ -186,9 +194,70 @@ testParseNumber = TestCase $ assertEqual "parseNumber valid" expected result
         result = runParser parseNumber "42"
         expected = Right (Number 42, "")
 
+testParseBoolean :: Test
+testParseBoolean = TestCase $ assertEqual "parseBoolean valid" expected result
+    where
+        result = runParser parseBoolean "#t"
+        expected = Right (Boolean True, "")
 
--- parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
+testParseAtom :: Test
+testParseAtom = TestList
+    [ TestCase $ assertEqual "parseAtom valid number" expected1 result1
+    , TestCase $ assertEqual "parseAtom valid symbol" expected2 result2
+    ]
+    where
+        result1 = runParser parseAtom "42"
+        expected1 = Right (Number 42, "")
 
+        result2 = runParser parseAtom "abc"
+        expected2 = Right (Symbol "abc", "")
+
+testParseUntilAny :: Test
+testParseUntilAny = TestList
+    [ TestCase $ assertEqual "parseUntilAny valid" expected1 result1
+    , TestCase $ assertEqual "parseUntilAny valid" expected2 result2
+    ]
+    where
+        result1 = runParser (parseUntilAny "abc") "def"
+        expected1 = Left "Expected one of 'abc' but got empty string."
+
+        result2 = runParser (parseUntilAny "abc") "defabc"
+        expected2 = Right ("def", "abc")
+
+testParseComment :: Test
+testParseComment = TestCase $ assertEqual "parseComment valid" expected result
+    where
+        result = runParser parseComment "; this is a comment\n"
+        expected = Right (" this is a comment", "\n")
+
+testParseSExpr :: Test
+testParseSExpr = TestList
+    [ TestCase $ assertEqual "parseSexpr valid number" expected1 result1
+    , TestCase $ assertEqual "parseSexpr valid symbol" expected2 result2
+    , TestCase $ assertEqual "parseSexpr valid list" expected3 result3
+    ]
+    where
+        result1 = runParser parseSExpr "42"
+        expected1 = Right (Number 42, "")
+
+        result2 = runParser parseSExpr "abc"
+        expected2 = Right (Symbol "abc", "")
+
+        result3 = runParser parseSExpr "(+ 1 2)"
+        expected3 = Right (List [Symbol "+", Number 1, Number 2], "")
+
+
+testParseCodeToSExpr :: Test
+testParseCodeToSExpr = TestCase $ assertEqual "parseCodeToSExpr valid" expected result
+    where
+        result = runParser parseCodeToSExpr "(+ 1 2)"
+        expected = Right ([List [Symbol "+", Number 1, Number 2]], "")
+
+testEmpty :: Test
+testEmpty = TestCase $ assertEqual "empty" expected result
+    where
+        result = runParser (empty :: Parser Char) "abc"
+        expected = Left "Empty parser"
 
 parserTestList :: Test
 parserTestList = TestList [
@@ -221,5 +290,12 @@ parserTestList = TestList [
     testParseListFail,
     testParserTokenChar,
     testParseSymbol,
-    testParseNumber
+    testParseNumber,
+    testParseBoolean,
+    testParseAtom,
+    testParseComment,
+    testParseUntilAny,
+    testParseCodeToSExpr,
+    testEmpty,
+    testParseSExpr
     ]

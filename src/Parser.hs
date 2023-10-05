@@ -1,6 +1,8 @@
 module Parser (
     ErrorMsg, parseCodeToSExpr, Parser(..), parseChar, parseAnyChar, parseOr,
     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
+    ,parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
+    parseUntilAny, parseComment, parseSExpr
 ) where
 import Control.Applicative (Alternative(..))
 import Ast (SExpr(..))
