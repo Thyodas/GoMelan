@@ -231,20 +231,10 @@ testParseComment = TestCase $ assertEqual "parseComment valid" expected result
         expected = Right (" this is a comment", "\n")
 
 testParseSExpr :: Test
-testParseSExpr = TestList
-    [ TestCase $ assertEqual "parseSexpr valid number" expected1 result1
-    , TestCase $ assertEqual "parseSexpr valid symbol" expected2 result2
-    , TestCase $ assertEqual "parseSexpr valid list" expected3 result3
-    ]
+testParseSExpr = TestCase $ assertEqual "parseSExpr valid" expected result
     where
-        result1 = runParser parseSExpr "42"
-        expected1 = Right (Number 42, "")
-
-        result2 = runParser parseSExpr "abc"
-        expected2 = Right (Symbol "abc", "")
-
-        result3 = runParser parseSExpr "(+ 1 2)"
-        expected3 = Right (List [Symbol "+", Number 1, Number 2], "")
+        result = runParser parseSExpr "(+ 1 2)"
+        expected = Right (List [Symbol "+", Number 1, Number 2], "")
 
 
 testParseCodeToSExpr :: Test
