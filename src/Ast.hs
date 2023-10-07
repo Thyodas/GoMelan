@@ -5,8 +5,6 @@
 -- Ast
 -}
 
-{-# OPTIONS_GHC -fno-warn-partial-fields #-}
-
 module Ast (
     sexprToAST,
     SExpr(..),
@@ -20,7 +18,8 @@ module Ast (
     EnvKey,
     EnvValue,
     envInsert,
-    envLookup
+    envLookup,
+    throwEvalError
 ) where
 
 import Data.List (deleteBy, find)
@@ -70,6 +69,9 @@ instance Applicative EvalResult where
 instance Monad EvalResult where
   EvalResult (Left e) >>= _ = EvalResult (Left e)
   EvalResult (Right x) >>= f = f x
+
+throwEvalError :: String -> [Ast] -> EvalResult a
+throwEvalError msg asts = EvalResult (Left (EvalError msg asts))
 
 sexprToAST :: SExpr -> Maybe Ast
 sexprToAST (Number n) = Just (ANumber n)
@@ -150,10 +152,9 @@ evalASTCondition env (ACondition condExpr thenExpr elseExpr) = do
   case condVal of
     ABoolean True -> evalAST condEnv thenExpr
     ABoolean False -> evalAST condEnv elseExpr
-    other -> EvalResult (Left (EvalError
-      "Condition must evaluate to a boolean value" [other]))
-evalASTCondition _ other =  EvalResult (Left (EvalError
-  "Condition must be a condition" [other]))
+    other -> throwEvalError "Condition must evaluate to a boolean value" [other]
+evalASTCondition _ other = throwEvalError "Condition must be a condition"
+                          [other]
 
 evalASTCall :: Env -> Ast -> EvalResult Ast
 evalASTCall env (ACall name args) = case envLookup env name of
@@ -161,24 +162,30 @@ evalASTCall env (ACall name args) = case envLookup env name of
     where env' = foldl (\acc (n',a) -> envInsert acc n' a)
                  env (zip argNames args)
   Just (AInternalFunction (InternalFunction fct)) -> fct args
-  Just sym -> EvalResult (Left (EvalError ("Symbol in env '" ++ name ++
-    "' is not a function.") [sym]))
-  Nothing -> EvalResult (Left (EvalError ("Function '" ++ name ++
-    "' not found in env.") []))
-evalASTCall _ other = EvalResult (Left (EvalError
-  "evalASTCall: AST must be a call" [other]))
+  Just sym -> throwEvalError ("Symbol in env '" ++ name ++
+    "' is not a function.") [sym]
+  Nothing -> throwEvalError ("Function '" ++ name ++
+    "' not found in env.") []
+evalASTCall _ other = throwEvalError "evalASTCall: AST must be a call" [other]
+
+handleASTCall :: Env -> Ast -> EvalResult Ast
+handleASTCall env call@(ACall func _) = case evalASTCall env call of
+  EvalResult (Left (EvalError str ast)) ->
+    throwEvalError (func ++ ": " ++ str) ast
+  other -> other
+handleASTCall _ other = throwEvalError
+                        "handleASTCall: AST must be a call" [other]
 
 evalAST :: Env -> Ast -> EvalResult (Env, Ast)
 evalAST env (ASymbol sym) = case envLookup env sym of
   Just val -> pure (env, val)
-  Nothing -> EvalResult (Left (EvalError ("Symbol '" ++ sym ++
-    "' not found in env") []))
+  Nothing -> throwEvalError ("Symbol '" ++ sym ++ "' not found in env") []
 evalAST env (ADefine key expr) = do
   (_, evaluated) <- evalAST env expr
   pure (envInsert env key evaluated, evaluated)
 evalAST env cond@(ACondition {}) = evalASTCondition env cond
 evalAST env (ACall func args) = traverse (evalAST env) args >>=
-    evalASTCall env . ACall func . map snd >>= pure . ((,) env )
+    handleASTCall env . ACall func . map snd >>= pure . ((,) env )
 evalAST env (ADefun {argumentNames = argNames, body = funcBody}) =
     pure (env, AFunction argNames funcBody)
 evalAST env ast = pure (env, ast)
