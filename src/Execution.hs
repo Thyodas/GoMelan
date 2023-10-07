@@ -11,6 +11,7 @@ import Parser (ErrorMsg, parseCodeToSExpr, Parser(..))
 import Ast (Ast, evalAST, EvalResult (..), sexprToAST,
     EvalError(..), Env)
 
+-- | Check list 
 evalList :: Env -> [Ast] -> EvalResult (Env, [Ast])
 evalList env [] = pure (env, [])
 evalList env (ast:rest) = do
@@ -21,11 +22,13 @@ evalList env (ast:rest) = do
         evalSingle :: Env -> Ast -> EvalResult (Env, Ast)
         evalSingle env' ast' = evalAST env' ast'
 
+-- | Execute all AST
 runAllAst :: Env -> [Ast] -> Either ErrorMsg (Env, [Ast])
 runAllAst env asts = case evalList env asts of
     EvalResult (Right results) -> Right results
     EvalResult (Left (EvalError msg _)) -> Left msg
 
+-- | Parse SExpr to annalise the syntaxe
 runCode :: Env -> String -> Either ErrorMsg (Env, [Ast])
 runCode env code = do
     (sexpr, _) <- runParser parseCodeToSExpr code

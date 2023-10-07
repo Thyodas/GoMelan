@@ -13,6 +13,7 @@ import Ast (Env)
 import Execution (runCode)
 import Control.Exception (IOException, catch)
 
+-- | Check if parentheses are close or not and return boolean
 areParenthesesClosed :: String -> Bool
 areParenthesesClosed = areParenthesesClosed' 0
     where
@@ -25,9 +26,11 @@ areParenthesesClosed = areParenthesesClosed' 0
             | n < 0 = False
             | otherwise = areParenthesesClosed' n xs
 
+-- | String to print on prompt mode
 promptString :: String
 promptString = "GLaDOS> "
 
+-- | Return string enter by user in prompt mode
 getLines :: String -> IO String
 getLines str = do
     hFlush stdout
@@ -39,6 +42,7 @@ getLines str = do
             nextLine <- getLines (str ++ line)
             return (nextLine)
 
+-- | catch Ctrl + D when user quit prompt mode
 handleEOF :: IOException -> IO String
 handleEOF _ = putStrLn "\nExit..." >> exitSuccess >> pure ""
 
@@ -49,6 +53,7 @@ processInput env input = case runCode env input of
         Right (newEnv, asts) ->
             mapM_ (putStrLn . show) asts >> replLoop newEnv
 
+-- | Loop for prompt mode, takes env in arg
 replLoop :: Env -> IO ()
 replLoop env = do
     putStr promptString

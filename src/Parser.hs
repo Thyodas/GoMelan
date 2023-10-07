@@ -52,12 +52,15 @@ instance Monad Parser where
         Right (x, str') -> runParser (f x) str'
         Left err -> Left err
 
+-- | Skip white space return string
 parserWhitespaceChar :: String
 parserWhitespaceChar = " \n\t"
 
+-- | Parse tocken return string
 parserTokenChar :: String
 parserTokenChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_+-*/<>=?"
 
+-- | Parse specific char passed in arg and return a parser
 parseChar :: Char -> Parser Char
 parseChar char = Parser $ \str -> case str of
     (x:str') | x == char -> Right (char, str')
@@ -65,6 +68,7 @@ parseChar char = Parser $ \str -> case str of
                 ++ "' but got '" ++ [x] ++ "'.")
     [] -> Left ("Expected '" ++ [char] ++ "' but got empty string.")
 
+-- | Parse specific char of a string passed in arg and return a parser return a parser
 parseAnyChar :: String -> Parser Char
 parseAnyChar toFind = Parser $ \str -> case str of
     (x:str') | x `elem` toFind -> Right (x, str')
@@ -72,26 +76,33 @@ parseAnyChar toFind = Parser $ \str -> case str of
                 ++ "' but got '" ++ [x] ++ "'.")
     [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
 
+-- | Takes two parser in arg, try to apply the first one if fail try the second and return a parser if one success
 parseOr :: Parser a -> Parser a -> Parser a
 parseOr parser1 parser2 = Parser $ \str -> case runParser parser1 str of
     Left _ -> runParser parser2 str
     other -> other
 
+-- | Takes two parser in arg, try the first one if success try the second and return a parser if both success
 parseAnd :: Parser a -> Parser b -> Parser (a, b)
 parseAnd parser1 parser2 = (,) <$> parser1 <*> parser2
 
+-- | Takes two parser and a function in arg, try to apply the parsers if success execute the function on the resulta nd return a parser
 parseAndWith :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
 parseAndWith func parser1 parser2 = func <$> parser1 <*> parser2
 
+-- | Takes a parser in arg and try to apply it one or more times and return a list with all parsed element
 parseMany :: Parser a -> Parser [a]
 parseMany parser = (:) <$> parser <*> parseMany parser <|> pure []
 
+-- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
 parseSome :: Parser a -> Parser [a]
 parseSome parser = (:) <$> parser <*> parseMany parser
 
+-- | Parse unsigned integer and return it
 parseUInt :: Parser Int
 parseUInt = read <$> parseSome (parseAnyChar ['0'..'9'])
 
+-- | Parse integer and return int
 parseInt :: Parser Int
 parseInt = negate <$> (parseChar '-' *> parseUInt)
     <|> (parseChar '+' *> parseUInt)
@@ -108,6 +119,7 @@ parsePair parser = do
     _ <- parseChar ')'
     return (left, right)
 
+-- | Takes a list in arg as a string, apply a parser on each element separated by whitesapce
 parseList :: Parser a -> Parser [a]
 parseList parser = do
     _ <- parseChar '('
@@ -117,9 +129,11 @@ parseList parser = do
     _ <- parseChar ')'
     return result
 
+-- | Parse a symbol as string and return a SExpr
 parseSymbol :: Parser SExpr
 parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
 
+-- | Parse a number and return a SExpr
 parseNumber :: Parser SExpr
 parseNumber = Number <$> parseInt
 
@@ -146,6 +160,7 @@ parseComment = do
     _ <- parseChar ';'
     parseUntilAny "\n"
 
+-- | Parse SExpr
 parseSExpr :: Parser SExpr
 parseSExpr = do
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
@@ -155,5 +170,6 @@ parseSExpr = do
     _ <- parseMany (parseComment)
     return parsed
 
+-- | Parse code to return SExpr
 parseCodeToSExpr :: Parser [SExpr]
 parseCodeToSExpr = parseMany parseSExpr

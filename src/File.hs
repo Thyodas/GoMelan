@@ -9,6 +9,7 @@ module File (readFileEither) where
 
 import Control.Exception (IOException, catch)
 
+-- | Read file that contains LIPS code to execute
 readFileEither :: String -> IO (Either String String)
 readFileEither path = (Right <$> readFile path) `catch` handleIOError
     where

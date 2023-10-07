@@ -73,6 +73,7 @@ instance Monad EvalResult where
 throwEvalError :: String -> [Ast] -> EvalResult a
 throwEvalError msg asts = EvalResult (Left (EvalError msg asts))
 
+-- | Convert SExpr to AST
 sexprToAST :: SExpr -> Maybe Ast
 sexprToAST (Number n) = Just (ANumber n)
 sexprToAST (Symbol s) = Just (ASymbol s)
@@ -129,6 +130,7 @@ type Env = [Ast]
 type EnvKey = String
 type EnvValue = Ast
 
+-- | Insert element in env
 envInsert :: Env -> EnvKey -> EnvValue -> Env
 envInsert env key value = newKey : deleteBy checkKey newKey env
   where
@@ -139,6 +141,7 @@ envInsert env key value = newKey : deleteBy checkKey newKey env
     newKey :: Ast
     newKey = ADefine { symbol = key, expression = value}
 
+-- | Check if element is in env
 envLookup :: Env -> EnvKey -> Maybe EnvValue
 envLookup env key = find checkKey env >>= Just . expression
   where
@@ -156,6 +159,7 @@ evalASTCondition env (ACondition condExpr thenExpr elseExpr) = do
 evalASTCondition _ other = throwEvalError "Condition must be a condition"
                           [other]
 
+-- | Evaluate call function of AST
 evalASTCall :: Env -> Ast -> EvalResult Ast
 evalASTCall env (ACall name args) = case envLookup env name of
   Just (AFunction argNames funcBody) -> evalAST env' funcBody >>= pure . snd
@@ -176,6 +180,7 @@ handleASTCall env call@(ACall func _) = case evalASTCall env call of
 handleASTCall _ other = throwEvalError
                         "handleASTCall: AST must be a call" [other]
 
+-- | Evaluate AST
 evalAST :: Env -> Ast -> EvalResult (Env, Ast)
 evalAST env (ASymbol sym) = case envLookup env sym of
   Just val -> pure (env, val)
