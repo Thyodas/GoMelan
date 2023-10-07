@@ -124,7 +124,7 @@ parseList :: Parser a -> Parser [a]
 parseList parser = do
     _ <- parseChar '('
     _ <- parseMany (parseAnyChar " \n\t")
-    result <- parseSome (parser <* parseMany
+    result <- parseMany (parser <* parseMany
         (parseAnyChar parserWhitespaceChar))
     _ <- parseChar ')'
     return result
