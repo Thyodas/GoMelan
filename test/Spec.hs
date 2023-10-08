@@ -9,11 +9,13 @@ import Test.HUnit
 import System.Exit
 import AstTest (astTestList)
 import ParserTest (parserTestList)
+import ExecutionTest (executionTestList)
 
 testList :: Test
 testList = TestList [
     astTestList,
-    parserTestList
+    parserTestList,
+    executionTestList
     ]
 
 main :: IO ()

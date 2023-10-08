@@ -155,7 +155,8 @@ evalASTCondition env (ACondition condExpr thenExpr elseExpr) = do
   case condVal of
     ABoolean True -> evalAST condEnv thenExpr
     ABoolean False -> evalAST condEnv elseExpr
-    other -> throwEvalError "Condition must evaluate to a boolean value" [other]
+    other -> throwEvalError "Condition must evaluate to a boolean value"
+              [other]
 evalASTCondition _ other = throwEvalError "Condition must be a condition"
                           [other]
 
