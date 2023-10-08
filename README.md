@@ -1,6 +1,6 @@
-# GLaDOS - Generic Language and Data Operand Syntax
+<img src="images/glados_logo.png" alt="GLaDOS Logo" width=250 height=250 align="right" />
 
-![GLaDOS Logo](images/glados_logo.png)
+# GLaDOS - Generic Language and Data Operand Syntax
 
 GLaDOS is a programming language project developed as part of the B5 - Advanced Functional Programming course (B-FUN-500). It's designed to be a minimalist Lisp interpreter initially but can be extended into a more advanced language with a custom syntax, evaluation, and compilation.
 
