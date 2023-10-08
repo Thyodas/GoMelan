@@ -18,8 +18,12 @@ module Ast (
     EnvKey,
     EnvValue,
     envInsert,
+    throwEvalError,
     envLookup,
-    throwEvalError
+    sexprToDefun,
+    sexprToLambda,
+    extractSymbol,
+    evalASTCondition
 ) where
 
 import Data.List (deleteBy, find)
