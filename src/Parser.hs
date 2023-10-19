@@ -120,13 +120,13 @@ parsePair parser = do
     return (left, right)
 
 -- | Takes a list in arg as a string, apply a parser on each element separated by whitesapce
-parseList :: Parser a -> Parser [a]
-parseList parser = do
-    _ <- parseChar '('
+parseContent :: Char -> Char -> Parser a -> Parser [a]
+parseContent open close parser = do
+    _ <- parseChar open
     _ <- parseMany (parseAnyChar " \n\t")
     result <- parseMany (parser <* parseMany
         (parseAnyChar parserWhitespaceChar))
-    _ <- parseChar ')'
+    _ <- parseChar close
     return result
 
 -- | Parse a symbol as string and return a SExpr
@@ -137,14 +137,20 @@ parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
 parseNumber :: Parser SExpr
 parseNumber = Number <$> parseInt
 
+-- | Parse a boolean and return a SExpr
 parseBoolean :: Parser SExpr
 parseBoolean = do
     _ <- parseChar '#'
     parsed <- parseAnyChar "tf"
     return (Boolean (parsed == 't'))
 
+-- | parse Atom (bool / Number / Symbol) and return a SExpr
 parseAtom :: Parser SExpr
-parseAtom =  parseBoolean <|> parseNumber <|> parseSymbol
+parseAtom =  parseBoolean <|> parseNumber <|> parseSymb
+
+-- | parse multiple Atoms (bool / Number / Symbol) and return a list of SExprl
+parseMultipleAtom :: Parser [SExpr]
+parseMultipleAtom = parseSome parseAtom
 
 -- parse until any of the given characters is found
 parseUntilAny :: String -> Parser String
@@ -155,21 +161,30 @@ parseUntilAny toFind = Parser $ \str -> case str of
                 Left err -> Left err
     [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
 
+-- | parse comment after // to skip them
 parseComment :: Parser String
 parseComment = do
-    _ <- parseChar ';'
+    _ <- parseChar '/' <*> parseChar '/'
     parseUntilAny "\n"
 
+-- | parse everything between { and } and return a list of SExpr
+parseBody :: Parser [SExpr]
+parseBody = Body <$> parseContent '{' '}' parseSExpr
+
+-- | parse everything between ( and ) and return a list of SExpr
+parseList :: Parser [SExpr]
+parseList = List <$> parseContent '(' ')' parseSExpr
+
 -- | Parse SExpr
-parseSExpr :: Parser SExpr
+parseSExpr :: Parser [SExpr]
 parseSExpr = do
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
     _ <- parseMany (parseComment)
-    parsed <- parseAtom <|> List <$> parseList parseSExpr
+    parsed <- parseMultipleAtom <|> parseBody <|> parseList
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
     _ <- parseMany (parseComment)
     return parsed
 
 -- | Parse code to return SExpr
 parseCodeToSExpr :: Parser [SExpr]
-parseCodeToSExpr = parseMany parseSExpr
+parseCodeToSExpr = parseMany (Instructions <$> parseSExpr)

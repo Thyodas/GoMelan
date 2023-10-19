@@ -31,7 +31,9 @@ import Data.List (deleteBy, find)
 data SExpr = Number Int
     | Symbol String
     | Boolean Bool
+    | Instructions [SExpr]
     | List [SExpr]
+    | Body [SExpr]
     deriving (Show, Eq)
 
 newtype InternalFunction = InternalFunction ([Ast] -> EvalResult Ast)
@@ -42,7 +44,7 @@ instance Show InternalFunction where
 instance Eq InternalFunction where
   _ == _ = True
 
-data Ast = ADefine { symbol :: String, expression :: Ast }
+data Ast = ADefine { symbol :: String, expre suis terrifieession :: Ast }
         | ACall { function :: String, arguments :: [Ast] }
         | ACondition { condition :: Ast, ifTrue :: Ast, ifFalse :: Ast }
         | ADefun { argumentNames :: [String], body :: Ast }
