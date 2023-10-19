@@ -7,6 +7,8 @@
 
 module Main (main) where
 
+import Parser (parseCodeToGomExpr, runParser)
+
 import InternalFunctions (internalEnv)
 import Execution (runCode)
 import File (readFileEither)
@@ -19,9 +21,9 @@ fileExecution path = do
     file <- readFileEither path
     case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
-        Right content -> case runCode internalEnv content of
+        Right content -> case runParser parseCodeToGomExpr content of
             Left err -> putStrLn err >> exitWith (ExitFailure 84)
-            Right (_, asts) -> mapM_ (putStrLn . show) asts
+            Right out -> putStrLn $ show out
 
 replExecution :: IO ()
 replExecution = putStrLn "Welcome to GLaDOS!" >> replLoop internalEnv

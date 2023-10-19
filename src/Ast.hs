@@ -34,6 +34,7 @@ data GomExpr = Number Int
     | Statements [GomExpr]
     | List [GomExpr]
     | Body [GomExpr]
+    | Function { fnName :: GomExpr, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
     deriving (Show, Eq)
 
 newtype InternalFunction = InternalFunction ([Ast] -> EvalResult Ast)
@@ -44,7 +45,7 @@ instance Show InternalFunction where
 instance Eq InternalFunction where
   _ == _ = True
 
-data Ast = ADefine { symbol :: String, expre suis terrifieession :: Ast }
+data Ast = ADefine { symbol :: String, expression :: Ast }
         | ACall { function :: String, arguments :: [Ast] }
         | ACondition { condition :: Ast, ifTrue :: Ast, ifFalse :: Ast }
         | ADefun { argumentNames :: [String], body :: Ast }

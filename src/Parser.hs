@@ -146,13 +146,13 @@ parseBoolean = do
 
 -- | parse Atom (bool / Number / Symbol) and return a GomExpr
 parseAtom :: Parser GomExpr
-parseAtom =  parseBoolean <|> parseNumber <|> parseSymb
+parseAtom =  parseBoolean <|> parseNumber <|> parseSymbol
 
 -- | parse multiple Atoms (bool / Number / Symbol) and return a list of GomExprl
-parseMultipleAtom :: Parser [GomExpr]
-parseMultipleAtom = parseSome parseAtom
+parseMultipleAtom :: Parser GomExpr
+parseMultipleAtom = Statements <$> parseSome parseAtom
 
--- parse until any of the given characters is found
+-- | parse until any of the given characters is found
 parseUntilAny :: String -> Parser String
 parseUntilAny toFind = Parser $ \str -> case str of
     (x:str') | x `elem` toFind -> Right ("", str)
@@ -164,27 +164,71 @@ parseUntilAny toFind = Parser $ \str -> case str of
 -- | parse comment after // to skip them
 parseComment :: Parser String
 parseComment = do
-    _ <- parseChar '/' <*> parseChar '/'
+    _ <- parseChar '/' *> parseChar '/'
     parseUntilAny "\n"
 
 -- | parse everything between { and } and return a list of GomExpr
-parseBody :: Parser [GomExpr]
+parseBody :: Parser GomExpr
 parseBody = Body <$> parseContent '{' '}' parseGomExpr
 
 -- | parse everything between ( and ) and return a list of GomExpr
-parseList :: Parser [GomExpr]
+parseList :: Parser GomExpr
 parseList = List <$> parseContent '(' ')' parseGomExpr
 
--- | Parse GomExpr
-parseGomExpr :: Parser [GomExpr]
-parseGomExpr = do
+-- | Parser pour une déclaration de fonction
+parseFunctionDeclaration :: Parser GomExpr
+parseFunctionDeclaration = do
+    _ <- parseAmongWhitespace parseSymbol  -- Le mot-clé "fn"
+    functionName <- parseAmongWhitespace parseSymbol
+    arguments <- parseAmongWhitespace $ parseList
+    _ <- parseAmongWhitespace $ parseChar '-' *> parseChar '>'
+    returnType <- parseAmongWhitespace $ parseSymbol
+    --_ <- parseAmongWhitespace $ parseChar '{'
+    body <- parseAmongWhitespace $ parseBody
+    --_ <- parseAmongWhitespace $ parseChar '}'
+    return $ Function {fnName=functionName, fnArguments=arguments, fnReturnType=returnType, fnBody=body}
+
+-- | Parser pour un appel de fonction
+parseFunctionCall :: Parser GomExpr
+parseFunctionCall = do
+    functionName <- parseSymbol
+    _ <- parseChar '('
+    -- Parsez les arguments ici (vous devrez créer un parser spécifique pour cela)
+    _ <- parseChar ')'
+    return $ Statements [functionName]  -- Vous pouvez ajouter les arguments ici
+
+parseAmongWhitespace :: Parser a -> Parser a
+parseAmongWhitespace parser = do
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
-    _ <- parseMany (parseComment)
-    parsed <- parseMultipleAtom <|> parseBody <|> parseList
+    result <- parser
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
-    _ <- parseMany (parseComment)
-    return parsed
+    return result
+
+-- | Parser pour la boucle "for"
+parseForLoop :: Parser GomExpr
+parseForLoop = do
+    _ <- parseSymbol  -- Le mot-clé "for"
+    _ <- parseChar '('
+    loopVariable <- parseSymbol
+    _ <- parseChar ':'
+    startValue <- parseNumber
+    _ <- parseChar ';'
+    endCondition <- parseSymbol  -- Vous devrez créer un parser pour les conditions
+    _ <- parseChar ';'
+    _ <- parseSymbol  -- L'incrémentation (par exemple, "i++")
+    _ <- parseChar ')'
+    body <- parseBody
+    return $ Statements [Symbol "for", loopVariable, startValue, endCondition, body]
+
+-- | Pour gérer une liste d'expressions
+parseExpressionList :: Parser GomExpr
+parseExpressionList = List <$> parseContent '(' ')' parseGomExpr
+
+-- | Ensuite, vous pouvez combiner tous ces parsers pour gérer la structure de votre langage
+parseGomExpr :: Parser GomExpr
+parseGomExpr = parseFunctionDeclaration <|> parseFunctionCall <|> parseForLoop <|> parseExpressionList
 
 -- | Parse code to return GomExpr
 parseCodeToGomExpr :: Parser [GomExpr]
-parseCodeToGomExpr = parseMany (Statements <$> parseGomExpr)
+parseCodeToGomExpr = parseMany parseGomExpr
+
