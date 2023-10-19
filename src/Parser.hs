@@ -6,13 +6,13 @@
 -}
 
 module Parser (
-    ErrorMsg, parseCodeToSExpr, Parser(..), parseChar, parseAnyChar, parseOr,
+    ErrorMsg, parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
     ,parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
-    parseUntilAny, parseComment, parseSExpr
+    parseUntilAny, parseComment, parseGomExpr
 ) where
 import Control.Applicative (Alternative(..))
-import Ast (SExpr(..))
+import Ast (GomExpr(..))
 
 type ErrorMsg = String
 
@@ -129,27 +129,27 @@ parseContent open close parser = do
     _ <- parseChar close
     return result
 
--- | Parse a symbol as string and return a SExpr
-parseSymbol :: Parser SExpr
+-- | Parse a symbol as string and return a GomExpr
+parseSymbol :: Parser GomExpr
 parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
 
--- | Parse a number and return a SExpr
-parseNumber :: Parser SExpr
+-- | Parse a number and return a GomExpr
+parseNumber :: Parser GomExpr
 parseNumber = Number <$> parseInt
 
--- | Parse a boolean and return a SExpr
-parseBoolean :: Parser SExpr
+-- | Parse a boolean and return a GomExpr
+parseBoolean :: Parser GomExpr
 parseBoolean = do
     _ <- parseChar '#'
     parsed <- parseAnyChar "tf"
     return (Boolean (parsed == 't'))
 
--- | parse Atom (bool / Number / Symbol) and return a SExpr
-parseAtom :: Parser SExpr
+-- | parse Atom (bool / Number / Symbol) and return a GomExpr
+parseAtom :: Parser GomExpr
 parseAtom =  parseBoolean <|> parseNumber <|> parseSymb
 
--- | parse multiple Atoms (bool / Number / Symbol) and return a list of SExprl
-parseMultipleAtom :: Parser [SExpr]
+-- | parse multiple Atoms (bool / Number / Symbol) and return a list of GomExprl
+parseMultipleAtom :: Parser [GomExpr]
 parseMultipleAtom = parseSome parseAtom
 
 -- parse until any of the given characters is found
@@ -167,17 +167,17 @@ parseComment = do
     _ <- parseChar '/' <*> parseChar '/'
     parseUntilAny "\n"
 
--- | parse everything between { and } and return a list of SExpr
-parseBody :: Parser [SExpr]
-parseBody = Body <$> parseContent '{' '}' parseSExpr
+-- | parse everything between { and } and return a list of GomExpr
+parseBody :: Parser [GomExpr]
+parseBody = Body <$> parseContent '{' '}' parseGomExpr
 
--- | parse everything between ( and ) and return a list of SExpr
-parseList :: Parser [SExpr]
-parseList = List <$> parseContent '(' ')' parseSExpr
+-- | parse everything between ( and ) and return a list of GomExpr
+parseList :: Parser [GomExpr]
+parseList = List <$> parseContent '(' ')' parseGomExpr
 
--- | Parse SExpr
-parseSExpr :: Parser [SExpr]
-parseSExpr = do
+-- | Parse GomExpr
+parseGomExpr :: Parser [GomExpr]
+parseGomExpr = do
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
     _ <- parseMany (parseComment)
     parsed <- parseMultipleAtom <|> parseBody <|> parseList
@@ -185,6 +185,6 @@ parseSExpr = do
     _ <- parseMany (parseComment)
     return parsed
 
--- | Parse code to return SExpr
-parseCodeToSExpr :: Parser [SExpr]
-parseCodeToSExpr = parseMany (Instructions <$> parseSExpr)
+-- | Parse code to return GomExpr
+parseCodeToGomExpr :: Parser [GomExpr]
+parseCodeToGomExpr = parseMany (Statements <$> parseGomExpr)

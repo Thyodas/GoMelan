@@ -1,11 +1,11 @@
 module ParserTest (parserTestList) where
-import Ast (SExpr(..))
+import Ast (GomExpr(..))
 import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseMany, parseSome, parseInt, parsePair, parseList, Parser, runParser,
     parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
-    parseUntilAny, parseComment, parseSExpr, parseCodeToSExpr)
+    parseUntilAny, parseComment, parseGomExpr, parseCodeToGomExpr)
 
 testParseChar :: Test
 testParseChar = TestList
@@ -230,17 +230,17 @@ testParseComment = TestCase $ assertEqual "parseComment valid" expected result
         result = runParser parseComment "; this is a comment\n"
         expected = Right (" this is a comment", "\n")
 
-testParseSExpr :: Test
-testParseSExpr = TestCase $ assertEqual "parseSExpr valid" expected result
+testParseGomExpr :: Test
+testParseGomExpr = TestCase $ assertEqual "parseGomExpr valid" expected result
     where
-        result = runParser parseSExpr "(+ 1 2)"
+        result = runParser parseGomExpr "(+ 1 2)"
         expected = Right (List [Symbol "+", Number 1, Number 2], "")
 
 
-testParseCodeToSExpr :: Test
-testParseCodeToSExpr = TestCase $ assertEqual "parseCodeToSExpr valid" expected result
+testParseCodeToGomExpr :: Test
+testParseCodeToGomExpr = TestCase $ assertEqual "parseCodeToGomExpr valid" expected result
     where
-        result = runParser parseCodeToSExpr "(+ 1 2)"
+        result = runParser parseCodeToGomExpr "(+ 1 2)"
         expected = Right ([List [Symbol "+", Number 1, Number 2]], "")
 
 testEmpty :: Test
@@ -285,7 +285,7 @@ parserTestList = TestList [
     testParseAtom,
     testParseComment,
     testParseUntilAny,
-    testParseCodeToSExpr,
+    testParseCodeToGomExpr,
     testEmpty,
-    testParseSExpr
+    testParseGomExpr
     ]
