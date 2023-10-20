@@ -4,7 +4,7 @@ import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseMany, parseSome, parseInt, parsePair, parseList, Parser, runParser,
-    parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
+    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
     parseUntilAny, parseComment, parseGomExpr, parseCodeToGomExpr)
 
 testParseChar :: Test
@@ -128,28 +128,28 @@ testParseSomeFail = TestCase $ assertEqual "parseSome valid" expected result
         result = runParser (parseSome (parseAnyChar ['0'..'9'])) "foobar42"
         expected = Left "Expected one of '0123456789' but got 'f'."
 
-testParseInt :: Test
-testParseInt = TestCase $ assertEqual "parseInt valid" expected result
+testparseNumber :: Test
+testparseNumber = TestCase $ assertEqual "parseNumber valid" expected result
     where
-        result = runParser (parseInt :: Parser Int) "42foobar"
+        result = runParser (parseNumber :: Parser Int) "42foobar"
         expected = Right (42, "foobar")
 
 testParseIntTwo :: Test
-testParseIntTwo = TestCase $ assertEqual "parseInt valid two" expected result
+testParseIntTwo = TestCase $ assertEqual "parseNumber valid two" expected result
     where
-        result = runParser (parseInt :: Parser Int) "+100"
+        result = runParser (parseNumber :: Parser Int) "+100"
         expected = Right (100, "")
 
 testParseIntNegative :: Test
-testParseIntNegative = TestCase $ assertEqual "parseInt negative" expected result
+testParseIntNegative = TestCase $ assertEqual "parseNumber negative" expected result
     where
-        result = runParser (parseInt :: Parser Int) "-42foobar"
+        result = runParser (parseNumber :: Parser Int) "-42foobar"
         expected = Right (-42, "foobar")
 
 testParseIntFail :: Test
-testParseIntFail = TestCase $ assertEqual "parseInt fail" expected result
+testParseIntFail = TestCase $ assertEqual "parseNumber fail" expected result
     where
-        result = runParser (parseInt :: Parser Int) "foobar"
+        result = runParser (parseNumber :: Parser Int) "foobar"
         expected = Left "Expected one of '0123456789' but got 'f'."
 
 testParsePair :: Test
@@ -182,10 +182,10 @@ testParserTokenChar = TestCase $ assertEqual "all characters valid" expected res
         result = parserTokenChar
         expected = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*/<>=?"
 
-testParseSymbol :: Test
-testParseSymbol = TestCase $ assertEqual "parseSymbol valid" expected result
+testparseIdentifier :: Test
+testparseIdentifier = TestCase $ assertEqual "parseIdentifier valid" expected result
     where
-        result = runParser parseSymbol "foobar"
+        result = runParser parseIdentifier "foobar"
         expected = Right (Symbol "foobar", "")
 
 testParseNumber :: Test
@@ -279,7 +279,7 @@ parserTestList = TestList [
     testParseList,
     testParseListFail,
     testParserTokenChar,
-    testParseSymbol,
+    testparseIdentifier,
     testParseNumber,
     testParseBoolean,
     testParseAtom,

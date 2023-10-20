@@ -29,9 +29,11 @@ module Ast (
 import Data.List (deleteBy, find)
 
 data GomExpr = Number Int
-    | Symbol String
+    | Identifier String
     | Boolean Bool
     | Statements [GomExpr]
+    | Operator String
+    | Term [GomExpr]
     | List [GomExpr]
     | Body [GomExpr]
     | Function { fnName :: GomExpr, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }

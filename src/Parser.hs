@@ -8,7 +8,7 @@
 -- module Parser (
 --     ErrorMsg, parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
 --     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
---     ,parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
+--     ,parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
 --     parseUntilAny, parseComment, parseGomExpr, parseBody
 -- ) where
 module Parser where
@@ -59,7 +59,7 @@ parserWhitespaceChar = " \n\t"
 
 -- | Parse tocken return string
 parserTokenChar :: String
-parserTokenChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_+-*/<>=?"
+parserTokenChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_"
 
 -- | Parse specific char passed in arg and return a parser
 parseChar :: Char -> Parser Char
@@ -69,6 +69,101 @@ parseChar char = Parser $ \str -> case str of
                 ++ "' but got '" ++ [x] ++ "'.")
     [] -> Left ("Expected '" ++ [char] ++ "' but got empty string.")
 
+-- | Parse between x until x
+parseBetween :: Char -> Char -> Parser String
+parseBetween a b = parseChar a *> parseUntilAny b
+
+-- | Parse characters bewteen " and "
+parseString :: Parser String
+parseString = parseBetween '"' '"'
+
+-- Parse a return statement
+parseReturnStatement :: Parser GomExpr
+parseReturnStatement = do
+    _ <- parseSymbol "return"
+    expression <- parseExpression
+    _ <- parseChar ';'
+    return expression
+
+-- Parse an expression
+parseExpression :: Parser GomExpr
+parseExpression = parseTermWithOperator <|> parseTermWithoutOperator
+
+-- Parse a term with a binary operator and another expression
+parseTermWithOperator :: Parser GomExpr
+parseTermWithOperator = do
+    term <- parseTerm
+    operator <- parseBinaryOperator
+    expression <- parseExpression
+    return $ case operator of
+        Symbol "+" -> Function (Symbol "+") term expression
+        Symbol "-" -> Function (Symbol "-") term expression
+        Symbol "*" -> Function (Symbol "*") term expression
+        Symbol "/" -> Function (Symbol "/") term expression
+        _          -> expression
+
+-- Parse a term without a binary operator
+parseTermWithoutOperator :: Parser GomExpr
+parseTermWithoutOperator = parseTerm
+
+-- Parse a term
+parseTerm :: Parser GomExpr
+parseTerm = parseFactorWithOperator <|> parseFactorWithoutOperator
+
+-- Parse a factor with a binary operator and another term
+parseFactorWithOperator :: Parser GomExpr
+parseFactorWithOperator = do
+    factor <- parseFactor
+    operator <- parseBinaryOperator
+    term <- parseTerm
+    return $ case operator of
+        Symbol "+" -> Function (Symbol "+") factor term
+        Symbol "-" -> Function (Symbol "-") factor term
+        Symbol "*" -> Function (Symbol "*") factor term
+        Symbol "/" -> Function (Symbol "/") factor term
+        _          -> term
+
+-- Parse a factor without a binary operator
+parseFactorWithoutOperator :: Parser GomExpr
+parseFactorWithoutOperator = parseFactorfldnGlorenljbBHgre
+
+parseFactor :: 
+
+handleOtherCases :: Parser String
+handleOtherCases = Parser $ \str -> Left ("Expected a binary operator, but got '" ++ take 1 str ++ "'.")
+
+parseBinaryOperator :: Parser GomExpr
+parseBinaryOperator = Operator <$> (parsePlus <|> parseMinus <|> parseMultiply <|> parseDivide <|> parseEqual <|> parseNotEqual <|> handleOtherCases)
+
+parseSymbol :: String -> Parser String
+parseSymbol [] -> Left ("Expected '" ++ [char] ++ "' but got empty string.")
+parseSymbol [x] = parseChar x
+parseSymbol (x:xs) = parseChar x <*> parseSymbol xs
+
+parseOperatorPlus :: Parser String
+parseOperatorPlus = parseSymbol "+"
+
+parseOperatorMinus :: Parser String
+parseOperatorMinus = parseSymbol "-"
+
+parseOperatorMultiply :: Parser String
+parseOperatorMultiply = parseSymbol "*"
+
+parseOperatorDivide :: Parser String
+parseOperatorDivide = parseSymbol "/"
+
+parseOperatorEqual :: Parser String
+parseOperatorEqual = parseSymbol "=="
+
+parseOperatorNotEqual :: Parser String
+parseOperatorNotEqual = parseSymbol "!="
+
+parseOperatorNot :: Parser String
+parseOperatorNot :: parseSymbol "!"
+
+parseOperatorAnd :: Parser String
+parseOperatorAnd :: parseSymbol "&&"
+
 -- | Parse specific char of a string passed in arg and return a parser return a parser
 parseAnyChar :: String -> Parser Char
 parseAnyChar toFind = Parser $ \str -> case str of
@@ -76,6 +171,10 @@ parseAnyChar toFind = Parser $ \str -> case str of
              | otherwise -> Left ("Expected one of '" ++ toFind
                 ++ "' but got '" ++ [x] ++ "'.")
     [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
+
+-- |
+ParseLiteral :: Parser
+ParseLiteral = parseNumber <|> parseString <|> parseBoolean
 
 -- | Takes two parser in arg, try to apply the first one if fail try the second and return a parser if one success
 parseOr :: Parser a -> Parser a -> Parser a
@@ -104,8 +203,8 @@ parseUInt :: Parser Int
 parseUInt = read <$> parseSome (parseAnyChar ['0'..'9'])
 
 -- | Parse integer and return int
-parseInt :: Parser Int
-parseInt = negate <$> (parseChar '-' *> parseUInt)
+parseNumber :: Parser Int
+parseNumber = negate <$> (parseChar '-' *> parseUInt)
     <|> (parseChar '+' *> parseUInt)
     <|> parseUInt
 
@@ -131,8 +230,8 @@ parseContent open close parser = do
     return result
 
 -- | Parse a symbol as string and return a GomExpr
-parseSymbol :: Parser GomExpr
-parseSymbol = Symbol <$> parseSome (parseAnyChar parserTokenChar)
+parseIdentifier :: Parser GomExpr
+parseIdentifier = Symbol <$> parseSome (parseAnyChar parserTokenChar)
 
 -- | Parse a number and return a GomExpr
 parseNumber :: Parser GomExpr
@@ -141,13 +240,12 @@ parseNumber = Number <$> parseInt
 -- | Parse a boolean and return a GomExpr
 parseBoolean :: Parser GomExpr
 parseBoolean = do
-    _ <- parseChar '#'
-    parsed <- parseAnyChar "tf"
-    return (Boolean (parsed == 't'))
+    parsed <- parseSymbol "True" <|> parseSymbol "False"
+    return (Boolean (parsed == "True"))
 
 -- | parse Atom (bool / Number / Symbol) and return a GomExpr
 parseAtom :: Parser GomExpr
-parseAtom =  parseBoolean <|> parseNumber <|> parseSymbol
+parseAtom =  parseBoolean <|> parseNumber <|> parseIdentifier
 
 -- | parse multiple Atoms (bool / Number / Symbol) and return a list of GomExprl
 parseMultipleAtom :: Parser GomExpr
@@ -175,11 +273,11 @@ parseList = List <$> parseContent '(' ')' parseGomExpr
 -- Parser pour une déclaration de variable
 parseVariableDeclaration :: Parser GomExpr
 parseVariableDeclaration = do
-    variableName <- parseAmongWhitespace $ parseSymbol
+    variableName <- parseAmongWhitespace $ parseIdentifier
     _ <- parseChar ':'
-    variableType <- parseAmongWhitespace $ (parseType <|> parseList)
+    variableType <- parseAmongWhitespace $ parseIdentifier
     _ <- parseChar '='
-    variableValue <- parseAmongWhitespace $ parseSymbol
+    variableValue <- parseAmongWhitespace $ parseIdentifier
     _ <- parseChar ';'
     return $ Statements [Symbol "var", variableName, variableType, variableValue]
 
@@ -195,11 +293,11 @@ parseBody = do
 -- Parser pour une déclaration de fonction
 parseFunctionDeclaration :: Parser GomExpr
 parseFunctionDeclaration = do
-    _ <- parseAmongWhitespace parseSymbol  -- Le mot-clé "fn"
-    functionName <- parseAmongWhitespace parseSymbol
+    _ <- parseAmongWhitespace parseIdentifier  -- Le mot-clé "fn"
+    functionName <- parseAmongWhitespace parseIdentifier
     arguments <- parseAmongWhitespace $ parseList
     _ <- parseAmongWhitespace $ parseChar '-' *> parseChar '>'
-    returnType <- parseAmongWhitespace $ parseSymbol
+    returnType <- parseAmongWhitespace $ parseIdentifier
     --_ <- parseAmongWhitespace $ parseChar '{'
     body <- parseAmongWhitespace $ parseBody
     --_ <- parseAmongWhitespace $ parseChar '}'
@@ -208,7 +306,7 @@ parseFunctionDeclaration = do
 -- | Parser pour un appel de fonction
 parseFunctionCall :: Parser GomExpr
 parseFunctionCall = do
-    functionName <- parseSymbol
+    functionName <- parseIdentifier
     _ <- parseChar '('
     -- Parsez les arguments ici (vous devrez créer un parser spécifique pour cela)
     _ <- parseChar ')'
@@ -224,15 +322,15 @@ parseAmongWhitespace parser = do
 -- | Parser pour la boucle "for"
 parseForLoop :: Parser GomExpr
 parseForLoop = do
-    _ <- parseSymbol  -- Le mot-clé "for"
+    _ <- parseIdentifier  -- Le mot-clé "for"
     _ <- parseChar '('
-    loopVariable <- parseSymbol
+    loopVariable <- parseIdentifier
     _ <- parseChar ':'
     startValue <- parseNumber
     _ <- parseChar ';'
-    endCondition <- parseSymbol  -- Vous devrez créer un parser pour les conditions
+    endCondition <- parseIdentifier  -- Vous devrez créer un parser pour les conditions
     _ <- parseChar ';'
-    _ <- parseSymbol  -- L'incrémentation (par exemple, "i++")
+    _ <- parseIdentifier  -- L'incrémentation (par exemple, "i++")
     _ <- parseChar ')'
     body <- parseBody
     return $ Statements [Symbol "for", loopVariable, startValue, endCondition, body]
