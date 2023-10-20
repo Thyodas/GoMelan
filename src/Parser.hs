@@ -5,12 +5,13 @@
 -- Parser
 -}
 
-module Parser (
-    ErrorMsg, parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
-    parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
-    ,parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
-    parseUntilAny, parseComment, parseGomExpr
-) where
+-- module Parser (
+--     ErrorMsg, parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
+--     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
+--     ,parserTokenChar, parseSymbol, parseNumber, parseBoolean, parseAtom,
+--     parseUntilAny, parseComment, parseGomExpr, parseBody
+-- ) where
+module Parser where
 import Control.Applicative (Alternative(..))
 import Ast (GomExpr(..))
 
@@ -167,15 +168,31 @@ parseComment = do
     _ <- parseChar '/' *> parseChar '/'
     parseUntilAny "\n"
 
--- | parse everything between { and } and return a list of GomExpr
-parseBody :: Parser GomExpr
-parseBody = Body <$> parseContent '{' '}' parseGomExpr
-
 -- | parse everything between ( and ) and return a list of GomExpr
 parseList :: Parser GomExpr
 parseList = List <$> parseContent '(' ')' parseGomExpr
 
--- | Parser pour une déclaration de fonction
+-- Parser pour une déclaration de variable
+parseVariableDeclaration :: Parser GomExpr
+parseVariableDeclaration = do
+    variableName <- parseAmongWhitespace $ parseSymbol
+    _ <- parseChar ':'
+    variableType <- parseAmongWhitespace $ (parseType <|> parseList)
+    _ <- parseChar '='
+    variableValue <- parseAmongWhitespace $ parseSymbol
+    _ <- parseChar ';'
+    return $ Statements [Symbol "var", variableName, variableType, variableValue]
+
+-- | parse everything between { and } and return a list of GomExpr
+parseBody :: Parser GomExpr
+parseBody = do
+    _ <- parseChar '{'
+    result <- parseAmongWhitespace $ parseMany (parseVariableDeclaration <|> parseGomExpr)
+    _ <- parseChar '}'
+    return $ Body result
+--parseBody = Body <$> parseMany (parseVariableDeclaration <|> parseGomExpr)
+
+-- Parser pour une déclaration de fonction
 parseFunctionDeclaration :: Parser GomExpr
 parseFunctionDeclaration = do
     _ <- parseAmongWhitespace parseSymbol  -- Le mot-clé "fn"
@@ -226,7 +243,7 @@ parseExpressionList = List <$> parseContent '(' ')' parseGomExpr
 
 -- | Ensuite, vous pouvez combiner tous ces parsers pour gérer la structure de votre langage
 parseGomExpr :: Parser GomExpr
-parseGomExpr = parseFunctionDeclaration <|> parseFunctionCall <|> parseForLoop <|> parseExpressionList
+parseGomExpr = parseFunctionDeclaration
 
 -- | Parse code to return GomExpr
 parseCodeToGomExpr :: Parser [GomExpr]
