@@ -10,12 +10,16 @@ import System.Exit
 import AstTest (astTestList)
 import ParserTest (parserTestList)
 import ExecutionTest (executionTestList)
+import VirtualMachine.VmExecTest (vmExecTestList)
+import VirtualMachine.VmBytecodeTest (vmBytecodeTestList)
 
 testList :: Test
 testList = TestList [
     astTestList,
     parserTestList,
-    executionTestList
+    executionTestList,
+    vmExecTestList,
+    vmBytecodeTestList
     ]
 
 main :: IO ()

@@ -1,0 +1,28 @@
+include * from math
+include (getEnv, getArgs) from process
+
+fn multiply(a: Int, b: Int) -> Int
+{
+    result: Int = a * b;
+    table: [Int] = [a, b];
+    x: Int, y: Int = table;
+    return result;
+}
+
+fn main() -> Int: default 0
+{
+    let args: [String] = getArgs();
+
+    for (arg in args) {
+        print(arg);
+    }
+
+    a: Int;
+    b: Int;
+    for (i: Int = 0 ; i < args.len() ; i++) {
+        a = strToInt(arg[i]);
+        b = strToInt(arg[i]) + 10;
+        print(multiply(a, b));
+    }
+    return 0;
+}

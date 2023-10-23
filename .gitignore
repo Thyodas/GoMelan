@@ -7,6 +7,9 @@ stack.yaml.lock
 *.pdf
 .idea/
 glados.iml
+coding-style-reports.log
+*.bin
+
 dist-newstyle/cache/
 
 node_modules/
