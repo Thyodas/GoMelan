@@ -100,6 +100,7 @@ parseTermWithOperator = do
         Symbol "-" -> Function (Symbol "-") term expression
         Symbol "*" -> Function (Symbol "*") term expression
         Symbol "/" -> Function (Symbol "/") term expression
+        Symbol "%" -> Function (Symbol "%") term expression
         _          -> expression
 
 -- Parse a term without a binary operator
@@ -121,13 +122,12 @@ parseFactorWithOperator = do
         Symbol "-" -> Function (Symbol "-") factor term
         Symbol "*" -> Function (Symbol "*") factor term
         Symbol "/" -> Function (Symbol "/") factor term
+        Symbol "%" -> Function (Symbol "%") factor term
         _          -> term
 
 -- Parse a factor without a binary operator
 parseFactorWithoutOperator :: Parser GomExpr
 parseFactorWithoutOperator = parseFactorfldnGlorenljbBHgre
-
-parseFactor :: 
 
 handleOtherCases :: Parser String
 handleOtherCases = Parser $ \str -> Left ("Expected a binary operator, but got '" ++ take 1 str ++ "'.")
@@ -173,8 +173,8 @@ parseAnyChar toFind = Parser $ \str -> case str of
     [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
 
 -- |
-ParseLiteral :: Parser
-ParseLiteral = parseNumber <|> parseString <|> parseBoolean
+parseLiteral :: Parser
+parseLiteral = parseNumber <|> parseString <|> parseBoolean
 
 -- | Takes two parser in arg, try to apply the first one if fail try the second and return a parser if one success
 parseOr :: Parser a -> Parser a -> Parser a
@@ -265,6 +265,73 @@ parseComment :: Parser String
 parseComment = do
     _ <- parseChar '/' *> parseChar '/'
     parseUntilAny "\n"
+
+-- Parse an if statement
+parseCondition :: Parser GomExpr
+parseCondition = do
+    _ <- parseAmongWhitespace (parseString "if")
+    _ <- parseChar '('
+    condition <- parseExpression
+    _ <- parseChar ')'
+    thenBlock <- parseBlock
+    maybeElseBlock <- parseOptionalElseBlock
+    return $ case maybeElseBlock of
+        Nothing -> Statements [Symbol "if", condition, thenBlock]
+        Just elseBlock -> Statements [Symbol "if", condition, thenBlock, Symbol "else", elseBlock]
+
+-- Parse an optional else block
+parseOptionalElseBlock :: Parser (Maybe GomExpr)
+parseOptionalElseBlock = parseElseBlock <|> pure Nothing
+
+-- Parse an else block
+parseElseBlock :: Parser (Maybe GomExpr)
+parseElseBlock = do
+    _ <- parseAmongWhitespace (parseString "else")
+    elseBlock <- parseBlock
+    return (Just elseBlock)
+
+
+parseIncludeList :: Parser GomExpr
+parseIncludeList = parseIncludeStatement <|> parseIncludeStatement <*> parseIncludeList
+
+-- Parse an include statement
+parseIncludeStatement :: Parser GomExpr
+parseIncludeStatement = do
+    _ <- parseAmongWhitespace (parseString "include")
+    include <- parseIdentifier
+    _ <- parseAmongWhitespace (parseString "from")
+    moduleName <- parseModule
+    _ <- parseChar ';'
+    return $ Statements [Identifier "include", Symbol include, Identifier "from", moduleName]
+
+-- Parse an include statement with an import list
+parseIncludeStatementWithList :: Parser GomExpr
+parseIncludeStatementWithList = do
+    _ <- parseAmongWhitespace (parseString "include")
+    _ <- parseChar '('
+    importList <- parseImportList
+    _ <- parseChar ')'
+    _ <- parseAmongWhitespace (parseString "from")
+    moduleName <- parseModule
+    _ <- parseChar ';'
+    return $ Statements [Identifier "include", List importList, Identifier "from", moduleName]
+
+parseModule :: Parser GomExpr
+parseModule = parseIdentifier
+
+parseImportList :: Parser Gomexpr
+parseImportList = parseImportIdentifier <|> List <$> parseImportIdentifier <*> parseAmongWhitespace *> parseChar ',' *> parseImportList
+
+parseImportIdentifier :: Parser GomExpr
+parseImportIdentifier = parseIdentifier
+
+-- parse a declare type by user
+parseCustomType :: Parser GomExpr
+parseCustomType = parseIdentifier
+
+-- Parse the return identifier at the end of a fct
+parseReturnType :: Parser GomExpr
+parseReturnType = parseIdentifier
 
 -- | parse everything between ( and ) and return a list of GomExpr
 parseList :: Parser GomExpr

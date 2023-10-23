@@ -1,0 +1,87 @@
+<include-list> ::= <include-statement> | <include-statement> <include-list> T Ok
+
+<include-statement> ::= "include" "*" "from" <module> ";" | "include" "(" <import-list> ")" "from" <module> ";" T Ok
+
+<module> ::= <identifier> T Ok
+
+<import-list> ::= <import-identifier> | <import-identifier> "," <import-list> T Ok
+
+<import-identifier> ::= <identifier> T Ok
+
+<function-declaration> ::= "fn" <function-name> "(" <parameter-list> ")" "->" <return-type> <block> M Ok
+
+<function-name> ::= <identifier> M ok
+
+<parameter-list> ::= <parameter> | <parameter> "," <parameter-list> M OK
+
+<parameter> ::= <identifier> ":" <type> M OK
+
+<return-type> ::= <type> T OK
+
+<type> ::= "Int" | "String" | "Bool" | "[" <type> "]" | <custom-type> M OK
+
+<custom-type> ::= <identifier> T Ok
+
+<block> ::= "{" <statement-list> "}" Tr
+
+<statement-list> ::= <statement> | <statement> <statement-list> Tr
+
+<statement> ::= <variable-declaration> | <assignment> | <for-loop> | <print-statement> | <return-statement> Tr
+
+<variable-declaration> ::= <identifier> ":" <type> "=" <expression> ";" M OK
+
+<condition> ::= "if" "(" <expression> ")" <block> | "if" "(" <expression> ")" <block> "else" <block>
+
+<for-loop> ::= <for-loop-iter> | <for-loop-in> M OK
+
+<for-loop-in> ::= "for" "(" <identifier> "in" <expression> ")" <block> T
+
+<for-loop-iter> ::= "for" "(" <for-loop-initialization> ";" <for-loop-condition> ";" <for-loop-update> ")" <block> T
+
+<for-loop-initialization> ::= <variable-declaration> | <assignment> | <empty> M OK
+
+<for-loop-condition> ::= <expression> M OK
+
+<for-loop-update> ::= <assignment> | <empty> M OK
+
+<assignment> ::= <identifier> "=" <expression> ";" TM OK
+
+<print-statement> ::= "print" "(" <expression> ")" ";" M OK
+
+<return-statement> ::= "return" <expression> ";" T Ok
+
+<expression> ::= <term> | <term> <binary-operator> <expression> T Ok
+
+<term> ::= <factor> | <term> <binary-operator> <term> T ex = 5 | 5 + 10 Ok
+
+<factor> ::= <identifier> | <literal> | "(" <expression> ")" L
+
+<literal> ::= <number> | <string> | "true" | "false" M Ok
+
+<number> ::= <digit>+ T OK, parseInt -> parseNumber
+
+<string> ::= '"' <characters> '"' M OK
+
+<identifier> ::= (valid identifier) T OK Anciennement parseSymbol
+
+<binary-operator> ::= "+" | "-" | "*" | "/" | "==" | "!=" | ... L Ok
+
+<empty> ::= epsilon
+
+fn main() -> int
+{
+    args: [String] = getArgs();
+
+    for (arg in args) {
+        print(arg);
+    }
+
+    a: Int;
+    b: Int;
+    for (i: Int = 0 ; i < args.len() ; i++) {
+        a = strToInt(arg[i]);
+        b = strToInt(arg[i]) + 10;
+        print(multiply(a, b));
+    }
+    return 0;
+}
