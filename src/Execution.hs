@@ -11,7 +11,7 @@ import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..))
 import Ast (Ast, evalAST, EvalResult (..), gomexprToAST,
     EvalError(..), Env)
 
--- | Check list 
+-- | Check list
 evalList :: Env -> [Ast] -> EvalResult (Env, [Ast])
 evalList env [] = pure (env, [])
 evalList env (ast:rest) = do

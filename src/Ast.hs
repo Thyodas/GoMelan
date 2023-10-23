@@ -36,6 +36,7 @@ data GomExpr = Number Int
     | Term [GomExpr]
     | List [GomExpr]
     | Body [GomExpr]
+    | Empty
     | Function { fnName :: GomExpr, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
     deriving (Show, Eq)
 
