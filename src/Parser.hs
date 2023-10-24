@@ -70,12 +70,12 @@ parseChar char = Parser $ \str -> case str of
     [] -> Left ("Expected '" ++ [char] ++ "' but got empty string.")
 
 -- | Parse between x until x
-parseBetween :: Char -> Char -> Parser String
-parseBetween a b = parseChar a *> parseUntilAny b
+parseBetween :: Char -> Char -> Parser GomExpr
+parseBetween a b = Identifier <$> (parseChar a *> parseUntilAny [b])
 
 -- | Parse characters bewteen " and "
-parseString :: Parser String
-parseString = parseBetween '"' '"' parseUntilAny '"'
+parseString :: Parser GomExpr
+parseString = parseBetween '"' '"'
 
 -- | Parse a return statement
 parseReturnStatement :: Parser GomExpr
@@ -96,11 +96,11 @@ parseTermWithOperator = do
     operator <- parseBinaryOperator
     expression <- parseExpression
     return $ case operator of
-        Identifier "+" -> Function (Identifier "+") term expression
-        Identifier "-" -> Function (Identifier "-") term expression
-        Identifier "*" -> Function (Identifier "*") term expression
-        Identifier "/" -> Function (Identifier "/") term expression
-        Identifier "%" -> Function (Identifier "%") term expression
+        Identifier "+" -> Statements [(Identifier "+"), term, expression]
+        Identifier "-" -> Statements [(Identifier "-"), term, expression]
+        Identifier "*" -> Statements [(Identifier "*"), term, expression]
+        Identifier "/" -> Statements [(Identifier "/"), term, expression]
+        Identifier "%" -> Statements [(Identifier "%"), term, expression]
         _          -> expression
 
 -- | Parse a term without a binary operator
@@ -118,15 +118,16 @@ parseFactorWithOperator = do
     operator <- parseBinaryOperator
     term <- parseTerm
     return $ case operator of
-        Identifier "+" -> Function (Identifier "+") factor term
-        Identifier "-" -> Function (Identifier "-") factor term
-        Identifier "*" -> Function (Identifier "*") factor term
-        Identifier "/" -> Function (Identifier "/") factor term
-        Identifier "%" -> Function (Identifier "%") factor term
+        Identifier "+" -> Statements [(Identifier "+"), factor, term]
+        Identifier "-" -> Statements [(Identifier "-"), factor, term]
+        Identifier "*" -> Statements [(Identifier "*"), factor, term]
+        Identifier "/" -> Statements [(Identifier "/"), factor, term]
+        Identifier "%" -> Statements [(Identifier "%"), factor, term]
         _          -> term
 
 parseFactor :: Parser GomExpr
-parseFactor = parseIdentifier <|> parseLiteral <|> parseBetween '(' ')' parseExpression
+parseFactor = parseIdentifier <|> parseLiteral <|> parseBetween '(' ')'
+
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
 handleOtherCases = Parser $ \str -> Left ("Expected a binary operator, but got '" ++ take 1 str ++ "'.")
@@ -145,10 +146,10 @@ parseBinaryOperator = Operator <$> (parseOperatorPlus <|>
                 handleOtherCases)
 
 -- | Parse a given string
-parseSymbol :: String -> Parser String
-parseSymbol [] = Left ("Expected '" ++ [Char] ++ "' but got empty string.")
-parseSymbol [x] = parseChar x
-parseSymbol (x:xs) = parseChar x <*> parseSymbol xs
+parseSymbol :: String -> Parser GomExpr
+parseSymbol [x] = Identifier <$> parseChar [x]
+parseSymbol (x:xs) = parseChar [x] <*> parseSymbol xs
+
 
 -- | Parse operator ADD '+'
 parseOperatorPlus :: Parser String
