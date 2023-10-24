@@ -39,4 +39,3 @@ main = do
     args <- getArgs
     -- [path] <- exitOnError progName args
     startExecution args
-GomExpr
