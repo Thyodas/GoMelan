@@ -9,7 +9,7 @@
 --     ErrorMsg, parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
 --     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
 --     ,parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
---     parseUntilAny, parseComment, parseGomExpr, parseBody
+--     parseUntilAny, parseComment, parseGomExpr, parseBlock
 -- ) where
 module Parser where
 import Control.Applicative (Alternative(..))
@@ -109,7 +109,7 @@ parseTermWithoutOperator = parseTerm
 
 -- | Parse a term
 parseTerm :: Parser GomExpr
-parseTerm = parseFactorWithOperator <|> parseFactorWithoutOperator
+parseTerm = parseFactorWithOperator <|> parseFactor
 
 -- | Parse a factor with a binary operator and another term
 parseFactorWithOperator :: Parser GomExpr
@@ -125,10 +125,8 @@ parseFactorWithOperator = do
         Identifier "%" -> Function (Identifier "%") factor term
         _          -> term
 
---  | Parse a factor without a binary operator
-parseFactorWithoutOperator :: Parser GomExpr
-parseFactorWithoutOperator = parseFactorfldnGlorenljbBHgre
-
+parseFactor :: Parser GomExpr
+parseFactor = parseIdentifier <|> parseLiteral <|> parseBetween '(' ')' parseExpression
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
 handleOtherCases = Parser $ \str -> Left ("Expected a binary operator, but got '" ++ take 1 str ++ "'.")
@@ -148,7 +146,7 @@ parseBinaryOperator = Operator <$> (parseOperatorPlus <|>
 
 -- | Parse a given string
 parseSymbol :: String -> Parser String
-parseSymbol [] = Left ("Expected '" ++ [char] ++ "' but got empty string.")
+parseSymbol [] = Left ("Expected '" ++ [Char] ++ "' but got empty string.")
 parseSymbol [x] = parseChar x
 parseSymbol (x:xs) = parseChar x <*> parseSymbol xs
 
@@ -182,11 +180,11 @@ parseOperatorNotEqual = parseSymbol "!="
 
 -- | Parse operator NOT '!'
 parseOperatorNot :: Parser String
-parseOperatorNot :: parseSymbol "!"
+parseOperatorNot = parseSymbol "!"
 
 -- | Parse operator AND '&&'
 parseOperatorAnd :: Parser String
-parseOperatorAnd :: parseSymbol "&&"
+parseOperatorAnd = parseSymbol "&&"
 
 -- | Parse all type and even custom type
 parseType :: Parser GomExpr
@@ -214,7 +212,7 @@ parseAnyChar toFind = Parser $ \str -> case str of
     [] -> Left ("Expected one of '" ++ toFind ++ "' but got empty string.")
 
 -- | Parse a literal
-parseLiteral :: Parser
+parseLiteral :: Parser GomExpr
 parseLiteral = parseNumber <|> parseString <|> parseBoolean
 
 -- | Takes two parser in arg, try to apply the first one if fail try the second and return a parser if one success
@@ -300,8 +298,8 @@ parseForLoopUpdate :: Parser GomExpr
 parseForLoopUpdate = parseAssigment <|> Empty
 
 -- | Print an expression
-parsePrint :: Parser String
-parsePrint = parseGomExprlSymbol "print" *> parseChar '(' *> parseExpression <* parseChar ')'
+--parsePrint :: Parser String
+--parsePrint = parseGomExprlSymbol "print" *> parseChar '(' *> parseExpression <* parseChar ')'
 
 -- | Parse a boolean and return a GomExpr
 parseBoolean :: Parser GomExpr
@@ -415,13 +413,13 @@ parseVariableDeclaration = do
     return $ Statements [Identifier "var", variableName, variableType, variableValue]
 
 -- | parse everything between { and } and return a list of GomExpr
-parseBody :: Parser GomExpr
-parseBody = do
+parseBlock :: Parser GomExpr
+parseBlock = do
     _ <- parseChar '{'
     result <- parseAmongWhitespace $ parseMany (parseVariableDeclaration <|> parseGomExpr)
     _ <- parseChar '}'
     return $ Body result
---parseBody = Body <$> parseMany (parseVariableDeclaration <|> parseGomExpr)
+--parseBlock = Body <$> parseMany (parseVariableDeclaration <|> parseGomExpr)
 
 -- | Parse name of functions
 parseFunctionName :: Parser GomExpr
@@ -429,7 +427,7 @@ parseFunctionName = parseIdentifier
 
 -- | Parse function declaration
 -- parseFunctionDeclaration :: Parser GomExpr
--- parseFunctionDeclaration = parseSymbol "fn" *> parseAmongWhitespace *> parseFunctionName *> parseAmongWhitespace *> parseChar '(' *> parseAmongWhitespace *> parseParameterList *> parseAmongWhitespace *> parseChar ')' *> parseAmongWhitespace *> parseChar '-' *> parseSymbol "->" *> parseAmongWhitespace *> parseReturnType *> parseAmongWhitespace *> parseBody
+-- parseFunctionDeclaration = parseSymbol "fn" *> parseAmongWhitespace *> parseFunctionName *> parseAmongWhitespace *> parseChar '(' *> parseAmongWhitespace *> parseParameterList *> parseAmongWhitespace *> parseChar ')' *> parseAmongWhitespace *> parseChar '-' *> parseSymbol "->" *> parseAmongWhitespace *> parseReturnType *> parseAmongWhitespace *> parseBlock
 
 -- | Parser pour une déclaration de fonction
 parseFunctionDeclaration :: Parser GomExpr
