@@ -13,7 +13,7 @@
 -- ) where
 module Parser where
 import Control.Applicative (Alternative(..))
-import Ast (GomExpr(..))
+import Ast (GomExpr(..), GomExprType(..))
 
 type ErrorMsg = String
 
@@ -69,13 +69,17 @@ parseChar char = Parser $ \str -> case str of
                 ++ "' but got '" ++ [x] ++ "'.")
     [] -> Left ("Expected '" ++ [char] ++ "' but got empty string.")
 
--- | Parse between x until x
-parseBetween :: Char -> Char -> Parser GomExpr
-parseBetween a b = Identifier <$> (parseChar a *> parseUntilAny [b])
+-- Parse between two characters using a given parser
+parseBetween :: Char -> Char -> Parser a -> Parser a
+parseBetween open close parser = do
+    _ <- parseChar open
+    result <- parser
+    _ <- parseChar close
+    return result
 
 -- | Parse characters bewteen " and "
 parseString :: Parser GomExpr
-parseString = parseBetween '"' '"'
+parseString = GomString <$> (parseChar '"' *> parseUntilAny ['"'])
 
 -- | Parse a return statement
 parseReturnStatement :: Parser GomExpr
@@ -87,7 +91,7 @@ parseReturnStatement = do
 
 -- | Parse an expression
 parseExpression :: Parser GomExpr
-parseExpression = parseTermWithOperator <|> parseTermWithoutOperator
+parseExpression = Expression <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator <|> parseFactor <|> parseBetween '(' ')' parseExpression)
 
 -- | Parse a term with a binary operator and another expression
 parseTermWithOperator :: Parser GomExpr
@@ -109,7 +113,7 @@ parseTermWithoutOperator = parseTerm
 
 -- | Parse a term
 parseTerm :: Parser GomExpr
-parseTerm = parseFactorWithOperator <|> parseFactor
+parseTerm = Term <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator <|> parseFactor <|> parseBetween '(' ')' parseTerm)
 
 -- | Parse a factor with a binary operator and another term
 parseFactorWithOperator :: Parser GomExpr
@@ -118,15 +122,11 @@ parseFactorWithOperator = do
     operator <- parseBinaryOperator
     term <- parseTerm
     return $ case operator of
-        Identifier "+" -> Statements [(Identifier "+"), factor, term]
-        Identifier "-" -> Statements [(Identifier "-"), factor, term]
-        Identifier "*" -> Statements [(Identifier "*"), factor, term]
-        Identifier "/" -> Statements [(Identifier "/"), factor, term]
-        Identifier "%" -> Statements [(Identifier "%"), factor, term]
+        id@(Identifier _) -> Statements [id, factor, term]
         _          -> term
 
 parseFactor :: Parser GomExpr
-parseFactor = parseIdentifier <|> parseLiteral <|> parseBetween '(' ')'
+parseFactor = parseIdentifier <|> parseLiteral
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -146,9 +146,12 @@ parseBinaryOperator = Operator <$> (parseOperatorPlus <|>
                 handleOtherCases)
 
 -- | Parse a given string
-parseSymbol :: String -> Parser GomExpr
-parseSymbol [x] = Identifier <$> parseChar [x]
-parseSymbol (x:xs) = parseChar [x] <*> parseSymbol xs
+parseSymbol :: String -> Parser String
+parseSymbol [x] = (: []) <$> parseChar x
+parseSymbol (x:xs) = do
+    a <- (: []) <$> parseChar x
+    b <- parseSymbol xs
+    return (a ++ b)
 
 
 -- | Parse operator ADD '+'
@@ -189,20 +192,43 @@ parseOperatorAnd = parseSymbol "&&"
 
 -- | Parse all type and even custom type
 parseType :: Parser GomExpr
-parseType = parseSymbol "Int" <|>
-            parseSymbol "String" <|>
-            parseSymbol "Bool" <|>
-            parseBetween '[' ']' parseType <|>
-            parseCustomType
-            -- custom type ??
+parseType = Type <$> parseType'
+    where
+        parseType' :: Parser GomExprType
+        parseType' = SingleType <$> (parseSymbol "Int"
+                <|> parseSymbol "String" 
+                <|> parseSymbol "Bool")
+            <|> TypeList <$> (: []) <$> parseBetween '[' ']' parseType'
+            <|> parseCustomType
+
+-- | Parse a typed identifier
+parseTypedIdentifier :: Parser GomExpr
+parseTypedIdentifier = do
+    id <- parseIdentifier
+    _ <- parseAmongWhitespace $ parseChar ':'
+    idType <- parseAmongWhitespace $ parseType
+    return $ TypedIdentifier {identifier=id, identifierType=idType}
 
 -- | Parse a parameter
 parseParameter :: Parser GomExpr
-parseParameter = parseIdentifier *> parseAmongWhitespace <*> parseChar ':' *> parseAmongWhitespace <*> parseType
+parseParameter = parseTypedIdentifier
+
+-- | Apply parser on each element of a list separated by a char
+-- | Example: parseSep ',' "a,b,c,d" -> [a, b, c, d]
+-- | Note: you need to handle whitespaces yourself
+parseSep :: Char -> Parser a -> Parser [a]
+parseSep sep parser = parseMany (parseSep' sep parser)
+    where
+        parseSep' :: Char -> Parser a -> Parser a
+        parseSep' sep parser = do
+            result <- parser
+            _ <- parseChar sep <|> pure ' '
+            return result
+
 
 -- | Parse list of parameter
 parseParameterList :: Parser GomExpr
-parseParameterList = parseParameter <|> parseParameter *> parseAmongWhitespace *> parseChar ',' *> parseAmongWhitespace *> parseParameterList
+parseParameterList = ParameterList <$> parseSep ',' (parseAmongWhitespace parseParameter)
 
 -- | Parse specific char of a string passed in arg and return a parser
 parseAnyChar :: String -> Parser Char
@@ -214,7 +240,7 @@ parseAnyChar toFind = Parser $ \str -> case str of
 
 -- | Parse a literal
 parseLiteral :: Parser GomExpr
-parseLiteral = parseNumber <|> parseString <|> parseBoolean
+parseLiteral = (Number <$> parseNumber) <|> parseString <|> parseBoolean
 
 -- | Takes two parser in arg, try to apply the first one if fail try the second and return a parser if one success
 parseOr :: Parser a -> Parser a -> Parser a
@@ -269,26 +295,40 @@ parseContent open close parser = do
     _ <- parseChar close
     return result
 
+-- | Parse a token following parserTokenChar and return a string
+parseToken :: Parser String
+parseToken = parseSome (parseAnyChar parserTokenChar) 
+
 -- | Parse a symbol as string and return a GomExpr
 parseIdentifier :: Parser GomExpr
-parseIdentifier = Identifier <$> parseSome (parseAnyChar parserTokenChar)
+parseIdentifier = Identifier <$> parseToken
 
 -- | Parse variable / fonction assigment
 parseAssigment :: Parser GomExpr
-parseAssigment = parseIdentifier <*> parseChar '=' <*> parseExpression <*> parseChar ';'
+parseAssigment = do
+    identifier <- parseTypedIdentifier <|> parseIdentifier
+    _ <- parseAmongWhitespace $ parseChar '='
+    expression <- parseAmongWhitespace $ parseExpression
+    return $ Assignment {assignedIdentifier=identifier, assignedExpression=expression}
 
 -- | Parse for loop
-parseForLoop :: Parser GomExpr
-parseForLoop = parseSymbol "for" <*> parseAmongWhitespace *>
-               parseChar '(' <*> parseAmongWhitespace *>
-               parseForLoopInitialization <*> parseAmongWhitespace *>
-               parseChar ';' <*> parseForLoopCondition <*>
-               parseChar ';' <*> parseForLoopUpdate <*>
-               parseChar ')' <*> parseBlock
+parseForLoopIter :: Parser GomExpr
+parseForLoopIter = do
+    symbol <- parseSymbol "for"
+    _ <- parseAmongWhitespace $ parseChar '('
+    initialization <- parseAmongWhitespace parseForLoopInitialization
+    _ <- parseAmongWhitespace $ parseChar ';'
+    condition <- parseAmongWhitespace parseForLoopCondition
+    _ <- parseAmongWhitespace $ parseChar ';'
+    update <- parseAmongWhitespace parseForLoopUpdate
+    _ <- parseAmongWhitespace $ parseChar ')'
+    block <- parseAmongWhitespace parseBlock
+    return $ ForLoopIter {forLoopInitialization=initialization, forLoopCondition=condition,
+        forLoopUpdate=update, forLoopIterBlock=block}
 
 -- | Parse initialization part of a for loop
 parseForLoopInitialization :: Parser GomExpr
-parseForLoopInitialization = parseVariableDeclaration <|> parseAssigment <|> Empty
+parseForLoopInitialization = parseVariableDeclaration <|> parseAssigment <|> pure Empty
 
 -- | Parse condition part of a for loop
 parseForLoopCondition :: Parser GomExpr
@@ -296,7 +336,7 @@ parseForLoopCondition = parseExpression
 
 -- | Parse a value assigment or nothing (empty)
 parseForLoopUpdate :: Parser GomExpr
-parseForLoopUpdate = parseAssigment <|> Empty
+parseForLoopUpdate = parseAssigment <|> pure Empty
 
 -- | Print an expression
 --parsePrint :: Parser String
@@ -307,14 +347,6 @@ parseBoolean :: Parser GomExpr
 parseBoolean = do
     parsed <- parseSymbol "True" <|> parseSymbol "False"
     return (Boolean (parsed == "True"))
-
--- | parse Atom (bool / Number / Symbol) and return a GomExpr
-parseAtom :: Parser GomExpr
-parseAtom =  parseBoolean <|> parseNumber <|> parseIdentifier
-
--- | parse multiple Atoms (bool / Number / Symbol) and return a list of GomExprl
-parseMultipleAtom :: Parser GomExpr
-parseMultipleAtom = Statements <$> parseSome parseAtom
 
 -- | parse until any of the given characters is found
 parseUntilAny :: String -> Parser String
@@ -334,65 +366,44 @@ parseComment = do
 -- Parse an if statement
 parseCondition :: Parser GomExpr
 parseCondition = do
-    _ <- parseAmongWhitespace (parseString "if")
-    _ <- parseChar '('
+    _ <- parseAmongWhitespace (parseSymbol "if")
+    _ <- parseAmongWhitespace $ parseChar '('
     condition <- parseExpression
-    _ <- parseChar ')'
-    thenBlock <- parseBlock
-    maybeElseBlock <- parseOptionalElseBlock
-    return $ case maybeElseBlock of
-        Nothing -> Statements [Identifier "if", condition, thenBlock]
-        Just elseBlock -> Statements [Identifier "if", condition, thenBlock, Identifier "else", elseBlock]
-
--- Parse an optional else block
-parseOptionalElseBlock :: Parser (Maybe GomExpr)
-parseOptionalElseBlock = parseElseBlock <|> pure Nothing
+    _ <- parseAmongWhitespace $ parseChar ')'
+    thenBlock <- parseAmongWhitespace parseBlock
+    maybeElseBlock <- parseAmongWhitespace (parseElseBlock <|> pure Empty)
+    return $ Condition {gomIfCondition=condition, gomIfTrue=thenBlock, gomIfFalse=maybeElseBlock}
 
 -- Parse an else block
-parseElseBlock :: Parser (Maybe GomExpr)
+parseElseBlock :: Parser GomExpr
 parseElseBlock = do
-    _ <- parseAmongWhitespace (parseString "else")
-    elseBlock <- parseBlock
-    return (Just elseBlock)
+    _ <- parseAmongWhitespace (parseSymbol "else")
+    elseBlock <- parseAmongWhitespace parseBlock
+    return elseBlock
 
 
 parseIncludeList :: Parser GomExpr
-parseIncludeList = parseIncludeStatement <|> parseIncludeStatement <*> parseIncludeList
+parseIncludeList = List <$> parseSep ',' (parseAmongWhitespace parseImportIdentifier)
 
 -- Parse an include statement
 parseIncludeStatement :: Parser GomExpr
 parseIncludeStatement = do
-    _ <- parseAmongWhitespace (parseString "include")
-    include <- parseIdentifier
-    _ <- parseAmongWhitespace (parseString "from")
+    _ <- parseAmongWhitespace (parseSymbol "include")
+    include <- parseAmongWhitespace parseImportIdentifier <|> parseAmongWhitespace parseIncludeList
+    _ <- parseAmongWhitespace (parseSymbol "from")
     moduleName <- parseModule
     _ <- parseChar ';'
-    return $ Statements [Identifier "include", Identifier include, Identifier "from", moduleName]
-
--- Parse an include statement with an import list
-parseIncludeStatementWithList :: Parser GomExpr
-parseIncludeStatementWithList = do
-    _ <- parseAmongWhitespace (parseString "include")
-    _ <- parseChar '('
-    importList <- parseImportList
-    _ <- parseChar ')'
-    _ <- parseAmongWhitespace (parseString "from")
-    moduleName <- parseModule
-    _ <- parseChar ';'
-    return $ Statements [Identifier "include", List importList, Identifier "from", moduleName]
+    return $ IncludeStatement {includeList=include, fromModule=moduleName}
 
 parseModule :: Parser GomExpr
 parseModule = parseIdentifier
-
-parseImportList :: Parser GomExpr
-parseImportList = parseImportIdentifier <|> List <$> parseImportIdentifier <*> parseAmongWhitespace *> parseChar ',' *> parseImportList
 
 parseImportIdentifier :: Parser GomExpr
 parseImportIdentifier = parseIdentifier
 
 -- parse a declare type by user
-parseCustomType :: Parser GomExpr
-parseCustomType = parseIdentifier
+parseCustomType :: Parser GomExprType
+parseCustomType = SingleType <$> parseToken
 
 -- Parse the return identifier at the end of a fct
 parseReturnType :: Parser GomExpr
@@ -410,7 +421,6 @@ parseVariableDeclaration = do
     variableType <- parseAmongWhitespace $ parseIdentifier
     _ <- parseChar '='
     variableValue <- parseAmongWhitespace $ parseIdentifier
-    _ <- parseChar ';'
     return $ Statements [Identifier "var", variableName, variableType, variableValue]
 
 -- | parse everything between { and } and return a list of GomExpr

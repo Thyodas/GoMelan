@@ -8,6 +8,7 @@
 module Ast (
     gomexprToAST,
     GomExpr(..),
+    GomExprType(..),
     Ast(..),
     EvalError(..),
     EvalResult(..),
@@ -28,15 +29,28 @@ module Ast (
 
 import Data.List (deleteBy, find)
 
+data GomExprType = SingleType String | TypeList [GomExprType]
+    deriving (Show, Eq)
+
 data GomExpr = Number Int
     | Identifier String
+    | GomString String
     | Boolean Bool
+    | Type GomExprType
     | Statements [GomExpr]
     | Operator String
     | Term [GomExpr]
+    | Expression [GomExpr]
     | List [GomExpr]
     | Body [GomExpr]
+    | ParameterList [GomExpr]
+    | TypedIdentifier { identifier :: GomExpr, identifierType :: GomExpr}
+    | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
     | Empty
+    | Assignment { assignedIdentifier :: GomExpr, assignedExpression :: GomExpr }
+    | ForLoopIter { forLoopInitialization :: GomExpr, forLoopCondition :: GomExpr,
+                    forLoopUpdate :: GomExpr, forLoopIterBlock :: GomExpr }
+    | Condition { gomIfCondition :: GomExpr, gomIfTrue :: GomExpr, gomIfFalse :: GomExpr }
     | Function { fnName :: GomExpr, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
     deriving (Show, Eq)
 
