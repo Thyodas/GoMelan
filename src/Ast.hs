@@ -42,7 +42,7 @@ data GomExpr = Number Int
     | Term [GomExpr]
     | Expression [GomExpr]
     | List [GomExpr]
-    | Body [GomExpr]
+    | Block [GomExpr]
     | ParameterList [GomExpr]
     | TypedIdentifier { identifier :: GomExpr, identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }

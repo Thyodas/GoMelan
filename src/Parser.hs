@@ -81,6 +81,15 @@ parseBetween open close parser = do
 parseString :: Parser GomExpr
 parseString = GomString <$> (parseChar '"' *> parseUntilAny ['"'])
 
+parseStatement :: Parser GomExpr
+parseStatement = parseAmongWhitespace (
+    parseSemicolumn (
+        parseVariableDeclaration
+        <|> parseReturnStatement
+        <|> parseAssignent)
+    <|> parseForLoopIter
+    <|> parseCondition)
+
 -- | Parse a return statement
 parseReturnStatement :: Parser GomExpr
 parseReturnStatement = do
@@ -297,15 +306,15 @@ parseContent open close parser = do
 
 -- | Parse a token following parserTokenChar and return a string
 parseToken :: Parser String
-parseToken = parseSome (parseAnyChar parserTokenChar) 
+parseToken = parseSome (parseAnyChar parserTokenChar)
 
 -- | Parse a symbol as string and return a GomExpr
 parseIdentifier :: Parser GomExpr
 parseIdentifier = Identifier <$> parseToken
 
 -- | Parse variable / fonction assigment
-parseAssigment :: Parser GomExpr
-parseAssigment = do
+parseAssignent :: Parser GomExpr
+parseAssignent = do
     identifier <- parseTypedIdentifier <|> parseIdentifier
     _ <- parseAmongWhitespace $ parseChar '='
     expression <- parseAmongWhitespace $ parseExpression
@@ -328,7 +337,7 @@ parseForLoopIter = do
 
 -- | Parse initialization part of a for loop
 parseForLoopInitialization :: Parser GomExpr
-parseForLoopInitialization = parseVariableDeclaration <|> parseAssigment <|> pure Empty
+parseForLoopInitialization = parseVariableDeclaration <|> parseAssignent <|> pure Empty
 
 -- | Parse condition part of a for loop
 parseForLoopCondition :: Parser GomExpr
@@ -336,7 +345,7 @@ parseForLoopCondition = parseExpression
 
 -- | Parse a value assigment or nothing (empty)
 parseForLoopUpdate :: Parser GomExpr
-parseForLoopUpdate = parseAssigment <|> pure Empty
+parseForLoopUpdate = parseAssignent <|> pure Empty
 
 -- | Print an expression
 --parsePrint :: Parser String
@@ -351,7 +360,7 @@ parseBoolean = do
 -- | parse until any of the given characters is found
 parseUntilAny :: String -> Parser String
 parseUntilAny toFind = Parser $ \str -> case str of
-    (x:str') | x `elem` toFind -> Right ("", str)
+    (x:str') | x `elem` toFind -> Right ("", str')
              | otherwise -> case runParser (parseUntilAny toFind) str' of
                 Right (result, str'') -> Right (x:result, str'')
                 Left err -> Left err
@@ -427,10 +436,10 @@ parseVariableDeclaration = do
 parseBlock :: Parser GomExpr
 parseBlock = do
     _ <- parseChar '{'
-    result <- parseAmongWhitespace $ parseMany (parseVariableDeclaration <|> parseGomExpr)
+    result <- parseAmongWhitespace $ parseMany (parseStatement)
     _ <- parseChar '}'
-    return $ Body result
---parseBlock = Body <$> parseMany (parseVariableDeclaration <|> parseGomExpr)
+    return $ Block result
+--parseBlock = Block<$> parseMany (parseVariableDeclaration <|> parseGomExpr)
 
 -- | Parse name of functions
 parseFunctionName :: Parser GomExpr
@@ -467,6 +476,12 @@ parseAmongWhitespace parser = do
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
     result <- parser
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
+    return result
+
+parseSemicolumn :: Parser a -> Parser a
+parseSemicolumn parser = do
+    result <- parser
+    _ <- parseChar ';'
     return result
 
 -- | Pour gérer une liste d'expressions
