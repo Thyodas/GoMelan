@@ -86,17 +86,17 @@ throwEvalError msg asts = EvalResult (Left (EvalError msg asts))
 -- | Convert GomExpr to AST
 gomexprToAST :: GomExpr -> Maybe Ast
 gomexprToAST (Number n) = Just (ANumber n)
-gomexprToAST (Symbol s) = Just (ASymbol s)
+gomexprToAST (Identifier s) = Just (ASymbol s)
 gomexprToAST (Boolean b) = Just (ABoolean b)
-gomexprToAST (List [Symbol "define", Symbol s, e]) = gomexprToDefine s e
-gomexprToAST (List [Symbol "defun", name, params, core]) =
+gomexprToAST (List [Identifier "define", Identifier s, e]) = gomexprToDefine s e
+gomexprToAST (List [Identifier "defun", name, params, core]) =
     gomexprToDefun name params core
-gomexprToAST (List [Symbol "define", List (Symbol name:params), core]) =
-    gomexprToDefun (Symbol name) (List params) core
-gomexprToAST (List [Symbol "lambda", params, core]) = gomexprToLambda params core
-gomexprToAST (List [Symbol "if", cond, trueBody, falseBody]) =
+gomexprToAST (List [Identifier "define", List (Identifier name:params), core]) =
+    gomexprToDefun (Identifier name) (List params) core
+gomexprToAST (List [Identifier "lambda", params, core]) = gomexprToLambda params core
+gomexprToAST (List [Identifier "if", cond, trueBody, falseBody]) =
     gomexprToCondition cond trueBody falseBody
-gomexprToAST (List (Symbol s:xs)) = gomexprToCall s xs
+gomexprToAST (List (Identifier s:xs)) = gomexprToCall s xs
 gomexprToAST _ = Nothing
 
 gomexprToDefine :: String -> GomExpr -> Maybe Ast
@@ -117,7 +117,7 @@ gomexprToLambda (List params) core@(List _) = do
 gomexprToLambda _ _ = Nothing
 
 gomexprToDefun :: GomExpr -> GomExpr -> GomExpr -> Maybe Ast
-gomexprToDefun (Symbol name) (List params) core@(List _) = do
+gomexprToDefun (Identifier name) (List params) core@(List _) = do
   paramNames <- traverse extractSymbol params
   functionBody <- gomexprToAST core
   Just (ADefine { symbol = name, expression =
@@ -133,7 +133,7 @@ gomexprToCondition cond trueBody falseBody = do
     { condition = cond', ifTrue = trueBody', ifFalse = falseBody' })
 
 extractSymbol :: GomExpr -> Maybe String
-extractSymbol (Symbol s) = Just s
+extractSymbol (Identifier s) = Just s
 extractSymbol _ = Nothing
 
 type Env = [Ast]
@@ -177,7 +177,7 @@ evalASTCall env (ACall name args) = case envLookup env name of
     where env' = foldl (\acc (n',a) -> envInsert acc n' a)
                  env (zip argNames args)
   Just (AInternalFunction (InternalFunction fct)) -> fct args
-  Just sym -> throwEvalError ("Symbol in env '" ++ name ++
+  Just sym -> throwEvalError ("Identifier in env '" ++ name ++
     "' is not a function.") [sym]
   Nothing -> throwEvalError ("Function '" ++ name ++
     "' not found in env.") []
@@ -195,7 +195,7 @@ handleASTCall _ other = throwEvalError
 evalAST :: Env -> Ast -> EvalResult (Env, Ast)
 evalAST env (ASymbol sym) = case envLookup env sym of
   Just val -> pure (env, val)
-  Nothing -> throwEvalError ("Symbol '" ++ sym ++ "' not found in env") []
+  Nothing -> throwEvalError ("Identifier '" ++ sym ++ "' not found in env") []
 evalAST env (ADefine key expr) = do
   (_, evaluated) <- evalAST env expr
   pure (envInsert env key evaluated, evaluated)
