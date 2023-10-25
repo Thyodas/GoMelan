@@ -152,6 +152,10 @@ parseBinaryOperator = Operator <$> (parseOperatorPlus <|>
                 parseOperatorNotEqual <|>
                 parseOperatorNot <|>
                 parseOperatorAnd <|>
+                parseOperatorInfEqual <|>
+                parseOperatorSupEqual <|>
+                parseOperatorInf <|>
+                parseOperatorSup <|>
                 handleOtherCases)
 
 -- | Parse a given string
@@ -178,6 +182,22 @@ parseOperatorMultiply = parseSymbol "*"
 -- | Parse operator DIV '/'
 parseOperatorDivide :: Parser String
 parseOperatorDivide = parseSymbol "/"
+
+-- | Parse operator MOD '>='
+parseOperatorSupEqual :: Parser String
+parseOperatorSupEqual = parseSymbol ">="
+
+-- | Parse operator INFEQUAL '<='
+parseOperatorInfEqual :: Parser String
+parseOperatorInfEqual = parseSymbol "<="
+
+-- | Parse operator SUP '>'
+parseOperatorSup :: Parser String
+parseOperatorSup = parseSymbol ">"
+
+-- | Parse operator INF '<'
+parseOperatorInf :: Parser String
+parseOperatorInf = parseSymbol "<"
 
 -- | Parse operator MOD '/'
 parseOperatorModulo :: Parser String
@@ -317,7 +337,7 @@ parseAssignent :: Parser GomExpr
 parseAssignent = do
     identifier <- parseTypedIdentifier <|> parseIdentifier
     _ <- parseAmongWhitespace $ parseChar '='
-    expression <- parseAmongWhitespace $ parseExpression
+    expression <- parseAmongWhitespace $ (parseFunctionCall <|> parseExpression)
     return $ Assignment {assignedIdentifier=identifier, assignedExpression=expression}
 
 -- | Parse for loop
@@ -466,10 +486,8 @@ parseFunctionDeclaration = do
 parseFunctionCall :: Parser GomExpr
 parseFunctionCall = do
     functionName <- parseIdentifier
-    _ <- parseChar '('
-    -- Parsez les arguments ici (vous devrez créer un parser spécifique pour cela)
-    _ <- parseChar ')'
-    return $ Statements [functionName]  -- Vous pouvez ajouter les arguments ici
+    arguments <- parseAmongWhitespace $ parseList
+    return $ FunctionCall {functionName=functionName, functionArguments=arguments}
 
 parseAmongWhitespace :: Parser a -> Parser a
 parseAmongWhitespace parser = do

@@ -44,6 +44,7 @@ data GomExpr = Number Int
     | List [GomExpr]
     | Block [GomExpr]
     | ParameterList [GomExpr]
+    | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
     | TypedIdentifier { identifier :: GomExpr, identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
     | Empty
