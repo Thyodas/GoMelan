@@ -337,7 +337,7 @@ parseForLoopIter = do
 
 -- | Parse initialization part of a for loop
 parseForLoopInitialization :: Parser GomExpr
-parseForLoopInitialization = parseVariableDeclaration <|> parseAssignent <|> pure Empty
+parseForLoopInitialization = parseVariableDeclaration <|> parseAssignent <|> parseExpression <|> pure Empty
 
 -- | Parse condition part of a for loop
 parseForLoopCondition :: Parser GomExpr
