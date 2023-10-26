@@ -12,7 +12,7 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     handleOtherCases, parseFactorWithOperator, parseTermWithoutOperator, parseType, parseSemicolumn,
     parseFunctionName, parseBlock, parseReturnType, parseModule, parseImportIdentifier, parseCustomType,
     parseList, parseTerm, parseTermWithoutOperator, parseSemicolumn, parseTypedIdentifier, parseParameter,
-    parseAssignent, parseForLoopIter,
+    parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testParseChar :: Test
@@ -696,8 +696,102 @@ testParseForLoopIter = TestList
         in assertEqual "Should handle input without block" expected result
     ]
 
+testParseTypedIdentifier :: Test
+testParseTypedIdentifier = TestList
+    [ TestCase $ assertEqual "parseTypedIdentifier valid" expected1 result1
+    , TestCase $ assertEqual "parseTypedIdentifier invalid" expected2 result2
+    , TestCase $ assertEqual "parseTypedIdentifier empty" expected3 result3
+    , TestCase $ assertEqual "parseTypedIdentifier with close parenthesis" expected4 result4
+    ]
+    where
+        result1 = runParser parseTypedIdentifier "x : Int"
+        expected1 = Right (TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},"")
+
+        result2 = runParser parseTypedIdentifier "x :"
+        expected2 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got empty string."
+
+        result3 = runParser parseTypedIdentifier "()"
+        expected3 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
+
+        result4 = runParser parseTypedIdentifier "(x : Int) * 3"
+        expected4 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
+
+
+testParseCondition :: Test
+testParseCondition = TestList
+    [ "Test parseCondition with else block" ~:
+        let input = "if (x > 0) { x = 1; } else { x = 2; }"
+            expected = Right (Condition
+                { gomIfCondition = Expression
+                    [ Identifier "x"
+                    , Operator ">"
+                    , Identifier "0"
+                    ]
+                , gomIfTrue = Block
+                    [ Assignment
+                        { assignedIdentifier = Identifier "x"
+                        , assignedExpression = Expression [Identifier "1"]
+                        }
+                    ]
+                , gomIfFalse = Block
+                    [ Assignment
+                        { assignedIdentifier = Identifier "x"
+                        , assignedExpression = Expression [Identifier "2"]
+                        }
+                    ]
+                }, "")
+            result = runParser parseCondition input
+        in assertEqual "Should parse valid input with else block" expected result
+    , "Test parseCondition without else block" ~:
+        let input = "if (x > 0) { x = 1; }"
+            expected = Right (Condition
+                { gomIfCondition = Expression
+                    [ Identifier "x"
+                    , Operator ">"
+                    , Identifier "0"
+                    ]
+                , gomIfTrue = Block
+                    [ Assignment
+                        { assignedIdentifier = Identifier "x"
+                        , assignedExpression = Expression [Identifier "1"]
+                        }
+                    ]
+                , gomIfFalse = Empty
+                }, "")
+            result = runParser parseCondition input
+        in assertEqual "Should parse valid input without else block" expected result
+    , "Test parseCondition with invalid input" ~:
+        let input = "if (x > 0) { x = 1; "
+            expected = Left "Expected '}' but got empty string."
+            result = runParser parseCondition input
+        in assertEqual "Should handle invalid input" expected result
+    ]
+
+testParseFunctionCall :: Test
+testParseFunctionCall = TestList
+    [ TestCase $ assertEqual "parseFunctionCall valid" expected1 result1
+    , TestCase $ assertEqual "parseFunctionCall invalid" expected2 result2
+    , TestCase $ assertEqual "parseFunctionCall empty" expected3 result3
+    , TestCase $ assertEqual "parseFunctionCall with extra characters" expected4 result4
+    ]
+    where
+        result1 = runParser parseFunctionCall "foo()"
+        expected1 = Right (Statements [Identifier "foo"], "")
+
+        result2 = runParser parseFunctionCall "foo"
+        expected2 = Left "Expected '(' but got empty string."
+
+        result3 = runParser parseFunctionCall "()"
+        expected3 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
+
+        result4 = runParser parseFunctionCall "foo() bar"
+        expected4 = Right (Statements [Identifier "foo"], " bar")
+
 parserTestList :: Test
 parserTestList = TestList [
+    testParseFunctionCall,
+    testParseCondition,
+    testParseTypedIdentifier,
     testParseForLoopIter,
     testParseAssignent,
     testParseTermWithOperator,
