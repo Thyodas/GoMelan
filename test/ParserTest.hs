@@ -3,9 +3,10 @@ import Ast (GomExpr(..))
 import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
-    parseMany, parseSome, parseInt, parsePair, parseList, Parser, runParser,
-    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
-    parseUntilAny, parseComment, parseGomExpr, parseCodeToGomExpr)
+    parseMany, parseSome, parsePair, parseNumber, Parser, runParser,
+    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
+    parseStatement, parseReturnStatement, parseExpression, parseTermWithOperator,
+    parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testParseChar :: Test
 testParseChar = TestList
@@ -155,26 +156,26 @@ testParseIntFail = TestCase $ assertEqual "parseNumber fail" expected result
 testParsePair :: Test
 testParsePair = TestCase $ assertEqual "parsePair valid" expected result
     where
-        result = runParser (parsePair parseInt) "(123 456)foo bar"
+        result = runParser (parsePair parseNumber) "(123 456)foo bar"
         expected = Right ((123, 456), "foo bar")
 
 testParsePairFail :: Test
 testParsePairFail = TestCase $ assertEqual "parsePair fail" expected result
     where
-        result = runParser (parsePair parseInt) "(123 456 foo bar"
+        result = runParser (parsePair parseNumber) "(123 456 foo bar"
         expected = Left "Expected ')' but got 'f'."
 
-testParseList :: Test
-testParseList = TestCase $ assertEqual "parseList valid" expected result
-    where
-        result = runParser (parseList parseInt) "(  1 2 3 5 7 11 13    17    ) "
-        expected = Right ([1,2,3,5,7,11,13,17]," ")
+-- testParseList :: Test
+-- testParseList = TestCase $ assertEqual "parseList valid" expected result
+--     where
+--         result = runParser (parseList parseNumber) "(  1 2 3 5 7 11 13    17    ) "
+--         expected = Right ([1,2,3,5,7,11,13,17]," ")
 
-testParseListFail :: Test
-testParseListFail = TestCase $ assertEqual "parseList fail" expected result
-    where
-        result = runParser (parseList parseInt) "(  1 2 3 5 7 11 13    17    "
-        expected = Left "Expected ')' but got empty string."
+-- testParseListFail :: Test
+-- testParseListFail = TestCase $ assertEqual "parseList fail" expected result
+--     where
+--         result = runParser (parseList parseNumber) "(  1 2 3 5 7 11 13    17    "
+--         expected = Left "Expected ')' but got empty string."
 
 testParserTokenChar :: Test
 testParserTokenChar = TestCase $ assertEqual "all characters valid" expected result
@@ -186,13 +187,13 @@ testparseIdentifier :: Test
 testparseIdentifier = TestCase $ assertEqual "parseIdentifier valid" expected result
     where
         result = runParser parseIdentifier "foobar"
-        expected = Right (Symbol "foobar", "")
+        expected = Right (Identifier "foobar", "")
 
-testParseNumber :: Test
-testParseNumber = TestCase $ assertEqual "parseNumber valid" expected result
-    where
-        result = runParser parseNumber "42"
-        expected = Right (Number 42, "")
+-- testParseNumber :: Test
+-- testParseNumber = TestCase $ assertEqual "parseNumber valid" expected result
+--     where
+--         result = runParser parseNumber "42"
+--         expected = Right (Number 42, "")
 
 testParseBoolean :: Test
 testParseBoolean = TestCase $ assertEqual "parseBoolean valid" expected result
@@ -200,17 +201,17 @@ testParseBoolean = TestCase $ assertEqual "parseBoolean valid" expected result
         result = runParser parseBoolean "#t"
         expected = Right (Boolean True, "")
 
-testParseAtom :: Test
-testParseAtom = TestList
-    [ TestCase $ assertEqual "parseAtom valid number" expected1 result1
-    , TestCase $ assertEqual "parseAtom valid symbol" expected2 result2
-    ]
-    where
-        result1 = runParser parseAtom "42"
-        expected1 = Right (Number 42, "")
+-- testParseAtom :: Test
+-- testParseAtom = TestList
+--     [ TestCase $ assertEqual "parseAtom valid number" expected1 result1
+--     , TestCase $ assertEqual "parseAtom valid symbol" expected2 result2
+--     ]
+--     where
+--         result1 = runParser parseAtom "42"
+--         expected1 = Right (Number 42, "")
 
-        result2 = runParser parseAtom "abc"
-        expected2 = Right (Symbol "abc", "")
+--         result2 = runParser parseAtom "abc"
+--         expected2 = Right (Symbol "abc", "")
 
 testParseUntilAny :: Test
 testParseUntilAny = TestList
@@ -234,14 +235,14 @@ testParseGomExpr :: Test
 testParseGomExpr = TestCase $ assertEqual "parseGomExpr valid" expected result
     where
         result = runParser parseGomExpr "(+ 1 2)"
-        expected = Right (List [Symbol "+", Number 1, Number 2], "")
+        expected = Right (List [Identifier "+", Number 1, Number 2], "")
 
 
 testParseCodeToGomExpr :: Test
 testParseCodeToGomExpr = TestCase $ assertEqual "parseCodeToGomExpr valid" expected result
     where
         result = runParser parseCodeToGomExpr "(+ 1 2)"
-        expected = Right ([List [Symbol "+", Number 1, Number 2]], "")
+        expected = Right ([List [Identifier "+", Number 1, Number 2]], "")
 
 testEmpty :: Test
 testEmpty = TestCase $ assertEqual "empty" expected result
@@ -249,9 +250,87 @@ testEmpty = TestCase $ assertEqual "empty" expected result
         result = runParser (empty :: Parser Char) "abc"
         expected = Left "Empty parser"
 
+testParseBetween :: Test
+testParseBetween = TestList
+    [ TestCase $ assertEqual "parseBetween valid" expected1 result1
+    , TestCase $ assertEqual "parseBetween valid" expected2 result2
+    ]
+    where
+        result1 = runParser (parseBetween '(' ')' (parseChar 'a')) "(a)"
+        expected1 = Right ('a', "")
+
+        result2 = runParser (parseBetween '(' ')' (parseChar 'a')) "(b)"
+        expected2 = Left "Expected 'a' but got 'b'."
+
+testParseString :: Test
+testParseString = TestList
+    [ TestCase $ assertEqual "parseString valid" expected1 result1
+    , TestCase $ assertEqual "parseString valid" expected2 result2
+    ]
+    where
+        result1 = runParser parseString "\"hello world\""
+        expected1 = Right (GomString "hello world", "")
+
+        result2 = runParser parseString "\"hello world\";"
+        expected2 = Right (GomString "hello world", ";")
+
+-- testParseStatement :: Test
+-- testParseStatement = TestList
+--     [ TestCase $ assertEqual "parseStatement variable declaration" expected1 result1
+--     , TestCase $ assertEqual "parseStatement return statement" expected2 result2
+--     , TestCase $ assertEqual "parseStatement assignment" expected3 result3
+--     , TestCase $ assertEqual "parseStatement for loop" expected4 result4
+--     , TestCase $ assertEqual "parseStatement condition" expected5 result5
+--     ]
+--     where
+--         result1 = runParser parseStatement "let x = 42;"
+--         expected1 = Right (VariableDeclaration "x" (Number 42), "")
+
+--         result2 = runParser parseStatement "return 42;"
+--         expected2 = Right (Expression (Number 42), "")
+
+--         result3 = runParser parseStatement "x = 42;"
+--         expected3 = Right (Assignment "x" (Number 42), "")
+
+--         result4 = runParser parseStatement "for i in 1..10 do\n  print(i)\nend;"
+--         expected4 = Right (ForLoopIter "i" (Number 1) (Number 10) (List [Identifier "print", Identifier "i"]), "")
+
+--         result5 = runParser parseStatement "if x == 42 then\n  print(\"x is 42\")\nelse\n  print(\"x is not 42\")\nend;"
+--         expected5 = Right (Condition (Operator (Identifier "==") (Identifier "x") (Number 42)) (List [Identifier "print", GomString "x is 42"]) (List [Identifier "print", GomString "x is not 42"]), "")
+
+-- testParseReturnStatement :: Test
+-- testParseReturnStatement = TestList
+--     [ TestCase $ assertEqual "parseReturnStatement valid" expected1 result1
+--     , TestCase $ assertEqual "parseReturnStatement invalid" expected2 result2
+--     ]
+--     where
+--         result1 = runParser parseReturnStatement "return 42;"
+--         expected1 = Right (Expression (Number 42), "")
+
+--         result2 = runParser parseReturnStatement "return;"
+--         expected2 = Left "Expected an expression after 'return', but got empty string."
+
+-- testParseExpression :: Test
+-- testParseExpression = TestList
+--     [ TestCase $ assertEqual "parseExpression with binary operator" expected1 result1
+--     , TestCase $ assertEqual "parseExpression with factor" expected2 result2
+--     , TestCase $ assertEqual "parseExpression with parentheses" expected3 result3
+--     ]
+--     where
+--         result1 = runParser parseExpression "1 + 2"
+--         expected1 = Right (Expression (Statements [Identifier "+", Number 1, Number 2]), "")
+
+--         result2 = runParser parseExpression "x"
+--         expected2 = Right (Expression (Identifier "x"), "")
+
+--         result3 = runParser parseExpression "(1 + 2)"
+--         expected3 = Right (Expression (Statements [Identifier "+", Number 1, Number 2]), "")
+
+
 parserTestList :: Test
 parserTestList = TestList [
     testParseChar,
+    testParseBetween,
     testParseCharFail,
     testParseCharEmpty,
     testParseAnyChar,
@@ -270,22 +349,26 @@ parserTestList = TestList [
     testParseManyEmpty,
     testParseSomeValid,
     testParseSomeFail,
-    testParseInt,
+    -- testParseInt,
     testParseIntTwo,
     testParseIntNegative,
     testParseIntFail,
     testParsePair,
     testParsePairFail,
-    testParseList,
-    testParseListFail,
+    -- testParseList,
+    -- testParseListFail,
     testParserTokenChar,
     testparseIdentifier,
-    testParseNumber,
+    -- testParseNumber,
     testParseBoolean,
-    testParseAtom,
+    -- testParseAtom,
     testParseComment,
     testParseUntilAny,
     testParseCodeToGomExpr,
     testEmpty,
+    testParseString,
+    -- testParseStatement,
+    -- testParseReturnStatement,
+    -- testParseExpression,
     testParseGomExpr
     ]

@@ -89,19 +89,19 @@ testAstConditionNotACondition = TestCase $ assertEqual "Ast condition" expected 
 
 testLambdaGomexprToAST :: Test
 testLambdaGomexprToAST = "testLambdaGomexprToAST" ~: do
-    let input = List [Symbol "define", Symbol "add", List [Symbol "lambda", List [Symbol "a", Symbol "b"], List [Symbol "+", Symbol "a", Symbol "b"]]]
+    let input = List [Identifier "define", Identifier "add", List [Identifier "lambda", List [Identifier "a", Identifier "b"], List [Identifier "+", Identifier "a", Identifier "b"]]]
     let expected = ADefine {symbol = "add", expression = AFunction {argumentNames = ["a","b"], body = ACall {function = "+", arguments = [ASymbol "a",ASymbol "b"]}}}
     assertEqual "should parse lambda expression" expected (fromJust (gomexprToAST input))
 
 testDefineGomexprToAST :: Test
 testDefineGomexprToAST = "gomexprDefineToAST" ~: do
-    let input = List [Symbol "define", List [Symbol "add", Symbol "a", Symbol "b"], List [Symbol "+", Symbol "a", Symbol "b"]]
+    let input = List [Identifier "define", List [Identifier "add", Identifier "a", Identifier "b"], List [Identifier "+", Identifier "a", Identifier "b"]]
     let expected = Just (ADefine {symbol = "add", expression = ADefun {argumentNames = ["a","b"], body = ACall {function = "+", arguments = [ASymbol "a",ASymbol "b"]}}})
     assertEqual "should parse define expression" expected (gomexprToAST input)
 
 testDefunGomexprToAST :: Test
 testDefunGomexprToAST = "gomexprDefunToAST" ~: do
-  let input = List [Symbol "defun", Symbol "add", List [Symbol "a", Symbol "b"], List [Symbol "*", Symbol "a", Symbol "b"]]
+  let input = List [Identifier "defun", Identifier "add", List [Identifier "a", Identifier "b"], List [Identifier "*", Identifier "a", Identifier "b"]]
   let expected = Just (ADefine { symbol = "add", expression = ADefun { argumentNames = ["a", "b"], body = ACall { function = "*", arguments = [ASymbol "a", ASymbol "b"] } }})
   assertEqual "should parse defun expression" expected (gomexprToAST input)
 
@@ -119,7 +119,7 @@ testRecursiveFunction = TestCase $ assertEqual "Recursive function" expected res
 testGomexprToCondition :: Test
 testGomexprToCondition = TestCase $ assertEqual "Gomexpr to condition" expected result
     where
-        result = gomexprToAST (List [Symbol "if", Symbol "x", Symbol "y", Symbol "z"])
+        result = gomexprToAST (List [Identifier "if", Identifier "x", Identifier "y", Identifier "z"])
         expected = Just (ACondition {
                 condition = ASymbol "x",
                 ifTrue = ASymbol "y",
@@ -129,7 +129,7 @@ testGomexprToCondition = TestCase $ assertEqual "Gomexpr to condition" expected 
 testShowGomExpr :: Test
 testShowGomExpr = TestCase $ assertEqual "Show GomExpr" expected result
     where
-        result = show (List [Symbol "if", Symbol "x", Symbol "y", Symbol "z"])
+        result = show (List [Identifier "if", Identifier "x", Identifier "y", Identifier "z"])
         expected = "List [Symbol \"if\",Symbol \"x\",Symbol \"y\",Symbol \"z\"]"
 
 testEqGomExpr :: Test
@@ -143,7 +143,7 @@ testEqGomExpr = TestList [
     where
         result = List [] == List []
         expected = True
-        result2 = Symbol "z" == Symbol "z"
+        result2 = Identifier "z" == Identifier "z"
         expected2 = True
         result3 = Number 2 == Number 2
         expected3 = True
@@ -165,20 +165,20 @@ testGomexprToAST = TestList
     , TestCase $ assertEqual "Gomexpr to AST" Nothing result3
     ]
     where
-        result = gomexprToAST (List [Symbol "define", Symbol "x", Number 42])
+        result = gomexprToAST (List [Identifier "define", Identifier "x", Number 42])
         result2 = gomexprToAST (Boolean True)
         result3 = gomexprToAST (List [])
 
 testGomexprToLambda :: Test
 testGomexprToLambda = TestCase $ assertEqual "Gomexpr to Lambda" expected result
     where
-        result = gomexprToLambda (List [Symbol "x", Symbol "y"]) (Boolean True)
+        result = gomexprToLambda (List [Identifier "x", Identifier "y"]) (Boolean True)
         expected = Nothing
 
 testgomexprToDefun :: Test
 testgomexprToDefun = TestCase $ assertEqual "Gomexpr to defun" expected result
     where
-        result = gomexprToDefun (List [Symbol "name"]) (List [Symbol "x", Symbol "y"]) (Boolean True)
+        result = gomexprToDefun (List [Identifier "name"]) (List [Identifier "x", Identifier "y"]) (Boolean True)
         expected = Nothing
 
 testextractSymbol :: Test
