@@ -298,33 +298,33 @@ testParseString = TestList
 --         result5 = runParser parseStatement "if x == 42 then\n  print(\"x is 42\")\nelse\n  print(\"x is not 42\")\nend;"
 --         expected5 = Right (Condition (Operator (Identifier "==") (Identifier "x") (Number 42)) (List [Identifier "print", GomString "x is 42"]) (List [Identifier "print", GomString "x is not 42"]), "")
 
--- testParseReturnStatement :: Test
--- testParseReturnStatement = TestList
---     [ TestCase $ assertEqual "parseReturnStatement valid" expected1 result1
---     , TestCase $ assertEqual "parseReturnStatement invalid" expected2 result2
---     ]
---     where
---         result1 = runParser parseReturnStatement "return 42;"
---         expected1 = Right (Expression (Number 42), "")
+testParseReturnStatement :: Test
+testParseReturnStatement = TestList
+    [ TestCase $ assertEqual "parseReturnStatement valid" expected1 result1
+    , TestCase $ assertEqual "parseReturnStatement invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseReturnStatement "return 42;"
+        expected1 = Right (Expression [Identifier "42"],"")
 
---         result2 = runParser parseReturnStatement "return;"
---         expected2 = Left "Expected an expression after 'return', but got empty string."
+        result2 = runParser parseReturnStatement "return;"
+        expected2 = Left "Expected an expression after 'return', but got empty string."
 
--- testParseExpression :: Test
--- testParseExpression = TestList
---     [ TestCase $ assertEqual "parseExpression with binary operator" expected1 result1
---     , TestCase $ assertEqual "parseExpression with factor" expected2 result2
---     , TestCase $ assertEqual "parseExpression with parentheses" expected3 result3
---     ]
---     where
---         result1 = runParser parseExpression "1 + 2"
---         expected1 = Right (Expression (Statements [Identifier "+", Number 1, Number 2]), "")
+testParseExpression :: Test
+testParseExpression = TestList
+    [ TestCase $ assertEqual "parseExpression with binary operator" expected1 result1
+    , TestCase $ assertEqual "parseExpression with factor" expected2 result2
+    , TestCase $ assertEqual "parseExpression with parentheses" expected3 result3
+    ]
+    where
+        result1 = runParser parseExpression "1 + 2"
+        expected1 = Right (Expression [Identifier "1",Operator "+",Identifier "2"],"")
 
---         result2 = runParser parseExpression "x"
---         expected2 = Right (Expression (Identifier "x"), "")
+        result2 = runParser parseExpression "x"
+        expected2 = Right (Expression [Identifier "x"],"")
 
---         result3 = runParser parseExpression "(1 + 2)"
---         expected3 = Right (Expression (Statements [Identifier "+", Number 1, Number 2]), "")
+        result3 = runParser parseExpression "(1 + 2)"
+        expected3 = Right (Expression [Expression [Identifier "1",Operator "+",Identifier "2"]],"")
 
 
 parserTestList :: Test
