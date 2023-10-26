@@ -6,6 +6,10 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseMany, parseSome, parsePair, parseNumber, Parser, runParser,
     parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
     parseStatement, parseReturnStatement, parseExpression, parseTermWithOperator,
+    parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
+    parseOperatorModulo, parseOperatorInf, parseOperatorSup, parseOperatorInfEqual,
+    parseOperatorSupEqual, parseOperatorDivide, parseOperatorMultiply, parseOperatorMinus,
+    parseOperatorPlus,
     parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testParseChar :: Test
@@ -181,7 +185,7 @@ testParserTokenChar :: Test
 testParserTokenChar = TestCase $ assertEqual "all characters valid" expected result
     where
         result = parserTokenChar
-        expected = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*/<>=?"
+        expected = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 testparseIdentifier :: Test
 testparseIdentifier = TestCase $ assertEqual "parseIdentifier valid" expected result
@@ -195,11 +199,23 @@ testparseIdentifier = TestCase $ assertEqual "parseIdentifier valid" expected re
 --         result = runParser parseNumber "42"
 --         expected = Right (Number 42, "")
 
+-- testParseBoolean :: Test
+-- testParseBoolean = TestCase $ assertEqual "parseBoolean valid" expected result
+--     where
+--         result = runParser parseBoolean "#t"
+--         expected = Right (Boolean True, "")
+
 testParseBoolean :: Test
-testParseBoolean = TestCase $ assertEqual "parseBoolean valid" expected result
+testParseBoolean = TestList
+    [ TestCase $ assertEqual "parseBoolean valid" expected1 result1
+    , TestCase $ assertEqual "parseBoolean not valid" expected2 result2
+    ]
     where
-        result = runParser parseBoolean "#t"
-        expected = Right (Boolean True, "")
+        result1 = runParser parseBoolean "True"
+        expected1 = Right (Boolean True, "")
+
+        result2 = runParser parseBoolean "False"
+        expected2 = Right (Boolean False, "")
 
 -- testParseAtom :: Test
 -- testParseAtom = TestList
@@ -216,33 +232,33 @@ testParseBoolean = TestCase $ assertEqual "parseBoolean valid" expected result
 testParseUntilAny :: Test
 testParseUntilAny = TestList
     [ TestCase $ assertEqual "parseUntilAny valid" expected1 result1
-    , TestCase $ assertEqual "parseUntilAny valid" expected2 result2
+    , TestCase $ assertEqual "parseUntilAny invalid" expected2 result2
+    , TestCase $ assertEqual "parseUntilAny no match" expected3 result3
     ]
     where
-        result1 = runParser (parseUntilAny "abc") "def"
-        expected1 = Left "Expected one of 'abc' but got empty string."
+        result1 = runParser (parseUntilAny " \n\t") "this is a test\n"
+        expected1 = Right ("this", "is a test\n")
 
-        result2 = runParser (parseUntilAny "abc") "defabc"
-        expected2 = Right ("def", "abc")
+        result2 = runParser (parseUntilAny " \n\t") ""
+        expected2 = Left "Expected one of ' \n\t' but got empty string."
+
+        -- Test case with no match
+        result3 = runParser (parseUntilAny "abc") "123456"
+        expected3 = Left "Expected one of 'abc' but got empty string."
+
 
 testParseComment :: Test
-testParseComment = TestCase $ assertEqual "parseComment valid" expected result
+testParseComment = TestList
+    [ TestCase $ assertEqual "parseComment valid" expected1 result1
+    , TestCase $ assertEqual "parseComment invalid" expected2 result2
+    ]
     where
-        result = runParser parseComment "; this is a comment\n"
-        expected = Right (" this is a comment", "\n")
+        result1 = runParser parseComment "// this is a comment\n"
+        expected1 = Right (" this is a comment", "")
 
-testParseGomExpr :: Test
-testParseGomExpr = TestCase $ assertEqual "parseGomExpr valid" expected result
-    where
-        result = runParser parseGomExpr "(+ 1 2)"
-        expected = Right (List [Identifier "+", Number 1, Number 2], "")
+        result2 = runParser parseComment "/ this is not a comment\n"
+        expected2 = Left "Expected '/' but got ' '."
 
-
-testParseCodeToGomExpr :: Test
-testParseCodeToGomExpr = TestCase $ assertEqual "parseCodeToGomExpr valid" expected result
-    where
-        result = runParser parseCodeToGomExpr "(+ 1 2)"
-        expected = Right ([List [Identifier "+", Number 1, Number 2]], "")
 
 testEmpty :: Test
 testEmpty = TestCase $ assertEqual "empty" expected result
@@ -326,9 +342,151 @@ testParseString = TestList
 --         result3 = runParser parseExpression "(1 + 2)"
 --         expected3 = Right (Expression (Statements [Identifier "+", Number 1, Number 2]), "")
 
+testParseOperatorEqual :: Test
+testParseOperatorEqual = TestList
+    [ TestCase $ assertEqual "parseOperatorEqual valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseOperatorEqual "=="
+        expected1 = Right ("==", "")
+
+
+testParseOperatorNotEqual :: Test
+testParseOperatorNotEqual = TestList
+    [ TestCase $ assertEqual "parseOperatorNotEqual valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseOperatorNotEqual "!="
+        expected1 = Right ("!=", "")
+
+testParseOperatorNot :: Test
+testParseOperatorNot = TestList
+    [ TestCase $ assertEqual "parseOperatorNot valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseOperatorNot "!"
+        expected1 = Right ("!", "")
+
+
+testParseOperatorAnd :: Test
+testParseOperatorAnd = TestList
+    [ TestCase $ assertEqual "parseOperatorAnd valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseOperatorAnd "&&"
+        expected1 = Right ("&&", "")
+
+testParseOperatorModulo :: Test
+testParseOperatorModulo = TestList
+    [ TestCase $ assertEqual "parseOperatorModulo valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorModulo invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorModulo "%"
+        expected1 = Right ("%", "")
+
+        result2 = runParser parseOperatorModulo "+"
+        expected2 = Left "Expected '%' but got '+'."
+
+testParseOperatorInf :: Test
+testParseOperatorInf = TestList
+    [ TestCase $ assertEqual "parseOperatorInf valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorInf invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorInf "<"
+        expected1 = Right ("<", "")
+
+        result2 = runParser parseOperatorInf ">"
+        expected2 = Left "Expected '<' but got '>'."
+
+testParseOperatorSup :: Test
+testParseOperatorSup = TestList
+    [ TestCase $ assertEqual "parseOperatorSup valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorSup invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorSup ">"
+        expected1 = Right (">", "")
+
+        result2 = runParser parseOperatorSup "<"
+        expected2 = Left "Expected '>' but got '<'."
+
+testParseOperatorInfEqual :: Test
+testParseOperatorInfEqual = TestList
+    [ TestCase $ assertEqual "parseOperatorInfEqual valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseOperatorInfEqual "<="
+        expected1 = Right ("<=", "")
+
+
+testParseOperatorSupEqual :: Test
+testParseOperatorSupEqual = TestList
+    [ TestCase $ assertEqual "parseOperatorSupEqual valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseOperatorSupEqual ">="
+        expected1 = Right (">=", "")
+
+
+testParseOperatorDivide :: Test
+testParseOperatorDivide = TestList
+    [ TestCase $ assertEqual "parseOperatorDivide valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorDivide invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorDivide "/"
+        expected1 = Right ("/", "")
+
+        result2 = runParser parseOperatorDivide "*"
+        expected2 = Left "Expected '/' but got '*'."
+
+testParseOperatorMultiply :: Test
+testParseOperatorMultiply = TestList
+    [ TestCase $ assertEqual "parseOperatorMultiply valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorMultiply invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorMultiply "*"
+        expected1 = Right ("*", "")
+
+        result2 = runParser parseOperatorMultiply "/"
+        expected2 = Left "Expected '*' but got '/'."
+
+testParseOperatorMinus :: Test
+testParseOperatorMinus = TestList
+    [ TestCase $ assertEqual "parseOperatorMinus valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorMinus invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorMinus "-"
+        expected1 = Right ("-", "")
+
+        result2 = runParser parseOperatorMinus "+"
+        expected2 = Left "Expected '-' but got '+'."
+
+testParseOperatorPlus :: Test
+testParseOperatorPlus = TestList
+    [ TestCase $ assertEqual "parseOperatorPlus valid" expected1 result1
+    , TestCase $ assertEqual "parseOperatorPlus invalid" expected2 result2
+    ]
+    where
+        result1 = runParser parseOperatorPlus "+"
+        expected1 = Right ("+", "")
+
+        result2 = runParser parseOperatorPlus "-"
+        expected2 = Left "Expected '+' but got '-'."
 
 parserTestList :: Test
 parserTestList = TestList [
+    testParseOperatorPlus,
+    testParseOperatorMinus,
+    testParseOperatorMultiply,
+    testParseOperatorDivide,
+    testParseOperatorSupEqual,
+    testParseOperatorInfEqual,
+    testParseOperatorSup,
     testParseChar,
     testParseBetween,
     testParseCharFail,
@@ -364,11 +522,16 @@ parserTestList = TestList [
     -- testParseAtom,
     testParseComment,
     testParseUntilAny,
-    testParseCodeToGomExpr,
     testEmpty,
-    testParseString,
+    testParseOperatorAnd,
+    testParseOperatorNot,
+    testParseOperatorNotEqual,
+    testParseOperatorEqual,
+    testParseOperatorModulo,
+    testParseOperatorInf,
+    testParseString
     -- testParseStatement,
     -- testParseReturnStatement,
     -- testParseExpression,
-    testParseGomExpr
+    -- testParseGomExpr
     ]

@@ -130,7 +130,7 @@ testShowGomExpr :: Test
 testShowGomExpr = TestCase $ assertEqual "Show GomExpr" expected result
     where
         result = show (List [Identifier "if", Identifier "x", Identifier "y", Identifier "z"])
-        expected = "List [Symbol \"if\",Symbol \"x\",Symbol \"y\",Symbol \"z\"]"
+        expected = "List [Identifier \"if\",Identifier \"x\",Identifier \"y\",Identifier \"z\"]"
 
 testEqGomExpr :: Test
 testEqGomExpr = TestList [
@@ -211,7 +211,7 @@ testAstCallWithSymbolNotAFunction :: Test
 testAstCallWithSymbolNotAFunction = TestCase $ assertEqual "Ast call" expected result
     where
         result = evalASTCall [ADefine "x" (ANumber 42)] (ACall "x" [])
-        expected = EvalResult (Left (EvalError ("Symbol in env 'x' is not a function.") [ANumber 42]))
+        expected = EvalResult (Left (EvalError ("Identifier in env 'x' is not a function.") [ANumber 42]))
 
 testAstCallWithSymbolNotInEnv :: Test
 testAstCallWithSymbolNotInEnv = TestCase $ assertEqual "Ast call" expected result
@@ -222,8 +222,8 @@ testAstCallWithSymbolNotInEnv = TestCase $ assertEqual "Ast call" expected resul
 
 testEvalAST :: Test
 testEvalAST = TestList
-    [ TestCase $ assertEqual "EvalAST - Symbol found" expectedFound resultFound
-    , TestCase $ assertEqual "EvalAST - Symbol not found" expectedNotFound resultNotFound
+    [ TestCase $ assertEqual "EvalAST - Identifier found" expectedFound resultFound
+    , TestCase $ assertEqual "EvalAST - Identifier not found" expectedNotFound resultNotFound
     , TestCase $ assertEqual "EvalAST - Define expression" expectedDefine resultDefine
     , TestCase $ assertEqual "EvalAST - Condition expression" expectedCondition resultCondition
     , TestCase $ assertEqual "EvalAST - Defun expression" expectedDefun resultDefun
@@ -235,7 +235,7 @@ testEvalAST = TestList
         expectedFound = EvalResult (Right (env, ANumber 42))
 
         resultNotFound = evalAST env (ASymbol "y")
-        expectedNotFound = EvalResult (Left (EvalError "Symbol 'y' not found in env" []))
+        expectedNotFound = EvalResult (Left (EvalError "Identifier 'y' not found in env" []))
 
         resultDefine = evalAST env (ADefine "y" (ANumber 10))
         expectedDefine = EvalResult (Right (envInsert env "y" (ANumber 10), ANumber 10))
