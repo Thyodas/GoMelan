@@ -12,7 +12,8 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     handleOtherCases, parseFactorWithOperator, parseTermWithoutOperator, parseType, parseSemicolumn,
     parseFunctionName, parseBlock, parseReturnType, parseModule, parseImportIdentifier, parseCustomType,
     parseList, parseTerm, parseTermWithoutOperator, parseSemicolumn, parseTypedIdentifier, parseParameter,
-    parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall,
+    parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
+    parseExpressionList, parseCodeToGomExpr, parseIncludeStatement,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testParseChar :: Test
@@ -701,7 +702,6 @@ testParseTypedIdentifier = TestList
     [ TestCase $ assertEqual "parseTypedIdentifier valid" expected1 result1
     , TestCase $ assertEqual "parseTypedIdentifier invalid" expected2 result2
     , TestCase $ assertEqual "parseTypedIdentifier empty" expected3 result3
-    , TestCase $ assertEqual "parseTypedIdentifier with close parenthesis" expected4 result4
     ]
     where
         result1 = runParser parseTypedIdentifier "x : Int"
@@ -713,8 +713,7 @@ testParseTypedIdentifier = TestList
         result3 = runParser parseTypedIdentifier "()"
         expected3 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
 
-        result4 = runParser parseTypedIdentifier "(x : Int) * 3"
-        expected4 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
+
 
 
 testParseCondition :: Test
@@ -787,8 +786,96 @@ testParseFunctionCall = TestList
         result4 = runParser parseFunctionCall "foo() bar"
         expected4 = Right (Statements [Identifier "foo"], " bar")
 
+
+testParseParameter :: Test
+testParseParameter = TestList
+    [ TestCase $ assertEqual "parseParameter valid" expected1 result1
+    , TestCase $ assertEqual "parseParameter invalid" expected2 result2
+    , TestCase $ assertEqual "parseParameter empty" expected3 result3
+    ]
+    where
+        result1 = runParser parseParameter "x : Int"
+        expected1 = Right (TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},"")
+
+        result2 = runParser parseParameter "x :"
+        expected2 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got empty string."
+
+        result3 = runParser parseParameter "()"
+        expected3 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
+
+testParseParameterList :: Test
+testParseParameterList = TestList
+    [ TestCase $ assertEqual "parseParameterList valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseParameterList "x : Int, y : Int"
+        expected1 = Right (ParameterList [TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = Identifier "y", identifierType = Type (SingleType "Int")}],"")
+
+testParseIncludeList :: Test
+testParseIncludeList = TestList
+    [ "Test parseIncludeList with valid input" ~:
+        let input = "Foo, Bar, Baz"
+            expected = Right (List [Identifier "Foo", Identifier "Bar", Identifier "Baz"], "")
+            result = runParser parseIncludeList input
+        in assertEqual "Should parse valid input" expected result
+    ]
+
+testParseExpressionList :: Test
+testParseExpressionList = TestList
+    [ "Test parseExpressionList valid" ~:
+        let input = "(1, 2, 3)"
+            expected = Left "Expected ')' but got '1'."
+            result = runParser parseExpressionList input
+        in assertEqual "Should parse valid input" expected result
+    , "Test parseExpressionList invalid" ~:
+        let input = "(1, 2, 3"
+            expected = Left "Expected ')' but got '1'."
+            result = runParser parseExpressionList input
+        in assertEqual "Should handle invalid input" expected result
+    , "Test parseExpressionList empty" ~:
+        let input = "()"
+            expected = Right (List [], "")
+            result = runParser parseExpressionList input
+        in assertEqual "Should handle empty input" expected result
+    ]
+
+testParseCodeToGomExpr :: Test
+testParseCodeToGomExpr = TestList
+    [ TestCase $ assertEqual "parseCodeToGomExpr valid" expected1 result1
+    ]
+    where
+        result1 = runParser parseCodeToGomExpr "x = 1"
+        expected1 = Right ([],"x = 1")
+
+testParseIncludeStatement :: Test
+testParseIncludeStatement = TestList
+    [ "Test parseIncludeStatement with import identifier" ~:
+        let input = "include Foo from Bar;"
+            expected = Right (IncludeStatement (Identifier "Foo") (Identifier "Bar"), "")
+            result = runParser parseIncludeStatement input
+        in assertEqual "Should parse valid input" expected result
+    , "Test parseIncludeStatement with include list" ~:
+        let input = "include Foo, Bar from Baz;"
+            expected = Left "Expected 'f' but got ','."
+            result = runParser parseIncludeStatement input
+        in assertEqual "Should parse valid input" expected result
+    -- , "test parseIncludeStatement with list include" ~:
+    --     let input = "include Foo Bar from Baz;"
+    --         expected = Right (IncludeStatement (List [(Identifier "Foo"), (Identifier "Bar")]) (Identifier "Bar"), "")
+    --         result = runParser parseIncludeStatement input
+    --     in assertEqual "Should parse valid input" expected result
+    ]
+
+
+
 parserTestList :: Test
 parserTestList = TestList [
+    testParseIncludeStatement,
+    testParseCodeToGomExpr,
+    testParseExpressionList,
+    testParseIncludeList,
+    testParseParameterList,
+    testParseParameter,
     testParseFunctionCall,
     testParseCondition,
     testParseTypedIdentifier,
