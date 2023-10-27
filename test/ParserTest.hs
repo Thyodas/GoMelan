@@ -3,7 +3,7 @@ import Ast (GomExpr(..), GomExprType(..))
 import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
-    parseMany, parseSome, parsePair, parseNumber, Parser, runParser,
+    parseMany, parseSome, parsePair, parseNumber, Parser, runParser, parseContent,
     parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
     parseStatement, parseReturnStatement, parseExpression, parseFunctionDeclaration,
     parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
@@ -550,11 +550,12 @@ testParseFactorWithOperator = TestList
     [ TestCase $ assertEqual "parseFactorWithOperator valid" expected1 result1
     , TestCase $ assertEqual "parseFactorWithOperator invalid" expected2 result2
     , TestCase $ assertEqual "parseFactorWithOperator empty" expected3 result3
-    , TestCase $ assertEqual "parseFactorWithOperator valid" expected4 result4
+    , TestCase $ assertEqual "parseFactorWithOperator all operator" expected4 result4
+    , TestCase $ assertEqual "parseFactorWithOperator with identifier" expected5 result5
     ]
     where
         result1 = runParser parseFactorWithOperator "x + y"
-        expected1 = Left "Expected a binary operator, but got ' '."
+        expected1 = Right (Operator "+", "")
 
         result2 = runParser parseFactorWithOperator "x"
         expected2 = Left "Expected a binary operator, but got ''."
@@ -562,8 +563,11 @@ testParseFactorWithOperator = TestList
         result3 = runParser parseFactorWithOperator ""
         expected3 = Left "Expected 'F' but got empty string."
 
-        result4 = runParser parseFactorWithOperator "1 + 2 * 3"
-        expected4 = Left "Expected a binary operator, but got ' '."
+        result4 = runParser parseFactorWithOperator "100 - 2 * 3 - 1 / 10 % 2"
+        expected4 = Right (Operator "-", "")
+
+        result5 = runParser parseFactorWithOperator "x * 100"
+        expected5 = Right (Operator "*", "")
 
 testParseTerm :: Test
 testParseTerm = TestList
@@ -877,10 +881,18 @@ testParseType = TestList
         in assertEqual "Should parse valid input" expected result
     ]
 
+testParseContent :: Test
+testParseContent = TestList
+    [ TestCase $ assertEqual "parseContent valid" expected1 result1
+    ]
+    where
+        result1 = runParser (parseContent '[' ']' parseNumber) "[1 2 3]"
+        expected1 = Right ([1,2,3],"")
 
 
 parserTestList :: Test
 parserTestList = TestList [
+    testParseContent,
     testParseType,
     testParseVariableDeclaration,
     testParseIncludeStatement,
