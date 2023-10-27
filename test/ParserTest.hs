@@ -3,8 +3,8 @@ import Ast (GomExpr(..), GomExprType(..))
 import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
-    parseMany, parseSome, parsePair, parseNumber, Parser, runParser, parseContent,
-    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
+    parseMany, parseSome, parsePair, parseNumber, Parser, runParser,
+    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString, parseFunctionDeclaration,
     parseStatement, parseReturnStatement, parseExpression, parseFunctionDeclaration,
     parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
     parseOperatorModulo, parseOperatorInf, parseOperatorSup, parseOperatorInfEqual,
@@ -812,6 +812,30 @@ testParseVariableDeclaration = TestList
         in assertEqual "Should handle invalid input" expected result
     ]
 
+testParseFunctionDeclaration :: Test
+testParseFunctionDeclaration = TestList
+    [ TestCase $ assertEqual "testParseFunctionDeclaration valid two arguments" expected1 result1
+    , TestCase $ assertEqual "testParseFunctionDeclaration valid no argument" expected2 result2
+    , TestCase $ assertEqual "testParseFunctionDeclaration invalid missing perenthesis" expected3 result3
+    , TestCase $ assertEqual "testParseFunctionDeclaration invalid return type" expected4 result4
+    , TestCase $ assertEqual "testParseFunctionDeclaration invalid symbol" expected5 result5
+    ]
+    where
+        result1 = runParser parseFunctionDeclaration "fn multiply() -> Int {}"
+        expected1 = Right (Function {fnName = Identifier "multiply", fnArguments = List [], fnBody = Block [], fnReturnType = Identifier "Int"},"")
+
+        result2 = runParser parseFunctionDeclaration "fn multiply() -> Int {}"
+        expected2 = Right (Function {fnName = Identifier "multiply", fnArguments = List [], fnBody = Block [], fnReturnType = Identifier "Int"},"")
+
+        result3 = runParser parseFunctionDeclaration "fn multiply(a: Int, b: Int -> Int {}"
+        expected3 = Left "Expected ')' but got 'a'."
+
+        result4 = runParser parseFunctionDeclaration "fn multiply() ->  {}"
+        expected4 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '{'."
+
+        result5 = runParser parseFunctionDeclaration "fi multiply(a: Int, b: Int) -> Int {}"
+        expected5 = Left "Expected ')' but got 'a'."
+
 testParseIncludeList :: Test
 testParseIncludeList = TestList
     [ "Test parseIncludeList with valid input" ~:
@@ -881,18 +905,9 @@ testParseType = TestList
         in assertEqual "Should parse valid input" expected result
     ]
 
-testParseContent :: Test
-testParseContent = TestList
-    [ TestCase $ assertEqual "parseContent valid" expected1 result1
-    ]
-    where
-        result1 = runParser (parseContent '[' ']' parseNumber) "[1 2 3]"
-        expected1 = Right ([1,2,3],"")
-
-
 parserTestList :: Test
 parserTestList = TestList [
-    testParseContent,
+    testParseFunctionDeclaration,
     testParseType,
     testParseVariableDeclaration,
     testParseIncludeStatement,
