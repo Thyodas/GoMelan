@@ -127,6 +127,11 @@ evalEqual :: [Ast] -> EvalResult Ast
 evalEqual [ANumber x, ANumber y] = EvalResult $ Right $ ABoolean $ x == y
 evalEqual args = throwEvalError "invalid arguments" args
 
+-- Evaluate not equal
+evalNotEqual :: [Ast] -> EvalResult Ast
+evalNotEqual [ANumber x, ANumber y] = EvalResult $ Right $ ABoolean $ x /= y
+evalNotEqual args = throwEvalError "invalid arguments" args
+
 -- Evaluate lower equal
 evalLowerEqual :: [Ast] -> EvalResult Ast
 evalLowerEqual args = evalGreaterThan args >>= evalNot . (: [])
