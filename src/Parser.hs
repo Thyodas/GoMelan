@@ -178,7 +178,7 @@ parseFactorWithOperator = do
     return $ operator
 
 parseFactor :: Parser GomExpr
-parseFactor = parseIdentifier <|> parseLiteral
+parseFactor = (Number <$> parseNumber) <|> parseIdentifier <|> parseLiteral
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
