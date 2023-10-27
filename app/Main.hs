@@ -22,7 +22,7 @@ fileExecution path = do
     case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right content -> case runParser parseCodeToGomExpr content of
-            Left err -> putStrLn err >> exitWith (ExitFailure 84)
+            Left err -> print err >> exitWith (ExitFailure 84)
             Right out -> putStrLn $ show out
 
 replExecution :: IO ()

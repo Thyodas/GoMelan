@@ -7,7 +7,7 @@
 
 module Execution (runCode) where
 
-import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..))
+import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..), ParseError(..))
 import Ast (Ast, evalAST, EvalResult (..), gomexprToAST,
     EvalError(..), Env)
 
@@ -31,7 +31,9 @@ runAllAst env asts = case evalList env asts of
 -- | Parse GomExpr to annalise the syntaxe
 runCode :: Env -> String -> Either ErrorMsg (Env, [Ast])
 runCode env code = do
-    (gomexpr, _) <- runParser parseCodeToGomExpr code
+    (gomexpr, _) <- case runParser parseCodeToGomExpr code of
+        Right other -> Right other
+        Left (ParseError _ msg _:_) -> Left msg
     unevaluatedAst <- case traverse gomexprToAST gomexpr of
                 Just ast -> Right ast
                 Nothing -> Left "Could not parse GomExpr"
