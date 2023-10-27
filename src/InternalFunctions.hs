@@ -15,8 +15,8 @@ calculationList = [
     ADefine "+" (AInternalFunction $ InternalFunction evalAddition),
     ADefine "-" (AInternalFunction $ InternalFunction evalSoustraction),
     ADefine "*" (AInternalFunction $ InternalFunction evalMultiplication),
-    ADefine "div" (AInternalFunction $ InternalFunction evalDivision),
-    ADefine "mod" (AInternalFunction $ InternalFunction evalModulo)
+    ADefine "/" (AInternalFunction $ InternalFunction evalDivision),
+    ADefine "%" (AInternalFunction $ InternalFunction evalModulo)
   ]
 
 compList :: Env
@@ -25,16 +25,15 @@ compList = [
     ADefine "<" (AInternalFunction $ InternalFunction evalLessThan),
     ADefine ">=" (AInternalFunction $ InternalFunction evalGreaterEqual),
     ADefine "<=" (AInternalFunction $ InternalFunction evalLowerEqual),
-    ADefine "=" (AInternalFunction $ InternalFunction evalEqual)
+    ADefine "==" (AInternalFunction $ InternalFunction evalEqual),
+    ADefine "!=" (AInternalFunction $ InternalFunction evalNotEqual)
   ]
 
 compListTwo :: Env
 compListTwo = [
-  ADefine "eq?" (AInternalFunction $ InternalFunction evalEqual),
-    ADefine "eq" (AInternalFunction $ InternalFunction evalEqual),
-    ADefine "and" (AInternalFunction $ InternalFunction evalAnd),
-    ADefine "or" (AInternalFunction $ InternalFunction evalOr),
-    ADefine "not" (AInternalFunction $ InternalFunction evalNot)
+    ADefine "&&" (AInternalFunction $ InternalFunction evalAnd),
+    ADefine "||" (AInternalFunction $ InternalFunction evalOr),
+    ADefine "!" (AInternalFunction $ InternalFunction evalNot)
   ]
 
 internalEnv :: Env
