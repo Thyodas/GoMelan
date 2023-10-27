@@ -127,12 +127,10 @@ parseTerm = Term <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator <|>
 -- | Parse a factor with a binary operator and another term
 parseFactorWithOperator :: Parser GomExpr
 parseFactorWithOperator = do
-    factor <- parseFactor
-    operator <- parseBinaryOperator
+    factor <- parseAmongWhitespace parseFactor
+    operator <- parseAmongWhitespace parseBinaryOperator
     term <- parseTerm
-    return $ case operator of
-        id@(Identifier _) -> Statements [id, factor, term]
-        _          -> term
+    return $ operator
 
 parseFactor :: Parser GomExpr
 parseFactor = parseIdentifier <|> parseLiteral

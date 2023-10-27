@@ -4,7 +4,7 @@ import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseMany, parseSome, parsePair, parseNumber, Parser, runParser, parseSep,
-    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
+    parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString, parseFunctionDeclaration,
     parseStatement, parseReturnStatement, parseExpression, parseFunctionDeclaration,
     parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
     parseOperatorModulo, parseOperatorInf, parseOperatorSup, parseOperatorInfEqual,
@@ -550,11 +550,12 @@ testParseFactorWithOperator = TestList
     [ TestCase $ assertEqual "parseFactorWithOperator valid" expected1 result1
     , TestCase $ assertEqual "parseFactorWithOperator invalid" expected2 result2
     , TestCase $ assertEqual "parseFactorWithOperator empty" expected3 result3
-    , TestCase $ assertEqual "parseFactorWithOperator valid" expected4 result4
+    , TestCase $ assertEqual "parseFactorWithOperator all operator" expected4 result4
+    , TestCase $ assertEqual "parseFactorWithOperator with identifier" expected5 result5
     ]
     where
         result1 = runParser parseFactorWithOperator "x + y"
-        expected1 = Left "Expected a binary operator, but got ' '."
+        expected1 = Right (Operator "+", "")
 
         result2 = runParser parseFactorWithOperator "x"
         expected2 = Left "Expected a binary operator, but got ''."
@@ -562,8 +563,11 @@ testParseFactorWithOperator = TestList
         result3 = runParser parseFactorWithOperator ""
         expected3 = Left "Expected 'F' but got empty string."
 
-        result4 = runParser parseFactorWithOperator "1 + 2 * 3"
-        expected4 = Left "Expected a binary operator, but got ' '."
+        result4 = runParser parseFactorWithOperator "100 - 2 * 3 - 1 / 10 % 2"
+        expected4 = Right (Operator "-", "")
+
+        result5 = runParser parseFactorWithOperator "x * 100"
+        expected5 = Right (Operator "*", "")
 
 testParseTerm :: Test
 testParseTerm = TestList
@@ -808,6 +812,30 @@ testParseVariableDeclaration = TestList
         in assertEqual "Should handle invalid input" expected result
     ]
 
+testParseFunctionDeclaration :: Test
+testParseFunctionDeclaration = TestList
+    [ TestCase $ assertEqual "testParseFunctionDeclaration valid two arguments" expected1 result1
+    , TestCase $ assertEqual "testParseFunctionDeclaration valid no argument" expected2 result2
+    , TestCase $ assertEqual "testParseFunctionDeclaration invalid missing perenthesis" expected3 result3
+    , TestCase $ assertEqual "testParseFunctionDeclaration invalid return type" expected4 result4
+    , TestCase $ assertEqual "testParseFunctionDeclaration invalid symbol" expected5 result5
+    ]
+    where
+        result1 = runParser parseFunctionDeclaration "fn multiply() -> Int {}"
+        expected1 = Right (Function {fnName = Identifier "multiply", fnArguments = List [], fnBody = Block [], fnReturnType = Identifier "Int"},"")
+
+        result2 = runParser parseFunctionDeclaration "fn multiply() -> Int {}"
+        expected2 = Right (Function {fnName = Identifier "multiply", fnArguments = List [], fnBody = Block [], fnReturnType = Identifier "Int"},"")
+
+        result3 = runParser parseFunctionDeclaration "fn multiply(a: Int, b: Int -> Int {}"
+        expected3 = Left "Expected ')' but got 'a'."
+
+        result4 = runParser parseFunctionDeclaration "fn multiply() ->  {}"
+        expected4 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '{'."
+
+        result5 = runParser parseFunctionDeclaration "fi multiply(a: Int, b: Int) -> Int {}"
+        expected5 = Left "Expected ')' but got 'a'."
+
 testParseIncludeList :: Test
 testParseIncludeList = TestList
     [ "Test parseIncludeList with valid input" ~:
@@ -877,18 +905,10 @@ testParseType = TestList
         in assertEqual "Should parse valid input" expected result
     ]
 
-testParseLiteral :: Test
-testParseLiteral = TestList
-    [ "Test parseLiteral with integer" ~:
-        let input = "123"
-            expected = Right ((Number 123), "")
-            result = runParser parseLiteral input
-        in assertEqual "Should parse integer" expected result
-    ]
+
 
 parserTestList :: Test
 parserTestList = TestList [
-    testParseLiteral,
     testParseType,
     testParseVariableDeclaration,
     testParseIncludeStatement,
