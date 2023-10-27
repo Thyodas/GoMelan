@@ -5,7 +5,7 @@ import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseMany, parseSome, parsePair, parseNumber, Parser, runParser,
     parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
-    parseStatement, parseReturnStatement, parseExpression, parseTermWithOperator,
+    parseStatement, parseReturnStatement, parseExpression, parseFunctionDeclaration,
     parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
     parseOperatorModulo, parseOperatorInf, parseOperatorSup, parseOperatorInfEqual,
     parseOperatorSupEqual, parseOperatorDivide, parseOperatorMultiply, parseOperatorMinus,
@@ -293,30 +293,6 @@ testParseString = TestList
 
         result2 = runParser parseString "\"hello world\";"
         expected2 = Right (GomString "hello world", ";")
-
--- testParseStatement :: Test
--- testParseStatement = TestList
---     [ TestCase $ assertEqual "parseStatement variable declaration" expected1 result1
---     , TestCase $ assertEqual "parseStatement return statement" expected2 result2
---     , TestCase $ assertEqual "parseStatement assignment" expected3 result3
---     , TestCase $ assertEqual "parseStatement for loop" expected4 result4
---     , TestCase $ assertEqual "parseStatement condition" expected5 result5
---     ]
---     where
---         result1 = runParser parseStatement "let x = 42;"
---         expected1 = Right (VariableDeclaration "x" (Number 42), "")
-
---         result2 = runParser parseStatement "return 42;"
---         expected2 = Right (Expression (Number 42), "")
-
---         result3 = runParser parseStatement "x = 42;"
---         expected3 = Right (Assignment "x" (Number 42), "")
-
---         result4 = runParser parseStatement "for i in 1..10 do\n  print(i)\nend;"
---         expected4 = Right (ForLoopIter "i" (Number 1) (Number 10) (List [Identifier "print", Identifier "i"]), "")
-
---         result5 = runParser parseStatement "if x == 42 then\n  print(\"x is 42\")\nelse\n  print(\"x is not 42\")\nend;"
---         expected5 = Right (Condition (Operator (Identifier "==") (Identifier "x") (Number 42)) (List [Identifier "print", GomString "x is 42"]) (List [Identifier "print", GomString "x is not 42"]), "")
 
 testParseReturnStatement :: Test
 testParseReturnStatement = TestList
@@ -637,25 +613,29 @@ testParseTermWithoutOperator = TestList
         result5 = runParser parseTermWithoutOperator "(1 + 2)"
         expected5 = Right (Term [Term [Identifier "1",Operator "+",Identifier "2"]],"")
 
-testParseTermWithOperator :: Test
-testParseTermWithOperator = TestList
-    [ TestCase $ assertEqual "parseTermWithOperator valid" expected1 result1
-    , TestCase $ assertEqual "parseTermWithOperator invalid" expected2 result2
-    , TestCase $ assertEqual "parseTermWithOperator empty" expected3 result3
-    , TestCase $ assertEqual "parseTermWithOperator valid" expected4 result4
-    ]
-    where
-        result1 = runParser parseTermWithOperator "1 + 2"
-        expected1 = Left "Expected a binary operator, but got ''."
+-- testParseTermWithOperator :: Test
+-- testParseTermWithOperator = TestList
+--     [ TestCase $ assertEqual "parseTermWithOperator valid" expected1 result1
+--     , TestCase $ assertEqual "parseTermWithOperator invalid" expected2 result2
+--     , TestCase $ assertEqual "parseTermWithOperator empty" expected3 result3
+--     , TestCase $ assertEqual "parseTermWithOperator valid" expected4 result4
+--     , TestCase $ assertEqual "parseTermWithOperator with close parenthesis" expected5 result5
+--     ]
+--     where
+--         result1 = runParser parseTermWithOperator "1 + 2"
+--         expected1 = Left "Expected a binary operator, but got ''."
 
-        result2 = runParser parseTermWithOperator "1 +"
-        expected2 = Left "Expected a binary operator, but got ''."
+--         result2 = runParser parseTermWithOperator "1 +"
+--         expected2 = Left "Expected a binary operator, but got ''."
 
-        result3 = runParser parseTermWithOperator "()"
-        expected3 = Left "Expected '(' but got ')'."
+--         result3 = runParser parseTermWithOperator "()"
+--         expected3 = Left "Expected '(' but got ')'."
 
-        result4 = runParser parseTermWithOperator "(1 + 2) * 3"
-        expected4 = Left "Expected a binary operator, but got ''."
+--         result4 = runParser parseTermWithOperator "(1 + 2) * 3"
+--         expected4 = Left "Expected a binary operator, but got ''."
+
+--         result5 = runParser parseTermWithOperator "(1 + 2)"
+--         expected5 = Left "Expected a binary operator, but got ''."
 
 
 testParseAssignent :: Test
@@ -712,8 +692,6 @@ testParseTypedIdentifier = TestList
 
         result3 = runParser parseTypedIdentifier "()"
         expected3 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
-
-
 
 
 testParseCondition :: Test
@@ -775,7 +753,7 @@ testParseFunctionCall = TestList
     ]
     where
         result1 = runParser parseFunctionCall "foo()"
-        expected1 = Right (Statements [Identifier "foo"], "")
+        expected1 = Right (FunctionCall {functionName = Identifier "foo", functionArguments = List []},"")
 
         result2 = runParser parseFunctionCall "foo"
         expected2 = Left "Expected '(' but got empty string."
@@ -784,7 +762,7 @@ testParseFunctionCall = TestList
         expected3 = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '('."
 
         result4 = runParser parseFunctionCall "foo() bar"
-        expected4 = Right (Statements [Identifier "foo"], " bar")
+        expected4 = Right (FunctionCall {functionName = Identifier "foo", functionArguments = List []},"bar")
 
 
 testParseParameter :: Test
@@ -859,17 +837,32 @@ testParseIncludeStatement = TestList
             expected = Left "Expected 'f' but got ','."
             result = runParser parseIncludeStatement input
         in assertEqual "Should parse valid input" expected result
-    -- , "test parseIncludeStatement with list include" ~:
-    --     let input = "include Foo Bar from Baz;"
-    --         expected = Right (IncludeStatement (List [(Identifier "Foo"), (Identifier "Bar")]) (Identifier "Bar"), "")
-    --         result = runParser parseIncludeStatement input
-    --     in assertEqual "Should parse valid input" expected result
+    ]
+
+testParseType :: Test
+testParseType = TestList
+    [ "Test parseType with single type" ~:
+        let input = "Int"
+            expected = Right (Type (SingleType "Int"), "")
+            result = runParser parseType input
+        in assertEqual "Should parse valid input" expected result
+    , "Test parseType with list type" ~:
+        let input = "[Int]"
+            expected = Right (Type (TypeList [SingleType "Int"]), "")
+            result = runParser parseType input
+        in assertEqual "Should parse valid input" expected result
+    , "Test parseType with custom type" ~:
+        let input = "MyCustomType"
+            expected = Right (Type (SingleType "MyCustomType"), "")
+            result = runParser parseType input
+        in assertEqual "Should parse valid input" expected result
     ]
 
 
 
 parserTestList :: Test
 parserTestList = TestList [
+    testParseType,
     testParseIncludeStatement,
     testParseCodeToGomExpr,
     testParseExpressionList,
@@ -881,7 +874,7 @@ parserTestList = TestList [
     testParseTypedIdentifier,
     testParseForLoopIter,
     testParseAssignent,
-    testParseTermWithOperator,
+    -- testParseTermWithOperator,
     testParseTermWithoutOperator,
     testParseTerm,
     testParseFactorWithOperator,

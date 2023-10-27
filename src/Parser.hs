@@ -103,18 +103,18 @@ parseExpression :: Parser GomExpr
 parseExpression = Expression <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator <|> parseFactor <|> parseBetween '(' ')' parseExpression)
 
 -- | Parse a term with a binary operator and another expression
-parseTermWithOperator :: Parser GomExpr
-parseTermWithOperator = do
-    term <- parseTerm
-    operator <- parseBinaryOperator
-    expression <- parseExpression
-    return $ case operator of
-        Identifier "+" -> Statements [(Identifier "+"), term, expression]
-        Identifier "-" -> Statements [(Identifier "-"), term, expression]
-        Identifier "*" -> Statements [(Identifier "*"), term, expression]
-        Identifier "/" -> Statements [(Identifier "/"), term, expression]
-        Identifier "%" -> Statements [(Identifier "%"), term, expression]
-        _          -> expression
+-- parseTermWithOperator :: Parser GomExpr
+-- parseTermWithOperator = do
+--     term <- parseTerm
+--     operator <- parseBinaryOperator
+--     expression <- parseExpression
+--     return $ case operator of
+--         Identifier "+" -> Statements [(Identifier "+"), term, expression]
+--         Identifier "-" -> Statements [(Identifier "-"), term, expression]
+--         Identifier "*" -> Statements [(Identifier "*"), term, expression]
+--         Identifier "/" -> Statements [(Identifier "/"), term, expression]
+--         Identifier "%" -> Statements [(Identifier "%"), term, expression]
+--         _          -> expression
 
 -- | Parse a term without a binary operator
 parseTermWithoutOperator :: Parser GomExpr
@@ -225,7 +225,7 @@ parseType = Type <$> parseType'
     where
         parseType' :: Parser GomExprType
         parseType' = SingleType <$> (parseSymbol "Int"
-                <|> parseSymbol "String" 
+                <|> parseSymbol "String"
                 <|> parseSymbol "Bool")
             <|> TypeList <$> (: []) <$> parseBetween '[' ']' parseType'
             <|> parseCustomType
@@ -337,7 +337,7 @@ parseAssignent :: Parser GomExpr
 parseAssignent = do
     identifier <- parseTypedIdentifier <|> parseIdentifier
     _ <- parseAmongWhitespace $ parseChar '='
-    expression <- parseAmongWhitespace $ (parseFunctionCall <|> parseExpression)
+    expression <- parseAmongWhitespace $ parseExpression
     return $ Assignment {assignedIdentifier=identifier, assignedExpression=expression}
 
 -- | Parse for loop
