@@ -13,7 +13,7 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseFunctionName, parseBlock, parseReturnType, parseModule, parseImportIdentifier, parseCustomType,
     parseList, parseTerm, parseTermWithoutOperator, parseSemicolumn, parseTypedIdentifier, parseParameter,
     parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
-    parseExpressionList, parseCodeToGomExpr, parseIncludeStatement,
+    parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testParseChar :: Test
@@ -690,6 +690,11 @@ testParseForLoopIter = TestList
             expected = Left "Expected ')' but got 'x'."
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
+    , "Test parseForLoopIter block" ~:
+        let input = "for (x = 0; x < 10; x = x + 1) { x : Int = 1; }"
+            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "0"]}, forLoopCondition = Expression [Identifier "x", Operator "<", Identifier "10"], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x", Operator "+", Identifier "1"]}, forLoopIterBlock = Block [Statements [Identifier "var", Identifier "x", Identifier "Int", Identifier "1"]]}, "")
+            result = runParser parseForLoopIter input
+        in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter without block" ~:
         let input = "for (x = 0; x < 10; x++)"
             expected = Left "Expected ')' but got 'x'."
@@ -811,6 +816,20 @@ testParseParameterList = TestList
         result1 = runParser parseParameterList "x : Int, y : Int"
         expected1 = Right (ParameterList [TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = Identifier "y", identifierType = Type (SingleType "Int")}],"")
 
+testParseVariableDeclaration :: Test
+testParseVariableDeclaration = TestList
+    [ "Test parseVariableDeclaration with valid input" ~:
+        let input = "x : Int = 42;"
+            expected = Right (Statements [Identifier "var", Identifier "x", Identifier "Int", Identifier "42"], ";")
+            result = runParser parseVariableDeclaration input
+        in assertEqual "Should parse valid input" expected result
+    , "Test parseVariableDeclaration with no value" ~:
+        let input = "x : Int = ;"
+            expected = Left "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got ';'."
+            result = runParser parseVariableDeclaration input
+        in assertEqual "Should handle invalid input" expected result
+    ]
+
 testParseIncludeList :: Test
 testParseIncludeList = TestList
     [ "Test parseIncludeList with valid input" ~:
@@ -870,6 +889,7 @@ testParseIncludeStatement = TestList
 
 parserTestList :: Test
 parserTestList = TestList [
+    testParseVariableDeclaration,
     testParseIncludeStatement,
     testParseCodeToGomExpr,
     testParseExpressionList,
