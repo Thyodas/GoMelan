@@ -3,7 +3,7 @@ import Ast (GomExpr(..), GomExprType(..))
 import Control.Applicative (Alternative(..))
 import Test.HUnit
 import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
-    parseMany, parseSome, parsePair, parseNumber, Parser, runParser,
+    parseMany, parseSome, parsePair, parseNumber, Parser, runParser, parseSep,
     parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseString,
     parseStatement, parseReturnStatement, parseExpression, parseFunctionDeclaration,
     parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
@@ -13,7 +13,7 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith,
     parseFunctionName, parseBlock, parseReturnType, parseModule, parseImportIdentifier, parseCustomType,
     parseList, parseTerm, parseTermWithoutOperator, parseSemicolumn, parseTypedIdentifier, parseParameter,
     parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
-    parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration,
+    parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testParseChar :: Test
@@ -877,10 +877,18 @@ testParseType = TestList
         in assertEqual "Should parse valid input" expected result
     ]
 
-
+testParseLiteral :: Test
+testParseLiteral = TestList
+    [ "Test parseLiteral with integer" ~:
+        let input = "123"
+            expected = Right ((Number 123), "")
+            result = runParser parseLiteral input
+        in assertEqual "Should parse integer" expected result
+    ]
 
 parserTestList :: Test
 parserTestList = TestList [
+    testParseLiteral,
     testParseType,
     testParseVariableDeclaration,
     testParseIncludeStatement,
