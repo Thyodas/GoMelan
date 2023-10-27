@@ -365,16 +365,6 @@ parsePair parser = do
     _ <- parseChar ')'
     return (left, right)
 
--- | Takes a list in arg as a string, apply a parser on each element separated by whitesapce
-parseContent :: Char -> Char -> Parser a -> Parser [a]
-parseContent open close parser = do
-    _ <- parseChar open
-    _ <- parseMany (parseAnyChar " \n\t")
-    result <- parseMany (parser <* parseMany
-        (parseAnyChar parserWhitespaceChar))
-    _ <- parseChar close
-    return result
-
 -- | Parse a token following parserTokenChar and return a string
 parseToken :: Parser String
 parseToken = parseSome (parseAnyChar parserTokenChar)
