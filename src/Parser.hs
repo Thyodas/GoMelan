@@ -47,11 +47,17 @@ data ParseError = ParseError ErrorType ErrorMsg Remaining
 type ParseErrorStack = [ParseError]
 
 -- | Take the furthest error
-takeFurthestError :: ParseError -> ParseError -> ParseError
-takeFurthestError fstErr@(ParseError _ _ remaining1) sndErr@(ParseError _ _ remaining2) =
-    if length remaining1 < length remaining2
+takeFurthestError :: ParseErrorStack -> ParseErrorStack -> ParseErrorStack
+takeFurthestError [] [] = []
+takeFurthestError [] err = err
+takeFurthestError err [] = err
+takeFurthestError fstErr sndErr =
+    if length fstErrorRemaining < length sndErrorRemaining
         then fstErr
         else sndErr
+        where
+            (ParseError _ _ fstErrorRemaining) = last fstErr
+            (ParseError _ _ sndErrorRemaining) = last sndErr
 
 throwParseError :: ErrorType -> ErrorMsg -> Parser a
 throwParseError errType msg = Parser $ \str -> Left [ParseError errType msg str]
@@ -177,7 +183,7 @@ parseFactorWithOperator = do
     return $ operator
 
 parseFactor :: Parser GomExpr
-parseFactor = parseIdentifier <|> parseLiteral
+parseFactor = (Number <$> parseNumber) <|> parseIdentifier <|> parseLiteral
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -323,7 +329,7 @@ parseLiteral = (Number <$> parseNumber) <|> parseString <|> parseBoolean
 parseOr :: Parser a -> Parser a -> Parser a
 parseOr parser1 parser2 = Parser $ \str -> case runParser parser1 str of
     Left fstErr -> case runParser parser2 str of
-        Left sndErr -> Left [takeFurthestError (last fstErr) (last sndErr)]
+        Left sndErr -> Left (takeFurthestError fstErr sndErr)
         other -> other
     other -> other
 
@@ -516,8 +522,9 @@ parseFunctionDeclaration = do
     _ <- parseAmongWhitespace parseIdentifier  -- Le mot-clé "fn"
     functionName <- parseAmongWhitespace parseIdentifier
     arguments <- parseAmongWhitespace $ ParameterList <$> parseList parseParameter
-    _ <- parseAmongWhitespace $ parseChar '-' *> parseChar '>'
-    returnType <- parseAmongWhitespace $ parseIdentifier
+    _ <- parseAmongWhitespace $ parseSymbol "->" <?> ParseError MissingFunctionReturnType "Expected '->' after function arguments."
+    returnType <- parseAmongWhitespace $ parseType <?> ParseError MissingFunctionReturnType "Expected a return type after '->'."
+    --_ <- parseAmongWhitespace $ parseChar '{'
     body <- parseAmongWhitespace $ parseBlock
     return $ Function {fnName=functionName, fnArguments=arguments, fnReturnType=returnType, fnBody=body}
 
