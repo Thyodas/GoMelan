@@ -8,33 +8,39 @@
 module Execution (runCode) where
 
 import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..), ParseError(..))
-import Ast (Ast, evalAST, EvalResult (..), gomexprToAST,
+import Ast (GomAST (AGomIdentifier), EvalResult (..), gomExprToGomAST,
     EvalError(..), Env)
 
--- | Check list
-evalList :: Env -> [Ast] -> EvalResult (Env, [Ast])
-evalList env [] = pure (env, [])
-evalList env (ast:rest) = do
-  (newEnv, result) <- evalSingle env ast
-  (finalEnv, results) <- evalList newEnv rest
-  pure (finalEnv, result : results)
-    where
-        evalSingle :: Env -> Ast -> EvalResult (Env, Ast)
-        evalSingle env' ast' = evalAST env' ast'
+-- TODO: fix this file so that it handles new GomAST
 
--- | Execute all AST
-runAllAst :: Env -> [Ast] -> Either ErrorMsg (Env, [Ast])
-runAllAst env asts = case evalList env asts of
-    EvalResult (Right results) -> Right results
-    EvalResult (Left (EvalError msg _)) -> Left msg
+runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
+runCode _ _ = Right ([], [AGomIdentifier "runCode is not implemented"])
 
--- | Parse GomExpr to annalise the syntaxe
-runCode :: Env -> String -> Either ErrorMsg (Env, [Ast])
-runCode env code = do
-    (gomexpr, _) <- case runParser parseCodeToGomExpr code of
-        Right other -> Right other
-        Left (ParseError _ msg _:_) -> Left msg
-    unevaluatedAst <- case traverse gomexprToAST gomexpr of
-                Just ast -> Right ast
-                Nothing -> Left "Could not parse GomExpr"
-    runAllAst env unevaluatedAst
+
+-- -- | Check list
+-- evalList :: Env -> [GomAST] -> EvalResult (Env, [GomAST])
+-- evalList env [] = pure (env, [])
+-- evalList env (ast:rest) = do
+--   (newEnv, result) <- evalSingle env ast
+--   (finalEnv, results) <- evalList newEnv rest
+--   pure (finalEnv, result : results)
+--     where
+--         evalSingle :: Env -> GomAST -> EvalResult (Env, GomAST)
+--         evalSingle env' ast' = evalAST env' ast'
+
+-- -- | Execute all AST
+-- runAllAst :: Env -> [GomAST] -> Either ErrorMsg (Env, [GomAST])
+-- runAllAst env asts = case evalList env asts of
+--     EvalResult (Right results) -> Right results
+--     EvalResult (Left (EvalError msg _)) -> Left msg
+
+-- -- | Parse GomExpr to annalise the syntaxe
+-- runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
+-- runCode env code = do
+--     (gomexpr, _) <- case runParser parseCodeToGomExpr code of
+--         Right other -> Right other
+--         Left (ParseError _ msg _:_) -> Left msg
+--     unevaluatedAst <- case traverse gomExprToGomAST gomexpr of
+--                 Just ast -> Right ast
+--                 Nothing -> Left "Could not parse GomExpr"
+--     runAllAst env unevaluatedAst

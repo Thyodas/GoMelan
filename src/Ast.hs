@@ -4,27 +4,23 @@
 -- File description:
 -- Ast
 -}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Ast (
-    gomexprToAST,
     GomExpr(..),
     GomExprType(..),
-    Ast(..),
+    GomAST(..),
     EvalError(..),
     EvalResult(..),
     InternalFunction(..),
-    evalAST,
-    evalASTCall,
     Env,
     EnvKey,
     EnvValue,
     envInsert,
     throwEvalError,
     envLookup,
-    gomexprToDefun,
-    gomexprToLambda,
     extractSymbol,
-    evalASTCondition
+    gomExprToGomAST
 ) where
 
 import Data.List (deleteBy, find)
@@ -55,7 +51,7 @@ data GomExpr = Number Int
     | Function { fnName :: GomExpr, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
     deriving (Show, Eq)
 
-newtype InternalFunction = InternalFunction ([Ast] -> EvalResult Ast)
+newtype InternalFunction = InternalFunction ([GomAST] -> EvalResult GomAST)
 
 instance Show InternalFunction where
   show _ = "<Internal Function>"
@@ -63,19 +59,33 @@ instance Show InternalFunction where
 instance Eq InternalFunction where
   _ == _ = True
 
-data Ast = ADefine { symbol :: String, expression :: Ast }
-        | ACall { function :: String, arguments :: [Ast] }
-        | ACondition { condition :: Ast, ifTrue :: Ast, ifFalse :: Ast }
-        | ADefun { argumentNames :: [String], body :: Ast }
-        | AFunction { argumentNames :: [String], body :: Ast }
-        | AInternalFunction InternalFunction
-        | ANumber Int
-        | ASymbol String
-        | AString String
-        | ABoolean Bool
-    deriving (Show, Eq)
+data GomAST =
+    AGomNumber Int
+  | AGomIdentifier String
+  | AGomStringLiteral String
+  | AGomBooleanLiteral Bool
+  | AGomType String
+  | AGomTypeList [GomAST]
+  | AGomStatements [GomAST]
+  | AGomOperator String
+  | AGomTerm [GomAST]
+  | AGomExpression [GomAST]
+  | AGomList [GomAST]
+  | AGomBlock [GomAST]
+  | AGomFunctionArgument { aGomArgumentName :: GomAST, aGomArgumentType :: GomAST}
+  | AGomParameterList [GomAST]
+  | AGomInternalFunction InternalFunction
+  | AGomFunctionCall { aGomFunctionName :: GomAST, aGomFunctionArguments :: GomAST }
+  | AGomTypedIdentifier { aGomIdentifier :: GomAST, aGomIdentifierType :: GomAST }
+  | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
+  | AGomEmpty
+  | AGomAssignment { aGomAssignedIdentifier :: GomAST, aGomAssignedExpression :: GomAST }
+  | AGomForLoop { aGomForLoopInitialization :: GomAST, aGomForLoopCondition :: GomAST, aGomForLoopUpdate :: GomAST, aGomForLoopIterBlock :: GomAST }
+  | AGomCondition { aGomIfCondition :: GomAST, aGomIfTrue :: GomAST, aGomIfFalse :: GomAST }
+  | AGomFunctionDefinition { aGomFnName :: GomAST, aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
+  deriving (Show, Eq)
 
-data EvalError = EvalError String [Ast]
+data EvalError = EvalError String [GomExpr]
   deriving (Eq, Show)
 
 newtype EvalResult a = EvalResult { unEvalResult :: Either EvalError a }
@@ -91,132 +101,122 @@ instance Applicative EvalResult where
   _ <*> EvalResult (Left e) = EvalResult (Left e)
   EvalResult (Right f) <*> EvalResult (Right x) = EvalResult (Right (f x))
 
+instance MonadFail EvalResult where
+  fail msg = EvalResult (Left (EvalError msg []))
+
 instance Monad EvalResult where
   EvalResult (Left e) >>= _ = EvalResult (Left e)
   EvalResult (Right x) >>= f = f x
+  -- EvalResult (Right (env, x)) >>= f = case f x of
+  --   EvalResult (Left e) -> EvalResult (Left e)
+  --   EvalResult (Right (_, x')) -> EvalResult (Right (env, x'))
 
-throwEvalError :: String -> [Ast] -> EvalResult a
-throwEvalError msg asts = EvalResult (Left (EvalError msg asts))
+applyToSnd :: (b -> c) -> (a, b) -> (a, c)
+applyToSnd f (x, y) = (x, f y)
 
--- | Convert GomExpr to AST
-gomexprToAST :: GomExpr -> Maybe Ast
-gomexprToAST (Number n) = Just (ANumber n)
-gomexprToAST (Identifier s) = Just (ASymbol s)
-gomexprToAST (Boolean b) = Just (ABoolean b)
-gomexprToAST (List [Identifier "define", Identifier s, e]) = gomexprToDefine s e
-gomexprToAST (List [Identifier "defun", name, params, core]) =
-    gomexprToDefun name params core
-gomexprToAST (List [Identifier "define", List (Identifier name:params), core]) =
-    gomexprToDefun (Identifier name) (List params) core
-gomexprToAST (List [Identifier "lambda", params, core]) = gomexprToLambda params core
-gomexprToAST (List [Identifier "if", cond, trueBody, falseBody]) =
-    gomexprToCondition cond trueBody falseBody
-gomexprToAST (List (Identifier s:xs)) = gomexprToCall s xs
-gomexprToAST _ = Nothing
+throwEvalError :: String -> [GomExpr] -> EvalResult a
+throwEvalError msg expr = EvalResult (Left (EvalError msg expr))
 
-gomexprToDefine :: String -> GomExpr -> Maybe Ast
-gomexprToDefine s e = do
-  e' <- gomexprToAST e
-  Just (ADefine {symbol = s, expression = e'})
+gomExprListToGomASTList :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
+gomExprListToGomASTList env list = do
+  (_, allAst) <- traverse (gomExprToGomAST env) list >>= pure . unzip
+  return ([], allAst)
 
-gomexprToCall :: String -> [GomExpr] -> Maybe Ast
-gomexprToCall s args = do
-  args' <- traverse gomexprToAST args
-  Just (ACall {function = s, arguments = args'})
+checkCallArg :: GomAST -> EvalResult (Env, GomAST)
+checkCallArg ast@(AGomIdentifier s) = pure ([], ast)
+checkCallArg ast@(AGomFunctionCall _ _) = pure ([], ast)
+checkCallArg ast@(AGomExpression _) = pure ([], ast)
+checkCallArg ast@(AGomTerm _) = pure ([], ast)
+checkCallArg ast@(AGomList _) = pure ([], ast)
+checkCallArg ast@(AGomBooleanLiteral _) = pure ([], ast)
+checkCallArg ast@(AGomNumber _) = pure ([], ast)
+checkCallArg ast@(AGomStringLiteral _) = pure ([], ast)
+checkCallArg ast = throwEvalError "Invalid argument type in function call" []
 
-gomexprToLambda :: GomExpr -> GomExpr -> Maybe Ast
-gomexprToLambda (List params) core@(List _) = do
-  paramNames <- traverse extractSymbol params
-  functionBody <- gomexprToAST core
-  Just (AFunction { argumentNames = paramNames, body = functionBody})
-gomexprToLambda _ _ = Nothing
+-- | Check if type is valid recursively
+-- | Takes the GomAST to check and a type to check its resolution with
+checkType :: Env -> GomAST -> GomAST -> Maybe GomAST
+-- GomAST to type resolution
+checkType env (AGomFunctionCall (AGomIdentifier s) _) t = do
+  AGomFunctionDefinition { aGomFnReturnType=retType } <- envLookup env s
+  checkType env retType t
+checkType env (AGomIdentifier s) t = checkType env (AGomType s) t
 
-gomexprToDefun :: GomExpr -> GomExpr -> GomExpr -> Maybe Ast
-gomexprToDefun (Identifier name) (List params) core@(List _) = do
-  paramNames <- traverse extractSymbol params
-  functionBody <- gomexprToAST core
-  Just (ADefine { symbol = name, expression =
-    ADefun { argumentNames = paramNames, body = functionBody }})
-gomexprToDefun _ _ _ = Nothing
+-- Type checking
+checkType _ (AGomNumber _) (AGomType "Int") = Just (AGomType "Int")
+checkType _ (AGomStringLiteral _) (AGomType "String") = Just (AGomType "String")
+checkType _ (AGomBooleanLiteral _) (AGomType "Bool") = Just (AGomType "Bool")
+checkType _ (AGomTypeList a) (AGomTypeList b) = do
+  checked <- traverse (uncurry (checkType undefined)) (zip a b)
+  Just (AGomTypeList checked)
+checkType _ (AGomType s) (AGomType t)
+  | s == t = Just (AGomType s)
+  | otherwise = Nothing
 
-gomexprToCondition :: GomExpr -> GomExpr -> GomExpr -> Maybe Ast
-gomexprToCondition cond trueBody falseBody = do
-  cond' <- gomexprToAST cond
-  trueBody' <- gomexprToAST trueBody
-  falseBody' <- gomexprToAST falseBody
-  Just (ACondition
-    { condition = cond', ifTrue = trueBody', ifFalse = falseBody' })
+-- Error handling
+checkType _ _ _ = Nothing
+
+gomExprToAGomFunctionCall :: Env -> GomExpr -> EvalResult (Env, GomAST)
+gomExprToAGomFunctionCall env (FunctionCall nameId@(Identifier name) (ParameterList args)) = do
+  (_, argsAst) <- gomExprListToGomASTList env args
+  (AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)}) <-
+    case envLookup env name of
+      Just f@(AGomFunctionDefinition {}) -> pure f
+      Just _ -> throwEvalError ("Identifier '" ++ name
+        ++ "' is not a function") []
+      Nothing -> throwEvalError ("Function '" ++ name ++ "' not found") [nameId]
+  let funcDegArgsTypes = map aGomArgumentType funcDefArgs
+  _ <- case traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes) of
+    Just _ -> pure ()
+    Nothing -> throwEvalError ("Invalid argument type in function call") []
+  return $ (env, AGomFunctionCall (AGomIdentifier name) (AGomList argsAst))
+gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) = throwEvalError "Expected a ParameterList" [param]
+gomExprToAGomFunctionCall _ (FunctionCall name _) = throwEvalError "Expected an Identifier" [name]
+
+
+gomExprToGomAST :: Env -> GomExpr -> EvalResult (Env, GomAST)
+gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
+gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
+gomExprToGomAST _ (GomString s) = pure ([], AGomStringLiteral s)
+gomExprToGomAST _ (Boolean b) = pure ([], AGomBooleanLiteral b)
+gomExprToGomAST _ (Type (SingleType t)) = pure ([], AGomType t)
+gomExprToGomAST env (Type (TypeList t)) = do
+  (_, t') <- traverse (gomExprToGomAST env . Type) t >>= pure . unzip
+  return ([], AGomTypeList t')
+gomExprToGomAST env (Statements s) = do
+  (_, allAst) <- gomExprListToGomASTList env s
+  return ([], AGomStatements allAst)
+
+gomExprToGomAST _ (Operator s) = pure ([], AGomOperator s)
+gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$> gomExprListToGomASTList env t
+gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$> gomExprListToGomASTList env e
+gomExprToGomAST env (List l) = applyToSnd AGomList <$> gomExprListToGomASTList env l
+gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$> gomExprListToGomASTList env b
+gomExprToGomAST env (ParameterList p) = applyToSnd AGomParameterList <$> gomExprListToGomASTList env p
+gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall env function
 
 extractSymbol :: GomExpr -> Maybe String
 extractSymbol (Identifier s) = Just s
 extractSymbol _ = Nothing
 
-type Env = [Ast]
+type Env = [EnvEntry]
+type EnvEntry = (EnvKey, EnvValue)
 type EnvKey = String
-type EnvValue = Ast
+type EnvValue = GomAST
 
 -- | Insert element in env
 envInsert :: Env -> EnvKey -> EnvValue -> Env
-envInsert env key value = newKey : deleteBy checkKey newKey env
+envInsert env key value = newEntry : deleteBy checkKey newEntry env
   where
-    checkKey :: Ast -> Ast -> Bool
-    checkKey (ADefine sym _) (ADefine sym2 _) = sym == sym2
-    checkKey _ _ = False
+    checkKey :: EnvEntry -> EnvEntry -> Bool
+    checkKey (sym, _) (sym2, _) = sym == sym2
 
-    newKey :: Ast
-    newKey = ADefine { symbol = key, expression = value}
+    newEntry :: EnvEntry
+    newEntry = (key, value)
 
 -- | Check if element is in env
 envLookup :: Env -> EnvKey -> Maybe EnvValue
-envLookup env key = find checkKey env >>= Just . expression
+envLookup env key = find checkKey env >>= Just . snd
   where
-    checkKey :: Ast -> Bool
-    checkKey (ADefine sym _) = sym == key
-    checkKey _ = False
-
-evalASTCondition :: Env -> Ast -> EvalResult (Env, Ast)
-evalASTCondition env (ACondition condExpr thenExpr elseExpr) = do
-  (condEnv, condVal) <- evalAST env condExpr
-  case condVal of
-    ABoolean True -> evalAST condEnv thenExpr
-    ABoolean False -> evalAST condEnv elseExpr
-    other -> throwEvalError "Condition must evaluate to a boolean value"
-              [other]
-evalASTCondition _ other = throwEvalError "Condition must be a condition"
-                          [other]
-
--- | Evaluate call function of AST
-evalASTCall :: Env -> Ast -> EvalResult Ast
-evalASTCall env (ACall name args) = case envLookup env name of
-  Just (AFunction argNames funcBody) -> evalAST env' funcBody >>= pure . snd
-    where env' = foldl (\acc (n',a) -> envInsert acc n' a)
-                 env (zip argNames args)
-  Just (AInternalFunction (InternalFunction fct)) -> fct args
-  Just sym -> throwEvalError ("Identifier in env '" ++ name ++
-    "' is not a function.") [sym]
-  Nothing -> throwEvalError ("Function '" ++ name ++
-    "' not found in env.") []
-evalASTCall _ other = throwEvalError "evalASTCall: AST must be a call" [other]
-
-handleASTCall :: Env -> Ast -> EvalResult Ast
-handleASTCall env call@(ACall func _) = case evalASTCall env call of
-  EvalResult (Left (EvalError str ast)) ->
-    throwEvalError (func ++ ": " ++ str) ast
-  other -> other
-handleASTCall _ other = throwEvalError
-                        "handleASTCall: AST must be a call" [other]
-
--- | Evaluate AST
-evalAST :: Env -> Ast -> EvalResult (Env, Ast)
-evalAST env (ASymbol sym) = case envLookup env sym of
-  Just val -> pure (env, val)
-  Nothing -> throwEvalError ("Identifier '" ++ sym ++ "' not found in env") []
-evalAST env (ADefine key expr) = do
-  (_, evaluated) <- evalAST env expr
-  pure (envInsert env key evaluated, evaluated)
-evalAST env cond@(ACondition {}) = evalASTCondition env cond
-evalAST env (ACall func args) = traverse (evalAST env) args >>=
-    handleASTCall env . ACall func . map snd >>= pure . ((,) env )
-evalAST env (ADefun {argumentNames = argNames, body = funcBody}) =
-    pure (env, AFunction argNames funcBody)
-evalAST env ast = pure (env, ast)
+    checkKey :: EnvEntry -> Bool
+    checkKey (sym, _) = sym == key

@@ -7,135 +7,134 @@
 
 module InternalFunctions (internalEnv) where
 
-import Ast (Ast(..), InternalFunction(..), EvalResult(..), Env,
+import Ast (GomAST(..), InternalFunction(..), EvalResult(..), Env,
     throwEvalError)
 
 calculationList :: Env
 calculationList = [
-    ADefine "+" (AInternalFunction $ InternalFunction evalAddition),
-    ADefine "-" (AInternalFunction $ InternalFunction evalSoustraction),
-    ADefine "*" (AInternalFunction $ InternalFunction evalMultiplication),
-    ADefine "/" (AInternalFunction $ InternalFunction evalDivision),
-    ADefine "%" (AInternalFunction $ InternalFunction evalModulo)
-  ]
+        ("+", AGomInternalFunction $ InternalFunction evalAddition),
+        ("-", AGomInternalFunction $ InternalFunction evalSoustraction),
+        ("*", AGomInternalFunction $ InternalFunction evalMultiplication),
+        ("/", AGomInternalFunction $ InternalFunction evalDivision),
+        ("%", AGomInternalFunction $ InternalFunction evalModulo)
+    ]
 
 compList :: Env
 compList = [
-    ADefine ">" (AInternalFunction $ InternalFunction evalGreaterThan),
-    ADefine "<" (AInternalFunction $ InternalFunction evalLessThan),
-    ADefine ">=" (AInternalFunction $ InternalFunction evalGreaterEqual),
-    ADefine "<=" (AInternalFunction $ InternalFunction evalLowerEqual),
-    ADefine "==" (AInternalFunction $ InternalFunction evalEqual),
-    ADefine "!=" (AInternalFunction $ InternalFunction evalNotEqual)
-  ]
+        (">", AGomInternalFunction $ InternalFunction evalGreaterThan),
+        ("<", AGomInternalFunction $ InternalFunction evalLessThan),
+        (">=", AGomInternalFunction $ InternalFunction evalGreaterEqual),
+        ("<=", AGomInternalFunction $ InternalFunction evalLowerEqual),
+        ("==", AGomInternalFunction $ InternalFunction evalEqual),
+        ("!=", AGomInternalFunction $ InternalFunction evalNotEqual)
+    ]
 
 compListTwo :: Env
 compListTwo = [
-    ADefine "&&" (AInternalFunction $ InternalFunction evalAnd),
-    ADefine "||" (AInternalFunction $ InternalFunction evalOr),
-    ADefine "!" (AInternalFunction $ InternalFunction evalNot)
-  ]
+        ("&&", AGomInternalFunction $ InternalFunction evalAnd),
+        ("||", AGomInternalFunction $ InternalFunction evalOr),
+        ("!", AGomInternalFunction $ InternalFunction evalNot)
+    ]
 
 internalEnv :: Env
 internalEnv = calculationList ++ compList ++ compListTwo
 
 -- Evaluate not
-evalNot :: [Ast] -> EvalResult Ast
-evalNot [ABoolean x] = EvalResult (Right (ABoolean (not x)))
-evalNot other = throwEvalError "invalid arguments" other
+evalNot :: [GomAST] -> EvalResult GomAST
+evalNot [AGomBooleanLiteral x] = pure $ AGomBooleanLiteral (not x)
+evalNot _ = throwEvalError "invalid arguments" []
 
 -- Evaluate and
-evalAnd :: [Ast] -> EvalResult Ast
-evalAnd [ABoolean x, ABoolean y] = EvalResult $ Right $ ABoolean $ x && y
-evalAnd other = throwEvalError "invalid arguments" other
+evalAnd :: [GomAST] -> EvalResult GomAST
+evalAnd [AGomBooleanLiteral x, AGomBooleanLiteral y] = pure $
+    AGomBooleanLiteral $ x && y
+evalAnd _ = throwEvalError "invalid arguments" []
 
 -- Evaluate or
-evalOr :: [Ast] -> EvalResult Ast
-evalOr [ABoolean x, ABoolean y] = EvalResult $ Right $ ABoolean $ x || y
-evalOr other = throwEvalError "invalid arguments" other
+evalOr :: [GomAST] -> EvalResult GomAST
+evalOr [AGomBooleanLiteral x, AGomBooleanLiteral y] = pure $
+    AGomBooleanLiteral $ x || y
+evalOr _ = throwEvalError "invalid arguments" []
 
 -- Evaluate addition
-evalAddition :: [Ast] -> EvalResult Ast
-evalAddition el = traverse getNumberValue el >>= EvalResult . Right . ANumber
-    . sum
+evalAddition :: [GomAST] -> EvalResult GomAST
+evalAddition el = traverse getNumberValue el >>= pure . AGomNumber . sum
 
 -- Evaluate multiplication
-evalMultiplication :: [Ast] -> EvalResult Ast
-evalMultiplication el = traverse getNumberValue el >>= EvalResult . Right
-    . ANumber . product
+evalMultiplication :: [GomAST] -> EvalResult GomAST
+evalMultiplication el = traverse getNumberValue el >>= pure . AGomNumber
+    . product
 
 -- Evaluate soustraction
-evalSoustraction :: [Ast] -> EvalResult Ast
+evalSoustraction :: [GomAST] -> EvalResult GomAST
 evalSoustraction [] = throwEvalError
     "incorrect argument count in call (-)" []
-evalSoustraction el = traverse getNumberValue el >>= EvalResult . Right
-    . ANumber . subtractAll
+evalSoustraction el = traverse getNumberValue el >>= pure . AGomNumber
+    . subtractAll
 
 subtractAll :: Num a => [a] -> a
 subtractAll [] = error "Should not happen, substractAll called with empty list"
 subtractAll (x:xs) = foldl (-) x xs
 
 -- Evaluate division
-evalDivision :: [Ast] -> EvalResult Ast
+evalDivision :: [GomAST] -> EvalResult GomAST
 evalDivision [] = throwEvalError
     "incorrect argument count in call" []
 evalDivision [_] = throwEvalError
     "incorrect argument count in call" []
-evalDivision arr@(_:xs) | any (== ANumber 0) xs = throwEvalError
-    "division by zero" arr
-evalDivision el = traverse getNumberValue el >>= EvalResult . Right
-    . ANumber . divideAll
+evalDivision (_:xs) | AGomNumber 0 `elem` xs = throwEvalError
+    "division by zero" []
+evalDivision el = traverse getNumberValue el >>= pure . AGomNumber . divideAll
 
 divideAll :: [Int] -> Int
 divideAll [] = error "Should not happen, divideAll called with empty list"
 divideAll (x:xs) = foldl div x xs
 
 -- Evaluate modulo
-evalModulo :: [Ast] -> EvalResult Ast
+evalModulo :: [GomAST] -> EvalResult GomAST
 evalModulo [] = throwEvalError
     "incorrect argument count in call" []
 evalModulo [_] = throwEvalError
     "incorrect argument count in call" []
-evalModulo arr@(_:xs) | any (== ANumber 0) xs = throwEvalError
-    "modulo by zero" arr
-evalModulo el = traverse getNumberValue el >>= EvalResult . Right
-    . ANumber . moduloAll
+evalModulo (_:xs) | AGomNumber 0 `elem` xs = throwEvalError
+    "modulo by zero" []
+evalModulo el = traverse getNumberValue el >>= pure . AGomNumber . moduloAll
 
 moduloAll :: [Int] -> Int
 moduloAll [] = error "Should not happen, moduloAll called with empty list"
 moduloAll (x:xs) = foldl mod x xs
 
 
-getNumberValue :: Ast -> EvalResult Int
-getNumberValue (ANumber n) = EvalResult $ Right $ n
-getNumberValue element = throwEvalError
-  "tried to get the number value of a non-number AST node" [element]
+getNumberValue :: GomAST -> EvalResult Int
+getNumberValue (AGomNumber n) = pure n
+getNumberValue _ = throwEvalError
+  "tried to get the number value of a non-number GomAST node" []
 
 
 -- Evaluate greater than
-evalGreaterThan :: [Ast] -> EvalResult Ast
-evalGreaterThan [ANumber x, ANumber y] = EvalResult $ Right $ ABoolean $ x > y
-evalGreaterThan args = throwEvalError "invalid arguments" args
+evalGreaterThan :: [GomAST] -> EvalResult GomAST
+evalGreaterThan [AGomNumber x, AGomNumber y] = pure $ AGomBooleanLiteral $ x > y
+evalGreaterThan _ = throwEvalError "invalid arguments" []
 
 -- Evaluate <
-evalLessThan :: [Ast] -> EvalResult Ast
-evalLessThan [ANumber x, ANumber y] = EvalResult $ Right $ ABoolean $ x < y
-evalLessThan args = throwEvalError "invalid arguments" args
+evalLessThan :: [GomAST] -> EvalResult GomAST
+evalLessThan [AGomNumber x, AGomNumber y] = pure $ AGomBooleanLiteral $ x < y
+evalLessThan _ = throwEvalError "invalid arguments" []
 
 -- Evaluate equal
-evalEqual :: [Ast] -> EvalResult Ast
-evalEqual [ANumber x, ANumber y] = EvalResult $ Right $ ABoolean $ x == y
-evalEqual args = throwEvalError "invalid arguments" args
+evalEqual :: [GomAST] -> EvalResult GomAST
+evalEqual [AGomNumber x, AGomNumber y] = pure $ AGomBooleanLiteral $ x == y
+evalEqual _ = throwEvalError "invalid arguments" []
 
 -- Evaluate not equal
-evalNotEqual :: [Ast] -> EvalResult Ast
-evalNotEqual [ANumber x, ANumber y] = EvalResult $ Right $ ABoolean $ x /= y
-evalNotEqual args = throwEvalError "invalid arguments" args
+evalNotEqual :: [GomAST] -> EvalResult GomAST
+evalNotEqual [AGomNumber x, AGomNumber y] = pure $ AGomBooleanLiteral $ x /= y
+evalNotEqual _ = throwEvalError "invalid arguments" []
 
 -- Evaluate lower equal
-evalLowerEqual :: [Ast] -> EvalResult Ast
+evalLowerEqual :: [GomAST] -> EvalResult GomAST
 evalLowerEqual args = evalGreaterThan args >>= evalNot . (: [])
 
 -- Evaluate greater equal
-evalGreaterEqual :: [Ast] -> EvalResult Ast
+evalGreaterEqual :: [GomAST] -> EvalResult GomAST
 evalGreaterEqual args = evalLessThan args >>= evalNot . (: [])
