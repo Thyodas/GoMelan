@@ -4,6 +4,7 @@
 -- File description:
 -- Ast
 -}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Ast (
     GomExpr(..),
