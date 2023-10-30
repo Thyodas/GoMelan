@@ -67,13 +67,13 @@ runCode env code = do
 --     EvalResult (Right results) -> Right results
 --     EvalResult (Left (EvalError msg _)) -> Left msg
 
--- -- | Parse GomExpr to annalise the syntaxe
--- runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
--- runCode env code = do
---     (gomexpr, _) <- case runParser parseCodeToGomExpr code of
---         Right other -> Right other
---         Left (ParseError _ msg _:_) -> Left msg
---     unevaluatedAst <- case traverse gomExprToGomAST gomexpr of
---                 Just ast -> Right ast
---                 Nothing -> Left "Could not parse GomExpr"
---     runAllAst env unevaluatedAst
+-- | Parse GomExpr to annalise the syntaxe
+runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
+runCode env code = do
+    (gomexpr, _) <- case runParser parseCodeToGomExpr code of
+        Right other -> Right other
+        Left errList -> Left $ printErrors code errList
+    (newEnv, unevaluatedAst) <- case convertListToAST env gomexpr of
+        EvalResult (Right results) -> Right results
+        EvalResult (Left (EvalError msg _)) -> Left msg
+    return (newEnv, unevaluatedAst)
