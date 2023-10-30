@@ -11,6 +11,7 @@
 --     ,parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
 --     parseUntilAny, parseComment, parseGomExpr, parseBlock
 -- ) where
+
 module Parser where
 import Control.Applicative (Alternative(..))
 import Ast (GomExpr(..), GomExprType(..))
@@ -183,9 +184,9 @@ parseTerm = Term <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator
 -- | Parse a factor with a binary operator and another term
 parseFactorWithOperator :: Parser GomExpr
 parseFactorWithOperator = do
-    factor <- parseAmongWhitespace parseFactor
+    {- factor <- parseAmongWhitespace parseFactor -}
     operator <- parseAmongWhitespace parseBinaryOperator
-    term <- parseTerm
+    {- term <- parseTerm -}
     return $ operator
 
 parseFactor :: Parser GomExpr
@@ -289,10 +290,10 @@ parseType = Type <$> parseType' <?> ParseError MissingType "Expected a type."
 -- | Parse a typed identifier
 parseTypedIdentifier :: Parser GomExpr
 parseTypedIdentifier = do
-    id <- parseIdentifier
+    id' <- parseIdentifier
     _ <- parseAmongWhitespace $ parseChar ':'
     idType <- parseAmongWhitespace $ parseType
-    return $ TypedIdentifier {identifier=id, identifierType=idType}
+    return $ TypedIdentifier {identifier=id', identifierType=idType}
 
 -- | Parse a parameter
 parseParameter :: Parser GomExpr
@@ -305,9 +306,9 @@ parseSep :: Char -> Parser a -> Parser [a]
 parseSep sep parser = parseMany (parseSep' sep parser)
     where
         parseSep' :: Char -> Parser a -> Parser a
-        parseSep' sep parser = do
-            result <- parser
-            _ <- parseChar sep <|> pure ' '
+        parseSep' sep' parser' = do
+            result <- parser'
+            _ <- parseChar sep' <|> pure ' '
             return result
 
 
@@ -386,16 +387,16 @@ parseIdentifier = Identifier <$> parseToken
 -- | Parse variable / fonction assigment
 parseAssignent :: Parser GomExpr
 parseAssignent = do
-    identifier <- parseTypedIdentifier <|> parseIdentifier
+    id' <- parseTypedIdentifier <|> parseIdentifier
     _ <- parseAmongWhitespace $ parseChar '='
     expression <- parseAmongWhitespace $ parseExpression
-    return $ Assignment {assignedIdentifier=identifier,
+    return $ Assignment {assignedIdentifier=id',
                             assignedExpression=expression}
 
 -- | Parse for loop
 parseForLoopIter :: Parser GomExpr
 parseForLoopIter = do
-    symbol <- parseSymbol "for"
+    {- symbol <- parseSymbol "for" -}
     _ <- parseAmongWhitespace $ parseChar '('
     (initialization, condition, update) <- parseLoopParts
     _ <- parseAmongWhitespace $ parseChar ')'
@@ -550,21 +551,21 @@ parseFunctionDeclarationReturnType = parseAmongWhitespace $ parseType
 parseFunctionDeclaration :: Parser GomExpr
 parseFunctionDeclaration = do
     _ <- parseAmongWhitespace parseIdentifier  -- Le mot-clé "fn"
-    functionName <- parseAmongWhitespace parseIdentifier
+    fctName <- parseAmongWhitespace parseIdentifier
     arguments <- parseFunctionDeclarationArgument
     _ <- parseAmongWhitespace $ parseSymbol "->" <?> ParseError
         MissingFunctionReturnType "Expected '->' after function arguments."
     returnType <- parseFunctionDeclarationReturnType
     body <- parseAmongWhitespace $ parseBlock
-    return $ Function {fnName=functionName,
+    return $ Function {fnName=fctName,
         fnArguments=arguments, fnReturnType=returnType, fnBody=body}
 
 -- | Parser pour un appel de fonction
 parseFunctionCall :: Parser GomExpr
 parseFunctionCall = do
-    functionName <- parseIdentifier
+    fctName <- parseIdentifier
     arguments <- ParameterList <$> parseList parseIdentifier
-    return $ FunctionCall {functionName=functionName,
+    return $ FunctionCall {functionName=fctName,
         functionArguments=arguments}
 
 parseAmongWhitespace :: Parser a -> Parser a
