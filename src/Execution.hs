@@ -5,7 +5,7 @@
 -- Execution
 -}
 
-module Execution (runCode) where
+module Execution (runCode, convertListToAST) where
 
 import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..), ParseError(..),
     printErrors)
