@@ -47,7 +47,7 @@ handleEOF :: IOException -> IO String
 handleEOF _ = putStrLn "\nExit..." >> exitSuccess >> pure ""
 
 processInput :: Env -> String -> IO ()
-processInput _ ":q"= putStrLn "Exit..." >> exitSuccess
+processInput _ ":q" = putStrLn "Exit..." >> exitSuccess
 processInput env input = case runCode env input of
         Left err -> putStrLn err >> replLoop env
         Right (newEnv, asts) ->

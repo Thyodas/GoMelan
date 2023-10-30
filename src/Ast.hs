@@ -4,7 +4,6 @@
 -- File description:
 -- Ast
 -}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module Ast (
     GomExpr(..),
@@ -41,14 +40,14 @@ data GomExpr = Number Int
     | Block [GomExpr]
     | ParameterList [GomExpr]
     | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
-    | TypedIdentifier { identifier :: GomExpr, identifierType :: GomExpr}
+    | TypedIdentifier { identifier :: String, identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
     | Empty
     | Assignment { assignedIdentifier :: GomExpr, assignedExpression :: GomExpr }
     | ForLoopIter { forLoopInitialization :: GomExpr, forLoopCondition :: GomExpr,
                     forLoopUpdate :: GomExpr, forLoopIterBlock :: GomExpr }
     | Condition { gomIfCondition :: GomExpr, gomIfTrue :: GomExpr, gomIfFalse :: GomExpr }
-    | Function { fnName :: GomExpr, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
+    | Function { fnName :: String, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
     deriving (Show, Eq)
 
 newtype InternalFunction = InternalFunction ([GomAST] -> EvalResult GomAST)
@@ -76,13 +75,13 @@ data GomAST =
   | AGomParameterList [GomAST]
   | AGomInternalFunction InternalFunction
   | AGomFunctionCall { aGomFunctionName :: GomAST, aGomFunctionArguments :: GomAST }
-  | AGomTypedIdentifier { aGomIdentifier :: GomAST, aGomIdentifierType :: GomAST }
+  | AGomTypedIdentifier { aGomIdentifier :: String, aGomIdentifierType :: GomAST }
   | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
   | AGomEmpty
   | AGomAssignment { aGomAssignedIdentifier :: GomAST, aGomAssignedExpression :: GomAST }
   | AGomForLoop { aGomForLoopInitialization :: GomAST, aGomForLoopCondition :: GomAST, aGomForLoopUpdate :: GomAST, aGomForLoopIterBlock :: GomAST }
   | AGomCondition { aGomIfCondition :: GomAST, aGomIfTrue :: GomAST, aGomIfFalse :: GomAST }
-  | AGomFunctionDefinition { aGomFnName :: GomAST, aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
+  | AGomFunctionDefinition { aGomFnName :: String, aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
   deriving (Show, Eq)
 
 data EvalError = EvalError String [GomExpr]
@@ -133,48 +132,86 @@ checkCallArg ast@(AGomNumber _) = pure ([], ast)
 checkCallArg ast@(AGomStringLiteral _) = pure ([], ast)
 checkCallArg ast = throwEvalError "Invalid argument type in function call" []
 
+typeResolver :: Env -> GomAST -> EvalResult GomAST
+typeResolver env (AGomFunctionCall (AGomIdentifier s) _) = do
+  func <- envLookupEval env s
+  case func of
+    AGomFunctionDefinition { aGomFnReturnType=retType } -> pure retType
+    _ -> throwEvalError ("Identifier '" ++ s ++ "' is not a function") []
+typeResolver env (AGomIdentifier s) = do
+  identifierValue <- envLookupEval env s
+  typeResolver env identifierValue
+typeResolver _ (AGomTypedIdentifier _ t) = pure t
+typeResolver _ (AGomType t) = pure (AGomType t)
+typeResolver _ (AGomTypeList t) = pure (AGomTypeList t)
+typeResolver _ (AGomBooleanLiteral _) = pure (AGomType "Bool")
+typeResolver _ (AGomNumber _) = pure (AGomType "Int")
+typeResolver _ (AGomStringLiteral _) = pure (AGomType "String")
+typeResolver _ ast = throwEvalError ("Couldn't resolve type for '"
+  ++ show ast ++ "'.") []
+
+
+
 -- | Check if type is valid recursively
 -- | Takes the GomAST to check and a type to check its resolution with
-checkType :: Env -> GomAST -> GomAST -> Maybe GomAST
--- GomAST to type resolution
-checkType env (AGomFunctionCall (AGomIdentifier s) _) t = do
-  AGomFunctionDefinition { aGomFnReturnType=retType } <- envLookup env s
-  checkType env retType t
-checkType env (AGomIdentifier s) t = checkType env (AGomType s) t
+checkType :: Env -> GomAST -> GomAST -> EvalResult GomAST
+checkType env astA astB = do
+  resolvedA <- typeResolver env astA
+  resolvedB <- typeResolver env astB
+  if resolvedA == resolvedB
+    then pure resolvedA
+    else throwEvalError
+      ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
+      ++ show resolvedB ++ "'.") []
 
--- Type checking
-checkType _ (AGomNumber _) (AGomType "Int") = Just (AGomType "Int")
-checkType _ (AGomStringLiteral _) (AGomType "String") = Just (AGomType "String")
-checkType _ (AGomBooleanLiteral _) (AGomType "Bool") = Just (AGomType "Bool")
-checkType _ (AGomTypeList a) (AGomTypeList b) = do
-  checked <- traverse (uncurry (checkType undefined)) (zip a b)
-  Just (AGomTypeList checked)
-checkType _ (AGomType s) (AGomType t)
-  | s == t = Just (AGomType s)
-  | otherwise = Nothing
-
--- Error handling
-checkType _ _ _ = Nothing
+getAGomFunctionDefinition :: Env -> String -> EvalResult GomAST
+getAGomFunctionDefinition env name = do
+  func <- envLookupEval env name
+  case func of
+    f@AGomFunctionDefinition {aGomFnArguments=(AGomParameterList _)} ->
+        pure f
+    AGomFunctionDefinition {} ->
+      throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
+    _ -> throwEvalError ("Identifier '" ++ name
+      ++ "' is not a function") []
 
 gomExprToAGomFunctionCall :: Env -> GomExpr -> EvalResult (Env, GomAST)
-gomExprToAGomFunctionCall env (FunctionCall nameId@(Identifier name) (ParameterList args)) = do
+gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
+  (ParameterList args)) = do
   (_, argsAst) <- gomExprListToGomASTList env args
-  (AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)}) <-
-    case envLookup env name of
-      Just f@(AGomFunctionDefinition {}) -> pure f
-      Just _ -> throwEvalError ("Identifier '" ++ name
-        ++ "' is not a function") []
-      Nothing -> throwEvalError ("Function '" ++ name ++ "' not found") [nameId]
+  AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)} <-
+    getAGomFunctionDefinition env name
   let funcDegArgsTypes = map aGomArgumentType funcDefArgs
-  _ <- case traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes) of
-    Just _ -> pure ()
-    Nothing -> throwEvalError ("Invalid argument type in function call") []
+  _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
   return $ (env, AGomFunctionCall (AGomIdentifier name) (AGomList argsAst))
+
+-- | Error handling
 gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) = throwEvalError "Expected a ParameterList" [param]
 gomExprToAGomFunctionCall _ (FunctionCall name _) = throwEvalError "Expected an Identifier" [name]
+gomExprToAGomFunctionCall _ _ = throwEvalError "Expected a FunctionCall" []
 
+getIdDetails :: Env -> GomAST -> EvalResult (String, GomAST)
+getIdDetails env (AGomIdentifier name) = do
+  value <- envLookupEval env name
+  return (name, value)
+getIdDetails env (AGomTypedIdentifier name t) = do
+  _ <- case envLookup env name of
+    Just _ -> throwEvalError ("Cannot redeclare '" ++ name
+      ++ "' already exists") []
+    Nothing -> pure ()
+  return (name, t)
+getIdDetails _ _ = throwEvalError "Expected an Identifier" []
 
-gomExprToGomAST :: Env -> GomExpr -> EvalResult (Env, GomAST)
+gomExprToAGomAssignment :: Env -> GomExpr -> EvalResult (Env, GomAST)
+gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
+  (_, idGomAST) <- gomExprToGomAST env idExpr
+  (_, valGomAST) <- gomExprToGomAST env valExpr
+  (idName, typeToCheck) <- getIdDetails env idGomAST
+  _ <- checkType env valGomAST typeToCheck
+  return ([(idName, valGomAST)], AGomEmpty)
+gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
+
+gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
 gomExprToGomAST _ (GomString s) = pure ([], AGomStringLiteral s)
@@ -194,6 +231,33 @@ gomExprToGomAST env (List l) = applyToSnd AGomList <$> gomExprListToGomASTList e
 gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$> gomExprListToGomASTList env b
 gomExprToGomAST env (ParameterList p) = applyToSnd AGomParameterList <$> gomExprListToGomASTList env p
 gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall env function
+gomExprToGomAST env (TypedIdentifier name t) = do
+  (_, t') <- gomExprToGomAST env t
+  return ([], AGomTypedIdentifier name t')
+gomExprToGomAST env (IncludeStatement i m) = do
+  (_, i') <- gomExprToGomAST env i
+  (_, m') <- gomExprToGomAST env m
+  return ([], AGomIncludeStatement i' m')
+gomExprToGomAST env a@(Assignment _ _) = gomExprToAGomAssignment env a
+gomExprToGomAST _ Empty = pure ([], AGomEmpty)
+gomExprToGomAST env (ForLoopIter init cond update block) = do
+  (_, init') <- gomExprToGomAST env init
+  (_, cond') <- gomExprToGomAST env cond
+  (_, update') <- gomExprToGomAST env update
+  (_, block') <- gomExprToGomAST env block
+  return ([], AGomForLoop init' cond' update' block')
+gomExprToGomAST env (Condition cond true false) = do
+  (_, cond') <- gomExprToGomAST env cond
+  (_, true') <- gomExprToGomAST env true
+  (_, false') <- gomExprToGomAST env false
+  return ([], AGomCondition cond' true' false')
+gomExprToGomAST env (Function name args body retType) = do
+  (_, args') <- gomExprToGomAST env args
+  (_, body') <- gomExprToGomAST env body
+  (_, retType') <- gomExprToGomAST env retType
+  return ([], AGomFunctionDefinition name args' body' retType')
+
+
 
 extractSymbol :: GomExpr -> Maybe String
 extractSymbol (Identifier s) = Just s
@@ -220,3 +284,9 @@ envLookup env key = find checkKey env >>= Just . snd
   where
     checkKey :: EnvEntry -> Bool
     checkKey (sym, _) = sym == key
+
+-- | Check if element is in env with EvalResult
+envLookupEval :: Env -> EnvKey -> EvalResult EnvValue
+envLookupEval env key = case envLookup env key of
+  Just val -> pure val
+  Nothing -> throwEvalError ("Identifier '" ++ key ++ "' not found in env") []
