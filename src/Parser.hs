@@ -139,8 +139,7 @@ parseStatement = parseAmongWhitespace (
 parseReturnStatement :: Parser GomExpr
 parseReturnStatement = do
     _ <- parseSymbol "return"
-    expression <- parseExpression
-    _ <- parseChar ';'
+    expression <- parseAmongWhitespace parseExpression
     return expression
 
 -- | Parse an expression
@@ -453,17 +452,15 @@ parseElseBlock = do
 
 
 parseIncludeList :: Parser GomExpr
-parseIncludeList = List <$> parseSep ',' (parseAmongWhitespace parseImportIdentifier)
+parseIncludeList = List <$> parseList parseImportIdentifier
 
 -- Parse an include statement
 parseIncludeStatement :: Parser GomExpr
 parseIncludeStatement = do
     _ <- parseAmongWhitespace (parseSymbol "include")
     include <- (parseAmongWhitespace parseImportIdentifier <|> parseAmongWhitespace parseIncludeList)
-        <?> ParseError MissingIdentifier "Expected an identifier or a list of identifiers"
-    _ <- parseAmongWhitespace (parseSymbol "from")
+    _ <- parseAmongWhitespace (parseSymbol "from") <?> ParseError MissingIdentifier "Expected an identifier or a list of identifiers"
     moduleName <- parseModule
-    _ <- parseChar ';'
     return $ IncludeStatement {includeList=include, fromModule=moduleName}
 
 parseModule :: Parser GomExpr
@@ -513,10 +510,6 @@ parseBlock = do
 parseFunctionName :: Parser GomExpr
 parseFunctionName = parseIdentifier
 
--- | Parse function declaration
--- parseFunctionDeclaration :: Parser GomExpr
--- parseFunctionDeclaration = parseSymbol "fn" *> parseAmongWhitespace *> parseFunctionName *> parseAmongWhitespace *> parseChar '(' *> parseAmongWhitespace *> parseParameterList *> parseAmongWhitespace *> parseChar ')' *> parseAmongWhitespace *> parseChar '-' *> parseSymbol "->" *> parseAmongWhitespace *> parseReturnType *> parseAmongWhitespace *> parseBlock
-
 -- | Parser pour une déclaration de fonction
 parseFunctionDeclaration :: Parser GomExpr
 parseFunctionDeclaration = do
@@ -525,9 +518,7 @@ parseFunctionDeclaration = do
     arguments <- parseAmongWhitespace $ ParameterList <$> parseList parseParameter
     _ <- parseAmongWhitespace $ parseChar '-' *> parseChar '>'
     returnType <- parseAmongWhitespace $ parseIdentifier
-    --_ <- parseAmongWhitespace $ parseChar '{'
     body <- parseAmongWhitespace $ parseBlock
-    --_ <- parseAmongWhitespace $ parseChar '}'
     return $ Function {fnName=functionName, fnArguments=arguments, fnReturnType=returnType, fnBody=body}
 
 -- | Parser pour un appel de fonction
