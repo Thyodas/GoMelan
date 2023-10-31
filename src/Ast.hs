@@ -229,15 +229,20 @@ gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
   return ([(idName, valGomAST)], AGomEmpty)
 gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
-authorizedOperators :: [GomExpr]
-authorizedOperators = map Operator ["+", "-", "*", "/"]
-
 precedence :: GomExpr -> Int
 precedence (Operator op) = case op of
   "+" -> 1
   "-" -> 1
   "*" -> 2
   "/" -> 2
+  "==" -> 3
+  "!=" -> 3
+  "<=" -> 3
+  ">=" -> 3
+  "<" -> 3
+  ">" -> 3
+  "&&" -> 4
+  "!" -> 5
   _ -> 0
 precedence _ = 0
 
@@ -256,13 +261,13 @@ shuntingYard' (e:expr) outputStack operatorStack =
       let (oStack, oQueue) = span (\x -> precedence op <= precedence x) operatorStack
       in shuntingYard' expr (outputStack ++ oQueue) (op:oStack)
     (Number _) -> shuntingYard' expr (outputStack ++ [e]) operatorStack
-    _ -> shuntingYard' expr outputStack operatorStack
+    other -> shuntingYard' expr (outputStack ++ [other]) operatorStack
 
 gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 gomExprListToGomASTListShuntingYard env exprList = do
   let postFixExpr = shuntingYard exprList
   (_, allAst) <- traverse (gomExprToGomAST env) postFixExpr >>= pure . unzip
-  return ([], allAst)
+  return ([], reverse allAst)
 
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
@@ -283,7 +288,7 @@ gomExprToGomAST _ op@(Operator _) = do
 gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$>
     gomExprListToGomASTList env t
 gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
-    gomExprListToGomASTList env e
+    gomExprListToGomASTListShuntingYard env e
 gomExprToGomAST env (List l) = applyToSnd AGomList <$>
     gomExprListToGomASTList env l
 gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$>

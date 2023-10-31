@@ -1,5 +1,4 @@
 fn main() -> Int
 {
-    return 0;
-    azd
+    return main()+1*2;
 }
