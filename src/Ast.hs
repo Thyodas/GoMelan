@@ -59,6 +59,21 @@ instance Show InternalFunction where
 instance Eq InternalFunction where
   _ == _ = True
 
+data EnumOperator = SignPlus
+    | SignMinus
+    | SignMultiply
+    | SignDivide
+    | SignModulo
+    | SignEqual
+    | SignNotEqual
+    | SignNot
+    | SignAnd
+    | SignInfEqual
+    | SignSupEqual
+    | SignInf
+    | SignSup
+    deriving (Show, Eq, Enum)
+
 data GomAST =
     AGomNumber Int
   | AGomIdentifier String
@@ -67,7 +82,7 @@ data GomAST =
   | AGomType String
   | AGomTypeList [GomAST]
   | AGomStatements [GomAST]
-  | AGomOperator String
+  | AGomOperator EnumOperator
   | AGomTerm [GomAST]
   | AGomExpression [GomAST]
   | AGomList [GomAST]
@@ -214,6 +229,41 @@ gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
   return ([(idName, valGomAST)], AGomEmpty)
 gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
+authorizedOperators :: [GomExpr]
+authorizedOperators = map Operator ["+", "-", "*", "/"]
+
+precedence :: GomExpr -> Int
+precedence (Operator op) = case op of
+  "+" -> 1
+  "-" -> 1
+  "*" -> 2
+  "/" -> 2
+  _ -> 0
+precedence _ = 0
+
+shuntingYard :: [GomExpr] -> [GomExpr]
+shuntingYard expr = reverse $ shuntingYard' expr [] []
+
+isOperator :: GomExpr -> Bool
+isOperator (Operator _) = True
+isOperator _ = False
+
+shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
+shuntingYard' [] outputStack operatorStack = outputStack ++ reverse operatorStack
+shuntingYard' (e:expr) outputStack operatorStack =
+  case e of
+    op@(Operator _) ->
+      let (oStack, oQueue) = span (\x -> precedence op <= precedence x) operatorStack
+      in shuntingYard' expr (outputStack ++ oQueue) (op:oStack)
+    (Number _) -> shuntingYard' expr (outputStack ++ [e]) operatorStack
+    _ -> shuntingYard' expr outputStack operatorStack
+
+gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
+gomExprListToGomASTListShuntingYard env exprList = do
+  let postFixExpr = shuntingYard exprList
+  (_, allAst) <- traverse (gomExprToGomAST env) postFixExpr >>= pure . unzip
+  return ([], allAst)
+
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
@@ -227,7 +277,9 @@ gomExprToGomAST env (Statements s) = do
   (_, allAst) <- gomExprListToGomASTList env s
   return ([], AGomStatements allAst)
 
-gomExprToGomAST _ (Operator s) = pure ([], AGomOperator s)
+gomExprToGomAST _ op@(Operator _) = do
+  result <- operatorToGomAST op
+  return ([], result)
 gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$>
     gomExprListToGomASTList env t
 gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
@@ -266,7 +318,20 @@ gomExprToGomAST env (Function name args body retType) = do
   (_, retType') <- gomExprToGomAST env retType
   return ([], AGomFunctionDefinition name args' body' retType')
 
-
+operatorToGomAST :: GomExpr -> EvalResult GomAST
+operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)
+operatorToGomAST (Operator "-") = pure (AGomOperator SignMinus)
+operatorToGomAST (Operator "*") = pure (AGomOperator SignMultiply)
+operatorToGomAST (Operator "/") = pure (AGomOperator SignDivide)
+operatorToGomAST (Operator "%") = pure (AGomOperator SignModulo)
+operatorToGomAST (Operator "==") = pure (AGomOperator SignEqual)
+operatorToGomAST (Operator "!=") = pure (AGomOperator SignNotEqual)
+operatorToGomAST (Operator "!") = pure (AGomOperator SignNot)
+operatorToGomAST (Operator "&&") = pure (AGomOperator SignAnd)
+operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
+operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
+operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)
+operatorToGomAST (Operator ">") = pure (AGomOperator SignSup)
 
 extractSymbol :: GomExpr -> Maybe String
 extractSymbol (Identifier s) = Just s
