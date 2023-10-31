@@ -113,7 +113,8 @@ getNumberValue _ = throwEvalError
 
 -- Evaluate greater than
 evalGreaterThan :: [GomAST] -> EvalResult GomAST
-evalGreaterThan [AGomNumber x, AGomNumber y] = pure $ AGomBooleanLiteral $ x > y
+evalGreaterThan [AGomNumber x, AGomNumber y] = pure $
+    AGomBooleanLiteral $ x > y
 evalGreaterThan _ = throwEvalError "invalid arguments" []
 
 -- Evaluate <
