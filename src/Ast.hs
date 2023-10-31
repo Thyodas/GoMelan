@@ -19,7 +19,8 @@ module Ast (
     throwEvalError,
     envLookup,
     extractSymbol,
-    gomExprToGomAST
+    gomExprToGomAST,
+    checkCallArg
 ) where
 
 import Data.List (deleteBy, find)

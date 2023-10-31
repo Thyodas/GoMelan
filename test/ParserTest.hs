@@ -9,13 +9,34 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith, ErrorTy
     parseOperatorAnd, parseOperatorNot, parseOperatorNotEqual, parseOperatorEqual,
     parseOperatorModulo, parseOperatorInf, parseOperatorSup, parseOperatorInfEqual,
     parseOperatorSupEqual, parseOperatorDivide, parseOperatorMultiply, parseOperatorMinus,
-    handleOtherCases, parseFactorWithOperator, parseTermWithoutOperator, parseType, parseSemicolumn,
-    parseFunctionName, parseBlock, parseReturnType, parseModule, parseImportIdentifier, parseCustomType,
-    parseList, parseTerm, parseTermWithoutOperator, parseSemicolumn, parseTypedIdentifier, parseParameter,
-    parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
+    handleOtherCases, parseType, parseSemicolumn, parseFunctionName, parseBlock, parseReturnType,
+    parseModule, parseImportIdentifier, parseCustomType, parseList, parseSemicolumn, parseTypedIdentifier,
+    parseParameter, parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
     parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr,
     parseFactor)
+
+testShowErrorType :: Test
+testShowErrorType = TestList [
+        TestCase $ assertEqual "Show MissingClosing" "MissingClosing" (show MissingClosing),
+        TestCase $ assertEqual "Show MissingOpening" "MissingOpening" (show MissingOpening),
+        TestCase $ assertEqual "Show MissingIdentifier" "MissingIdentifier" (show MissingIdentifier),
+        TestCase $ assertEqual "Show MissingOperator" "MissingOperator" (show MissingOperator),
+        TestCase $ assertEqual "Show MissingExpression" "MissingExpression" (show MissingExpression),
+        TestCase $ assertEqual "Show MissingChar" "MissingChar" (show MissingChar),
+        TestCase $ assertEqual "Show MissingType" "MissingType" (show MissingType),
+        TestCase $ assertEqual "Show MissingReturn" "MissingReturn" (show MissingReturn),
+        TestCase $ assertEqual "Show MissingSemicolumn" "MissingSemicolumn" (show MissingSemicolumn),
+        TestCase $ assertEqual "Show MissingFunctionName" "MissingFunctionName" (show MissingFunctionName),
+        TestCase $ assertEqual "Show MissingFunctionArguments" "MissingFunctionArguments" (show MissingFunctionArguments),
+        TestCase $ assertEqual "Show MissingFunctionBody" "MissingFunctionBody" (show MissingFunctionBody),
+        TestCase $ assertEqual "Show MissingFunctionReturnType" "MissingFunctionReturnType" (show MissingFunctionReturnType),
+        TestCase $ assertEqual "Show MissingFunctionCall" "MissingFunctionCall" (show MissingFunctionCall),
+        TestCase $ assertEqual "Show MissingFunctionCallArguments" "MissingFunctionCallArguments" (show MissingFunctionCallArguments),
+        TestCase $ assertEqual "Show MissingFunctionCallName" "MissingFunctionCallName" (show MissingFunctionCallName),
+        TestCase $ assertEqual "Show EmptyParser" "EmptyParser" (show EmptyParser),
+        TestCase $ assertEqual "Show InvalidBlock" "InvalidBlock" (show InvalidBlock)
+    ]
 
 testParseChar :: Test
 testParseChar = TestList
@@ -263,7 +284,7 @@ testParseReturnStatement = TestList
     ]
     where
         result1 = runParser parseReturnStatement "return 42;"
-        expected1 = Right (Expression [Identifier "42"],";")
+        expected1 = Right (Expression [Number 42],";")
 
 
 testParseExpression :: Test
@@ -274,13 +295,13 @@ testParseExpression = TestList
     ]
     where
         result1 = runParser parseExpression "1 + 2"
-        expected1 = Right (Expression [Identifier "1",Operator "+",Identifier "2"],"")
+        expected1 = Right (Expression [Number 1,Operator "+",Number 2],"")
 
         result2 = runParser parseExpression "x"
         expected2 = Right (Expression [Identifier "x"],"")
 
         result3 = runParser parseExpression "(1 + 2)"
-        expected3 = Right (Expression [Expression [Identifier "1",Operator "+",Identifier "2"]],"")
+        expected3 = Right (Expression [Expression [Number 1,Operator "+",Number 2]],"")
 
 testParseOperatorEqual :: Test
 testParseOperatorEqual = TestList
@@ -508,78 +529,6 @@ testParseList = TestList
         result4 = runParser (parseList parseIdentifier) "(1)"
         expected4 = Right ([Identifier "1"],"")
 
-testParseFactorWithOperator :: Test
-testParseFactorWithOperator = TestList
-    [ TestCase $ assertEqual "parseFactorWithOperator valid" expected1 result1
-    , TestCase $ assertEqual "parseFactorWithOperator invalid" expected2 result2
-    , TestCase $ assertEqual "parseFactorWithOperator empty" expected3 result3
-    , TestCase $ assertEqual "parseFactorWithOperator all operator" expected4 result4
-    , TestCase $ assertEqual "parseFactorWithOperator with identifier" expected5 result5
-    ]
-    where
-        result1 = runParser parseFactorWithOperator "x + y"
-        expected1 = Right (Operator "+", "")
-
-        result2 = runParser parseFactorWithOperator "x"
-        expected2 = Left [ParseError MissingOperator "Expected a binary operator, but got ''." ""]
-
-        result3 = runParser parseFactorWithOperator ""
-        expected3 = Left [ParseError EmptyParser "Expected 'F' but got empty string." ""]
-
-        result4 = runParser parseFactorWithOperator "100 - 2 * 3 - 1 / 10 % 2"
-        expected4 = Right (Operator "-", "")
-
-        result5 = runParser parseFactorWithOperator "x * 100"
-        expected5 = Right (Operator "*", "")
-
-testParseTerm :: Test
-testParseTerm = TestList
-    [ TestCase $ assertEqual "parseTerm valid" expected1 result1
-    , TestCase $ assertEqual "parseTerm invalid" expected2 result2
-    , TestCase $ assertEqual "parseTerm empty" expected3 result3
-    , TestCase $ assertEqual "parseTerm single element" expected4 result4
-    , TestCase $ assertEqual "parseTerm with close parenthesis" expected5 result5
-    ]
-    where
-        result1 = runParser parseTerm "1 + 2"
-        expected1 = Right (Term [Identifier "1",Operator "+",Identifier "2"],"")
-
-        result2 = runParser parseTerm "1 +"
-        expected2 = Right (Term [Identifier "1",Operator "+"],"")
-
-        result3 = runParser parseTerm "()"
-        expected3 = Left [ParseError MissingExpression "Expected '(' but got ')'." ")"]
-
-        result4 = runParser parseTerm "1"
-        expected4 = Right (Term [Identifier "1"],"")
-
-        result5 = runParser parseTerm "(1 + 2)"
-        expected5 = Right (Term [Term [Identifier "1",Operator "+",Identifier "2"]],"")
-
-testParseTermWithoutOperator :: Test
-testParseTermWithoutOperator = TestList
-    [ TestCase $ assertEqual "parseTermWithoutOperator valid" expected1 result1
-    , TestCase $ assertEqual "parseTermWithoutOperator invalid" expected2 result2
-    , TestCase $ assertEqual "parseTermWithoutOperator empty" expected3 result3
-    , TestCase $ assertEqual "parseTermWithoutOperator single element" expected4 result4
-    , TestCase $ assertEqual "parseTermWithoutOperator with close parenthesis" expected5 result5
-    ]
-    where
-        result1 = runParser parseTermWithoutOperator "1 + 2"
-        expected1 = Right (Term [Identifier "1",Operator "+",Identifier "2"],"")
-
-        result2 = runParser parseTermWithoutOperator "1 +"
-        expected2 = Right (Term [Identifier "1",Operator "+"],"")
-
-        result3 = runParser parseTermWithoutOperator "()"
-        expected3 = Left [ParseError MissingExpression "Expected '(' but got ')'." ")"]
-
-        result4 = runParser parseTermWithoutOperator "1"
-        expected4 = Right (Term [Identifier "1"],"")
-
-        result5 = runParser parseTermWithoutOperator "(1 + 2)"
-        expected5 = Right (Term [Term [Identifier "1",Operator "+",Identifier "2"]],"")
-
 testParseAssignent :: Test
 testParseAssignent = TestList
     [ TestCase $ assertEqual "parseAssignent valid" expected1 result1
@@ -589,7 +538,7 @@ testParseAssignent = TestList
     ]
     where
         result1 = runParser parseAssignent "x = 1"
-        expected1 = Right (Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "1"]},"")
+        expected1 = Right (Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]},"")
 
         result2 = runParser parseAssignent "x ="
         expected2 = Left [ParseError EmptyParser "Expected '(' but got empty string." ""]
@@ -604,27 +553,27 @@ testParseForLoopIter :: Test
 testParseForLoopIter = TestList
     [ "Test parseForLoopIter valid" ~:
         let input = "for (x = 0; x < 10; x = x + 1) {}"
-            expected = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingExpression "Expected 'i' but got '}'." "}"]
+            expected = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingExpression "Expected symbol 'if'." "}",ParseError MissingExpression "Expected 'i' but got '}'." "}"]
             result = runParser parseForLoopIter input
         in assertEqual "Should parse valid input" expected result
     , "Test parseForLoopIter invalid" ~:
         let input = "for (x = 0; x < 10; x = x + 1) { "
-            expected = Left [ParseError InvalidBlock "Expected a block" "{ ",ParseError EmptyParser "Expected 'i' but got empty string." ""]
+            expected = Left [ParseError InvalidBlock "Expected a block" "{ ",ParseError MissingExpression "Expected symbol 'if'." "",ParseError EmptyParser "Expected 'i' but got empty string." ""]
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter variable assigment in block" ~:
         let input = "for (x = 0; x < 10; x = x + 1) { x : Int = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "0"]}, forLoopCondition = Expression [Identifier "x",Operator "<",Identifier "10"], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Identifier "1"]}, forLoopIterBlock = Block [Statements [Identifier "var",Identifier "x",Type (SingleType "Int"),Identifier "1"]]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 0]}, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")}, assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter pure empty" ~:
         let input = "for (x = 0; x < 10;) { x = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "0"]}, forLoopCondition = Expression [Identifier "x",Operator "<",Identifier "10"], forLoopUpdate = Empty, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "1"]}]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 0]}, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Empty, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter expression in block" ~:
         let input = "for (; x < 10; x = x + 1) { x = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Empty, forLoopCondition = Expression [Identifier "x",Operator "<",Identifier "10"], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Identifier "1"]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "1"]}]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Empty, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter without block" ~:
@@ -642,7 +591,7 @@ testParseTypedIdentifier = TestList
     ]
     where
         result1 = runParser parseTypedIdentifier "x : Int"
-        expected1 = Right (TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},"")
+        expected1 = Right (TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")},"")
 
         result2 = runParser parseTypedIdentifier "x :"
         expected2 = Left [ParseError MissingType "Expected a type." "",ParseError MissingChar "Expected any of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got to the end." ""]
@@ -655,43 +604,12 @@ testParseCondition :: Test
 testParseCondition = TestList
     [ "Test parseCondition with else block" ~:
         let input = "if (x > 0) { x = 1; } else { x = 2; }"
-            expected = Right (Condition
-                { gomIfCondition = Expression
-                    [ Identifier "x"
-                    , Operator ">"
-                    , Identifier "0"
-                    ]
-                , gomIfTrue = Block
-                    [ Assignment
-                        { assignedIdentifier = Identifier "x"
-                        , assignedExpression = Expression [Identifier "1"]
-                        }
-                    ]
-                , gomIfFalse = Block
-                    [ Assignment
-                        { assignedIdentifier = Identifier "x"
-                        , assignedExpression = Expression [Identifier "2"]
-                        }
-                    ]
-                }, "")
+            expected = Right (Condition {gomIfCondition = Expression [Identifier "x",Operator ">",Number 0], gomIfTrue = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}], gomIfFalse = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 2]}]},"")
             result = runParser parseCondition input
         in assertEqual "Should parse valid input with else block" expected result
     , "Test parseCondition without else block" ~:
         let input = "if (x > 0) { x = 1; }"
-            expected = Right (Condition
-                { gomIfCondition = Expression
-                    [ Identifier "x"
-                    , Operator ">"
-                    , Identifier "0"
-                    ]
-                , gomIfTrue = Block
-                    [ Assignment
-                        { assignedIdentifier = Identifier "x"
-                        , assignedExpression = Expression [Identifier "1"]
-                        }
-                    ]
-                , gomIfFalse = Empty
-                }, "")
+            expected = Right (Condition {gomIfCondition = Expression [Identifier "x",Operator ">",Number 0], gomIfTrue = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}], gomIfFalse = Empty},"")
             result = runParser parseCondition input
         in assertEqual "Should parse valid input without else block" expected result
     , "Test parseCondition with invalid input" ~:
@@ -730,7 +648,7 @@ testParseParameter = TestList
     ]
     where
         result1 = runParser parseParameter "x : Int"
-        expected1 = Right (TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},"")
+        expected1 = Right (TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")},"")
 
         result2 = runParser parseParameter "x :"
         expected2 = Left [ParseError MissingType "Expected a type." "",ParseError MissingChar "Expected any of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got to the end." ""]
@@ -744,18 +662,18 @@ testParseParameterList = TestList
     ]
     where
         result1 = runParser parseParameterList "x : Int, y : Int"
-        expected1 = Right (ParameterList [TypedIdentifier {identifier = Identifier "x", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = Identifier "y", identifierType = Type (SingleType "Int")}],"")
+        expected1 = Right (ParameterList [TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = "y", identifierType = Type (SingleType "Int")}],"")
 
 testParseVariableDeclaration :: Test
 testParseVariableDeclaration = TestList
     [ "Test parseVariableDeclaration with valid input" ~:
         let input = "x : Int = 42;"
-            expected = Right (Statements [Identifier "var",Identifier "x",Type (SingleType "Int"),Identifier "42"],";")
+            expected = Right (Assignment {assignedIdentifier = TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")}, assignedExpression = Expression [Number 42]},";")
             result = runParser parseVariableDeclaration input
         in assertEqual "Should parse valid input" expected result
     , "Test parseVariableDeclaration with no value" ~:
         let input = "x : Int = ;"
-            expected = Left [ParseError MissingChar "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got ';'." ";"]
+            expected = Left [ParseError MissingExpression "Expected '(' but got ';'." ";"]
             result = runParser parseVariableDeclaration input
         in assertEqual "Should handle invalid input" expected result
     ]
@@ -768,13 +686,14 @@ testParseFunctionDeclaration = TestList
     , TestCase $ assertEqual "testParseFunctionDeclaration invalid missing braquette 2" expected4 result4
     , TestCase $ assertEqual "testParseFunctionDeclaration invalid return type" expected5 result5
     , TestCase $ assertEqual "testParseFunctionDeclaration invalid symbol" expected6 result6
+    , TestCase $ assertEqual "testParseFunctionDeclaration missing arrow" expected7 result7
     ]
     where
         result1 = runParser parseFunctionDeclaration "fn multiply(a: Int, b: Int) -> Int { c: Int = a; }"
-        expected1 = Right (Function {fnName = Identifier "multiply", fnArguments = ParameterList [TypedIdentifier {identifier = Identifier "a", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = Identifier "b", identifierType = Type (SingleType "Int")}], fnBody = Block [Statements [Identifier "var",Identifier "c",Type (SingleType "Int"),Identifier "a"]], fnReturnType = Identifier "Int"},"")
+        expected1 = Right (Function {fnName = "multiply", fnArguments = ParameterList [TypedIdentifier {identifier = "a", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = "b", identifierType = Type (SingleType "Int")}], fnBody = Block [Assignment {assignedIdentifier = TypedIdentifier {identifier = "c", identifierType = Type (SingleType "Int")}, assignedExpression = Expression [Identifier "a"]}], fnReturnType = Type (SingleType "Int")},"")
 
         result2 = runParser parseFunctionDeclaration "fn multiply() -> Int { return 0; }"
-        expected2 = Right (Function {fnName = Identifier "multiply", fnArguments = ParameterList [], fnBody = Block [Expression [Identifier "0"]], fnReturnType = Identifier "Int"},"")
+        expected2 = Right (Function {fnName = "multiply", fnArguments = ParameterList [], fnBody = Block [Expression [Number 0]], fnReturnType = Type (SingleType "Int")},"")
 
         result3 = runParser parseFunctionDeclaration "fn multiply(a: Int, b: Int -> Int {}"
         expected3 = Left [ParseError MissingExpression "Expected ')' but got '-'." "-> Int {}"]
@@ -783,10 +702,13 @@ testParseFunctionDeclaration = TestList
         expected4 = Left [ParseError InvalidBlock "Expected a block" "}",ParseError MissingOpening "Expected '{' at the start of the block." "}",ParseError MissingExpression "Expected '{' but got '}'." "}"]
 
         result5 = runParser parseFunctionDeclaration "fn multiply() ->  {}"
-        expected5 = Left [ParseError MissingChar "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '{'." "{}"]
+        expected5 = Left [ParseError MissingFunctionReturnType "Expected a return type after '->'." "{}",ParseError MissingType "Expected a type." "{}",ParseError MissingChar "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '{'." "{}"]
 
-        result6 = runParser parseFunctionDeclaration "fi multiply(a: Int, b: Int) -> Int {}"
-        expected6 = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingExpression "Expected 'i' but got '}'." "}"]
+        result6 = runParser parseFunctionDeclaration "lfi multiply(a: Int, b: Int) -> Int {}"
+        expected6 = Left [ParseError MissingExpression "Expected symbol 'fn'." "lfi multiply(a: Int, b: Int) -> Int {}",ParseError MissingExpression "Expected 'f' but got 'l'." "lfi multiply(a: Int, b: Int) -> Int {}"]
+
+        result7 = runParser parseFunctionDeclaration "fn multiply(a: Int, b: Int) Int {}"
+        expected7 = Left [ParseError MissingFunctionReturnType "Expected '->' after function arguments." "Int {}",ParseError MissingExpression "Expected symbol '->'." "Int {}",ParseError MissingExpression "Expected '-' but got 'I'." "Int {}"]
 
 testParseIncludeList :: Test
 testParseIncludeList = TestList
@@ -801,7 +723,7 @@ testParseExpressionList :: Test
 testParseExpressionList = TestList
     [ "Test parseExpressionList valid" ~:
         let input = "(1, 2, 3)"
-            expected = Right (List [Expression [Identifier "1"],Expression [Identifier "2"],Expression [Identifier "3"]],"")
+            expected = Right (List [Expression [Number 1],Expression [Number 2],Expression [Number 3]],"")
             result = runParser parseExpressionList input
         in assertEqual "Should parse valid input" expected result
     , "Test parseExpressionList invalid" ~:
@@ -822,7 +744,7 @@ testParseCodeToGomExpr = TestList
     ]
     where
         result1 = runParser parseCodeToGomExpr "x = 1"
-        expected1 = Left [ParseError MissingChar "Expected one of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_' but got '='." "= 1"]
+        expected1 = Left [ParseError MissingExpression "Expected symbol 'fn'." "x = 1",ParseError MissingExpression "Expected 'f' but got 'x'." "x = 1"]
 
 testParseIncludeStatement :: Test
 testParseIncludeStatement = TestList
@@ -871,6 +793,7 @@ testFactorList = TestList
 
 parserTestList :: Test
 parserTestList = TestList [
+    testShowErrorType,
     testParseFunctionDeclaration,
     testParseType,
     testParseVariableDeclaration,
@@ -886,9 +809,6 @@ parserTestList = TestList [
     testParseForLoopIter,
     testParseAssignent,
     -- testParseTermWithOperator,
-    testParseTermWithoutOperator,
-    testParseTerm,
-    testParseFactorWithOperator,
     testParseList,
     testParseReturnType,
     testParseCustomType,

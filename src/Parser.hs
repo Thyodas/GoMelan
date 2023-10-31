@@ -426,7 +426,7 @@ parseAssignent = do
 -- | Parse for loop
 parseForLoopIter :: Parser GomExpr
 parseForLoopIter = do
-    symbol <- parseSymbol "for"
+    _ <- parseSymbol "for"
     _ <- parseAmongWhitespace $ parseChar '('
     (initialization, condition, update) <- parseLoopParts
     _ <- parseAmongWhitespace $ parseChar ')'
