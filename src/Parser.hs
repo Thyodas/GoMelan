@@ -106,6 +106,12 @@ instance Monad Parser where
   Left err -> Left (parseError str : err)
   other -> other
 
+-- Replace the last error in the stack with a custom error message
+(<?!>) :: Parser a -> (Remaining -> ParseError) -> Parser a
+(Parser p) <?!> parseError = Parser $ \str -> case p str of
+    Left _ -> Left [parseError str]
+    other -> other
+
 -- | Skip white space return string
 parserWhitespaceChar :: String
 parserWhitespaceChar = " \n\t"
@@ -122,7 +128,6 @@ parseChar char = Parser $ \str -> case str of
                 ("Expected '" ++ [char] ++ "' but got '" ++ [x] ++ "'.") str]
     [] -> Left [ParseError EmptyParser
         ("Expected '" ++ [char] ++ "' but got empty string.") ""]
-
 
 -- Parse between two characters using a given parser
 parseBetween :: Char -> Char -> Parser a -> Parser a
@@ -154,9 +159,22 @@ parseReturnStatement = do
 
 -- | Parse an expression
 parseExpression :: Parser GomExpr
-parseExpression = Expression <$> (parseSome $ parseAmongWhitespace $
-                    parseBinaryOperator <|> parseFactor <|> parseBetween
-                    '(' ')' parseExpression)
+parseExpression = Expression <$> parseExpression'
+    where
+        parseExpression' :: Parser [GomExpr]
+        parseExpression' = (:) <$> parseSubExpression <*> (concat <$> parseMany parseMultiple)
+
+        parseMultiple :: Parser [GomExpr]
+        parseMultiple = do
+            bin <- parseBinaryOperator <?!> ParseError MissingOperator
+                "Expected a binary operator."
+            expr <- parseSubExpression <?!> ParseError MissingExpression
+                "Expected an expression."
+            return [bin, expr]
+
+        parseSubExpression :: Parser GomExpr
+        parseSubExpression = parseAmongWhitespace (
+            parseFactor <|> parseBetween '(' ')' parseExpression)
 
 -- | Parse a term with a binary operator and another expression
 -- parseTermWithOperator :: Parser GomExpr
@@ -190,7 +208,8 @@ parseFactorWithOperator = do
     return $ operator
 
 parseFactor :: Parser GomExpr
-parseFactor = (Number <$> parseNumber) <|> parseIdentifier <|> parseLiteral
+parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
+    <|> parseIdentifier <|> parseLiteral
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -311,6 +330,15 @@ parseSep sep parser = parseMany (parseSep' sep parser)
             _ <- parseChar sep' <|> pure ' '
             return result
 
+-- -- | Apply parser on each element of a list separated by another parser
+-- -- | Example: parseSepBy (parseSymbol ",") "a,b,c,d" -> [a, ",", b, ",", c, ",", d]
+-- -- | Note: you need to handle whitespaces yourself
+-- parseSepBy :: Parser a -> Parser a -> Parser [a]
+-- -- parseSepBy sepParser parser = (:) <$> (parser <*> sepParser) <*> parseSepBy sepParser parser  <|> pure []
+-- parseSepBy sepParser parser = (:) <$> parser <*> parseMany parseEach
+--     where
+--         parseEach :: Parser [a]
+--         parseEach = (:) <$> sepParser <*> parser
 
 -- | Parse list of parameter
 parseParameterList :: Parser GomExpr
