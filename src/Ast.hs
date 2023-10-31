@@ -314,8 +314,9 @@ gomExprToGomAST env (Condition cond true false) = do
   return ([], AGomCondition cond' true' false')
 gomExprToGomAST env (Function name args body retType) = do
   (_, args') <- gomExprToGomAST env args
-  (_, body') <- gomExprToGomAST env body
   (_, retType') <- gomExprToGomAST env retType
+  let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
+  (_, body') <- gomExprToGomAST ((name, tempFunction) : env) body
   return ([], AGomFunctionDefinition name args' body' retType')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
