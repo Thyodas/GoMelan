@@ -186,8 +186,10 @@ gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
   return $ (env, AGomFunctionCall (AGomIdentifier name) (AGomList argsAst))
 
 -- | Error handling
-gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) = throwEvalError "Expected a ParameterList" [param]
-gomExprToAGomFunctionCall _ (FunctionCall name _) = throwEvalError "Expected an Identifier" [name]
+gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) =
+    throwEvalError "Expected a ParameterList" [param]
+gomExprToAGomFunctionCall _ (FunctionCall name _) = throwEvalError
+    "Expected an Identifier" [name]
 gomExprToAGomFunctionCall _ _ = throwEvalError "Expected a FunctionCall" []
 
 getIdDetails :: Env -> GomAST -> EvalResult (String, GomAST)
@@ -225,12 +227,18 @@ gomExprToGomAST env (Statements s) = do
   return ([], AGomStatements allAst)
 
 gomExprToGomAST _ (Operator s) = pure ([], AGomOperator s)
-gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$> gomExprListToGomASTList env t
-gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$> gomExprListToGomASTList env e
-gomExprToGomAST env (List l) = applyToSnd AGomList <$> gomExprListToGomASTList env l
-gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$> gomExprListToGomASTList env b
-gomExprToGomAST env (ParameterList p) = applyToSnd AGomParameterList <$> gomExprListToGomASTList env p
-gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall env function
+gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$>
+    gomExprListToGomASTList env t
+gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
+    gomExprListToGomASTList env e
+gomExprToGomAST env (List l) = applyToSnd AGomList <$>
+    gomExprListToGomASTList env l
+gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$>
+    gomExprListToGomASTList env b
+gomExprToGomAST env (ParameterList p) = applyToSnd AGomParameterList <$>
+    gomExprListToGomASTList env p
+gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall
+    env function
 gomExprToGomAST env (TypedIdentifier name t) = do
   (_, t') <- gomExprToGomAST env t
   return ([], AGomTypedIdentifier name t')
