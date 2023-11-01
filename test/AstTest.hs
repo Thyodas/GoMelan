@@ -445,7 +445,6 @@ testGomExprToAGomAssignment = TestList [
         result6 = gomExprToAGomAssignment env5 (Assignment (Number 10) (Number 20))
         expected6 = EvalResult $ Left (EvalError "Expected an Identifier" [])
 
-
 astTestList :: Test
 astTestList = TestList [
     testGomExprToAGomAssignment,
