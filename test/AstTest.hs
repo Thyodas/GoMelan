@@ -11,9 +11,9 @@ import Test.HUnit
 import Data.Maybe
 import InternalFunctions (internalEnv)
 import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvValue,
-   EvalResult(..), GomExpr(..), gomExprToGomAST, InternalFunction(..), checkCallArg,
-   extractSymbol, EvalError(..), applyToSnd, gomExprToGomAST, envLookupEval, checkType,
-   getAGomFunctionDefinition)
+   EvalResult(..), GomExpr(..), EnumOperator(..), GomExprType(..), gomExprToGomAST, InternalFunction(..), checkCallArg,
+   typeResolver, extractSymbol, applyToSnd, envLookupEval, checkType,
+   getAGomFunctionDefinition, throwEvalError, gomExprToAGomFunctionCall)
 
 testEnv :: Env
 testEnv = internalEnv ++  [
@@ -134,9 +134,21 @@ testGomExprToGomAST = TestList [
         TestCase $ assertEqual "Testing Operator" expected8 result8,
         TestCase $ assertEqual "Testing Term" expected9 result9,
         TestCase $ assertEqual "Testing Expression" expected10 result10,
-        TestCase $ assertEqual "Testing List" expected11 result11
+        TestCase $ assertEqual "Testing List" expected11 result11,
+        TestCase $ assertEqual "Testing Shunting Yard" result12 result12,
+        TestCase $ assertEqual "Testing Shunting Yard with function call" result13 result13,
+        TestCase $ assertEqual "Testing Shunting Yard with massive operators" result14 result14
     ]
     where
+        result12 = gomExprToGomAST [] (Expression [Number 1,Operator "+",Number 1,Operator "*",Number 2])
+        expected12 = EvalResult $ Right $ ([], AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomNumber 2,AGomOperator SignMultiply])
+
+        result13 = gomExprToGomAST [] (Function {fnName = "main", fnArguments = ParameterList [], fnBody = Block [Expression [FunctionCall {functionName = Identifier "main", functionArguments = ParameterList []},Operator "+",Number 1,Operator "*",Number 2]], fnReturnType = Type (SingleType "Int")})
+        expected13 = EvalResult $ Right $ ([],AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = AGomIdentifier "main", aGomFunctionArguments = AGomList []},AGomNumber 1,AGomOperator SignPlus,AGomNumber 2,AGomOperator SignMultiply]], aGomFnReturnType = AGomType "Int"})
+
+        result14 = gomExprToGomAST [] (Expression [Number 10,Operator "-",Number 1,Operator "/",Number 3,Operator "==",Number 3,Operator "&&",Number 5,Operator "<=",Number 34,Operator ">=",Number 56,Operator "<",Number 1,Operator ">",Number 100,Operator "&&",Number 4,Operator "!",Number 90,Operator "!=",Number 70])
+        expected14 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignDivide,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomNumber 56,AGomNumber 1,AGomNumber 100,AGomOperator SignSup,AGomOperator SignInf,AGomOperator SignSupEqual,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 4,AGomOperator SignAnd,AGomNumber 90,AGomNumber 70,AGomOperator SignNot,AGomOperator SignNotEqual])
+
         result1 = gomExprToGomAST [] (Number 42)
         expected1 = pure ([], AGomNumber 42)
 

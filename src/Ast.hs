@@ -244,10 +244,6 @@ precedence _ = 0
 shuntingYard :: [GomExpr] -> [GomExpr]
 shuntingYard expr = reverse $ shuntingYard' expr [] []
 
-isOperator :: GomExpr -> Bool
-isOperator (Operator _) = True
-isOperator _ = False
-
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
 shuntingYard' [] outputStack operatorStack = outputStack ++ reverse operatorStack
 shuntingYard' (e:expr) outputStack operatorStack =
