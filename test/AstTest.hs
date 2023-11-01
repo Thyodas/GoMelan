@@ -13,7 +13,9 @@ import InternalFunctions (internalEnv)
 import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvValue, EnumOperator(..), GomExprType(..),
    EvalResult(..), GomExpr(..), gomExprToGomAST, InternalFunction(..),
    typeResolver, extractSymbol, applyToSnd, envLookupEval, checkType,
-   getAGomFunctionDefinition, throwEvalError, gomExprToAGomFunctionCall)
+   getAGomFunctionDefinition, throwEvalError, gomExprToAGomFunctionCall,
+   operatorToGomAST, getIdDetails, precedence, gomExprToAGomAssignment
+   )
 
 testEnv :: Env
 testEnv = internalEnv ++  [
@@ -211,8 +213,8 @@ testExtractSymbol = TestList [
 
 testApplyToSnd :: Test
 testApplyToSnd = TestList [
-    TestCase $ assertEqual "Apply function to second element of tuple" (2, 5) (applyToSnd (+2) (2, 3)),
-    TestCase $ assertEqual "Apply function to second element of tuple" (2, 8) (applyToSnd (*2) (2, 4))
+    TestCase $ assertEqual "Apply function to second element of tuple" (2 :: Integer, 5 :: Integer) (applyToSnd (+2) (2 :: Integer, 3 :: Integer)),
+    TestCase $ assertEqual "Apply function to second element of tuple" (2 :: Integer, 8 :: Integer) (applyToSnd (*2) (2 :: Integer, 4 :: Integer))
     ]
 
 testEnvLookupEval :: Test
@@ -249,37 +251,27 @@ testCheckType = TestList [
 
 testGetAGomFunctionDefinition :: Test
 testGetAGomFunctionDefinition = TestList
-  [ "Get function definition" ~: do
-    let env = [("foo", AGomFunctionDefinition "foo" (AGomParameterList []) (AGomStatements []) (AGomType "Int"))]
-    let result = getAGomFunctionDefinition env "foo"
-    let expected = EvalResult (Right (AGomFunctionDefinition "foo" (AGomParameterList []) (AGomStatements []) (AGomType "Int")))
-    assertEqual "Retrieving an existing function" expected result
+    [ TestCase $ assertEqual "Get function definition" expected1 result1
+    , TestCase $ assertEqual "Get non-existent function definition" expected2 result2
+    , TestCase $ assertEqual "Invalid argument type" expected3 result3
+    , TestCase $ assertEqual "Invalid argument" expected4 result4
+    , TestCase $ assertEqual "getFunctionDef not a function in env" expected5 result5
+    ]
+    where
+        result1 = getAGomFunctionDefinition [("foo", AGomFunctionDefinition "foo" (AGomParameterList []) AGomEmpty AGomEmpty)] "foo"
+        expected1 = EvalResult (Right (AGomFunctionDefinition "foo" (AGomParameterList []) AGomEmpty AGomEmpty))
 
-    , "Get non-existent function definition" ~: do
-    let env = [("foo", AGomFunctionDefinition "foo" (AGomParameterList []) (AGomStatements []) (AGomType "Int"))]
-    let result = getAGomFunctionDefinition env "bar"
-    let expected = EvalResult (Left (EvalError "Identifier 'bar' not found in env" []))
-    assertEqual "Retrieving a non-existent function" expected result
+        result2 = getAGomFunctionDefinition [("foo", AGomFunctionDefinition "foo" (AGomParameterList []) AGomEmpty AGomEmpty)] "bar"
+        expected2 = EvalResult (Left (EvalError "Identifier 'bar' not found in env" []))
 
-    , "Invalid argument type" ~: do
-    let env = [("foo", AGomFunctionDefinition "foo" (AGomParameterList [AGomNumber 1]) (AGomStatements [AGomEmpty]) (AGomType "Int"))]
-    let result = getAGomFunctionDefinition env "bar"
-    let expected = EvalResult {unEvalResult = Left (EvalError "Identifier 'bar' not found in env" [])}
-    assertEqual "Retrieving a function with an invalid argument" expected result
+        result3 = getAGomFunctionDefinition [("foo", AGomFunctionDefinition "foo" (AGomParameterList [AGomNumber 1]) AGomEmpty AGomEmpty)] "bar"
+        expected3 = EvalResult (Left (EvalError "Identifier 'bar' not found in env" []))
 
-    , "Invalid argument" ~: do
-    let env = [("nameFunc", AGomFunctionDefinition "nameFunc" (AGomEmpty) (AGomType "Int") (AGomStatements [AGomEmpty]))]
-    let result = getAGomFunctionDefinition env "nameFunc"
-    let expected = throwEvalError ("Function '" ++ "nameFunc" ++ "' has invalid arguments") []
-    assertEqual "Retrieving a function with an invalid argument" expected result
+        result4 = getAGomFunctionDefinition [("nameFunc", AGomFunctionDefinition "nameFunc" (AGomEmpty) AGomEmpty AGomEmpty)] "nameFunc"
+        expected4 = throwEvalError ("Function '" ++ "nameFunc" ++ "' has invalid arguments") []
 
-    , "getFunctionDef not a function in env" ~: do
-    let name = "nameFunc"
-    let env = [(name, AGomEmpty)]
-    let result = getAGomFunctionDefinition env name
-    let expected = throwEvalError ("Identifier '" ++ name ++ "' is not a function") []
-    assertEqual "Retrieving a function with an invalid argument" expected result
-  ]
+        result5 = getAGomFunctionDefinition [("nameFunc", AGomEmpty)] "nameFunc"
+        expected5 = throwEvalError ("Identifier '" ++ "nameFunc" ++ "' is not a function") []
 
 testGomExprToAGomFunctionCall :: Test
 testGomExprToAGomFunctionCall = TestList [
@@ -288,7 +280,8 @@ testGomExprToAGomFunctionCall = TestList [
         TestCase $ assertEqual "gomExprToAGomFunctionCall" expected3 result3,
         TestCase $ assertEqual "gomExprToAGomFunctionCall" expected4 result4,
         TestCase $ assertEqual "gomExprToAGomFunctionCall" expected5 result5,
-        TestCase $ assertEqual "gomExprToAGomFunctionCall" expected6 result6
+        TestCase $ assertEqual "gomExprToAGomFunctionCall" expected6 result6,
+        TestCase $ assertEqual "gomExprToAGomFunctionCall" expected7 result7
     ]
     where
         env = [("foo", AGomFunctionDefinition "foo" (AGomParameterList []) AGomEmpty AGomEmpty)]
@@ -311,8 +304,153 @@ testGomExprToAGomFunctionCall = TestList [
         result6 = gomExprToAGomFunctionCall env (FunctionCall (Identifier "foo") (ParameterList [Identifier "bar", Identifier "baz"]))
         expected6 = EvalResult $ Right (env, AGomFunctionCall ("foo") (AGomList [AGomIdentifier "bar", AGomIdentifier "baz"]))
 
+        result7 = gomExprToAGomFunctionCall env (FunctionCall (GomString "name") Empty)
+        expected7 = EvalResult {unEvalResult = Left (EvalError "Expected an Identifier" [GomString "name"])}
+
+testOperatorToGomAST :: Test
+testOperatorToGomAST = TestList
+    [ TestCase $ assertEqual "Operator to GomAST" expected1 result1
+    , TestCase $ assertEqual "Operator to GomAST" expected2 result2
+    , TestCase $ assertEqual "Operator to GomAST" expected3 result3
+    , TestCase $ assertEqual "Operator to GomAST" expected4 result4
+    , TestCase $ assertEqual "Operator to GomAST" expected5 result5
+    , TestCase $ assertEqual "Operator to GomAST" expected6 result6
+    , TestCase $ assertEqual "Operator to GomAST" expected7 result7
+    , TestCase $ assertEqual "Operator to GomAST" expected8 result8
+    , TestCase $ assertEqual "Operator to GomAST" expected9 result9
+    , TestCase $ assertEqual "Operator to GomAST" expected10 result10
+    , TestCase $ assertEqual "Operator to GomAST" expected11 result11
+    , TestCase $ assertEqual "Operator to GomAST" expected12 result12
+    , TestCase $ assertEqual "Operator to GomAST" expected13 result13
+    ]
+    where
+        result1 = operatorToGomAST (Operator "+")
+        expected1 = pure (AGomOperator SignPlus)
+
+        result2 = operatorToGomAST (Operator "-")
+        expected2 = pure (AGomOperator SignMinus)
+
+        result3 = operatorToGomAST (Operator "*")
+        expected3 = pure (AGomOperator SignMultiply)
+
+        result4 = operatorToGomAST (Operator "/")
+        expected4 = pure (AGomOperator SignDivide)
+
+        result5 = operatorToGomAST (Operator "==")
+        expected5 = pure (AGomOperator SignEqual)
+
+        result6 = operatorToGomAST (Operator "!=")
+        expected6 = pure (AGomOperator SignNotEqual)
+
+        result7 = operatorToGomAST (Operator "<=")
+        expected7 = pure (AGomOperator SignInfEqual)
+
+        result8 = operatorToGomAST (Operator ">=")
+        expected8 = pure (AGomOperator SignSupEqual)
+
+        result9 = operatorToGomAST (Operator "<")
+        expected9 = pure (AGomOperator SignInf)
+
+        result10 = operatorToGomAST (Operator ">")
+        expected10 = pure (AGomOperator SignSup)
+
+        result11 = operatorToGomAST (Operator "&&")
+        expected11 = pure (AGomOperator SignAnd)
+
+        result12 = operatorToGomAST (Operator "!")
+        expected12 = pure (AGomOperator SignNot)
+
+        result13 = operatorToGomAST (Operator "%")
+        expected13 = pure (AGomOperator SignModulo)
+
+testGetIdDetails :: Test
+testGetIdDetails = TestList
+    [ TestCase $ assertEqual "Get details for an identifier" expected result
+    , TestCase $ assertEqual "Get details for a typed identifier" expected2 result2
+    , TestCase $ assertEqual "Error when identifier redeclaration" expected3 result3
+    , TestCase $ assertEqual "Throw error when input is not an identifier" expected4 result4
+    , TestCase $ assertEqual "Handle envLookup returning Nothing" expected5 result5
+    ]
+    where
+        env = [("x", AGomNumber 5)]
+        env2 = [("y", AGomNumber 10)]
+        env3 = [("z", AGomNumber 15)]
+        env4 = [("w", AGomNumber 20)]
+        env5 = []
+
+        result = getIdDetails env (AGomIdentifier "x")
+        expected = EvalResult $ Right ("x", AGomNumber 5)
+
+        result2 = getIdDetails env2 (AGomTypedIdentifier "y" (AGomType "Int"))
+        expected2 = EvalResult {unEvalResult = Left (EvalError "Cannot redeclare 'y' already exists" [])}
+
+        result3 = getIdDetails env3 (AGomTypedIdentifier "z" (AGomType "Int"))
+        expected3 = EvalResult $ Left (EvalError "Cannot redeclare 'z' already exists" [])
+
+        result4 = getIdDetails env4 (AGomNumber 20)
+        expected4 = EvalResult (Left (EvalError "Expected an Identifier" []))
+
+        result5 = getIdDetails env5 (AGomTypedIdentifier "non_existing" (AGomType "String"))
+        expected5 = EvalResult {unEvalResult = Right ("non_existing",AGomType "String")}
+
+testprecedence :: Test
+testprecedence = TestList
+    [ TestCase $ assertEqual "precedence" 1 (precedence(Operator "+"))
+    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "-"))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "*"))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "/"))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "=="))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "!="))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "<="))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator ">="))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "<"))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator ">"))
+    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "&&"))
+    , TestCase $ assertEqual "precedence" 5 (precedence(Operator "!"))
+    , TestCase $ assertEqual "precedence" 0 (precedence(Operator "&"))
+    , TestCase $ assertEqual "precedence" 0 (precedence(Number 42))
+    ]
+
+testGomExprToAGomAssignment :: Test
+testGomExprToAGomAssignment = TestList [
+        TestCase $ assertEqual "gomExprToAGomAssignment" expected1 result1,
+        TestCase $ assertEqual "gomExprToAGomAssignment" expected2 result2,
+        TestCase $ assertEqual "gomExprToAGomAssignment" expected3 result3,
+        TestCase $ assertEqual "gomExprToAGomAssignment" expected4 result4,
+        TestCase $ assertEqual "gomExprToAGomAssignment" expected5 result5,
+        TestCase $ assertEqual "gomExprToAGomAssignment" expected6 result6
+    ]
+    where
+        env = [("x", AGomNumber 5)]
+        env2 = [("y", AGomNumber 10)]
+        env3 = [("z", AGomNumber 15)]
+        env4 = []
+        env5 = []
+
+        result1 = gomExprToAGomAssignment env (Assignment (Identifier "x") (Number 10))
+        expected1 = EvalResult {unEvalResult = Right ([("x",AGomNumber 10)],AGomEmpty)}
+
+        result2 = gomExprToAGomAssignment env2 (Assignment (Identifier "y") (GomString "hello"))
+        expected2 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomType \"String\"' but expected 'AGomType \"Int\"'." [])}
+
+        result3 = gomExprToAGomAssignment env3 (Assignment (Identifier "z") (Boolean True))
+        expected3 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomType \"Bool\"' but expected 'AGomType \"Int\"'." [])}
+
+        result4 = gomExprToAGomAssignment env4 (Number 10)
+        expected4 = EvalResult {unEvalResult = Left (EvalError "Expected an Assignment" [Number 10])}
+
+        result5 = gomExprToAGomAssignment env5 (Assignment (Identifier "non_existing") (Number 10))
+        expected5 = EvalResult $ Left (EvalError "Identifier 'non_existing' not found in env" [])
+
+        result6 = gomExprToAGomAssignment env5 (Assignment (Number 10) (Number 20))
+        expected6 = EvalResult $ Left (EvalError "Expected an Identifier" [])
+
+
 astTestList :: Test
 astTestList = TestList [
+    testGomExprToAGomAssignment,
+    testGetIdDetails,
+    testOperatorToGomAST,
     testExtractSymbol,
     testApplyToSnd,
     testInsert,
@@ -323,5 +461,6 @@ astTestList = TestList [
     testGetAGomFunctionDefinition,
     testTypeResolver,
     testGomExprToGomAST,
-    testGomExprToAGomFunctionCall
+    testGomExprToAGomFunctionCall,
+    testprecedence
     ]

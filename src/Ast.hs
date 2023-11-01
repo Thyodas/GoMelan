@@ -28,7 +28,11 @@ module Ast (
     checkType,
     getAGomFunctionDefinition,
     typeResolver,
-    gomExprToAGomFunctionCall
+    gomExprToAGomFunctionCall,
+    operatorToGomAST,
+    getIdDetails,
+    precedence,
+    gomExprToAGomAssignment
 ) where
 
 import Data.List (deleteBy, find)
