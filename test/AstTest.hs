@@ -41,14 +41,14 @@ testLookupNotExists = TestCase $ assertEqual "Element not exists" Nothing (envLo
 testCheckCallArg :: Test
 testCheckCallArg = TestList [
         TestCase $ assertEqual "Testing AGomIdentifier" expected1 result1,
-        TestCase $ assertEqual "Testing AGomIdentifier" expected2 result2,
-        TestCase $ assertEqual "Testing AGomIdentifier" expected3 result3
-        -- TestCase $ assertEqual "Testing AGomIdentifier" expected4 result4
-        -- TestCase $ assertEqual "Testing AGomIdentifier" expected5 result5,
-        -- TestCase $ assertEqual "Testing AGomIdentifier" expected6 result6,
-        -- TestCase $ assertEqual "Testing AGomIdentifier" expected7 result7,
-        -- TestCase $ assertEqual "Testing AGomIdentifier" expected8 result8
-        -- TestCase $ assertEqual "Testing AGomIdentifier" expected9 result9
+        TestCase $ assertEqual "Testing AGomFunctionCall" expected2 result2,
+        TestCase $ assertEqual "Testing AGomExpression" expected3 result3,
+        TestCase $ assertEqual "Testing AGomTerm" expected4 result4,
+        TestCase $ assertEqual "Testing AGomList" expected5 result5,
+        TestCase $ assertEqual "Testing AGomBooleanLiteral" expected6 result6,
+        TestCase $ assertEqual "Testing AGomNumber" expected7 result7,
+        TestCase $ assertEqual "Testing AGomStringLiteral" expected8 result8,
+        TestCase $ assertEqual "Testing AGomIdentifier" expected9 result9
     ]
     where
         result1 = checkCallArg (AGomIdentifier "someIdentifier")
@@ -60,23 +60,128 @@ testCheckCallArg = TestList [
         result3 = checkCallArg (AGomExpression [AGomStringLiteral "BasicExpression"])
         expected3 = pure ([], AGomExpression [AGomStringLiteral "BasicExpression"])
 
-        -- result4 = checkCallArg (AGomTerm "someIdentifier")
-        -- expected4 = pure ([], AGomTerm "someIdentifier")
+        result4 = checkCallArg (AGomTerm [AGomIdentifier "BasicTerm"])
+        expected4 = pure ([], AGomTerm [AGomIdentifier "BasicTerm"])
 
-        -- result5 = checkCallArg (AGomList [1,2,3])
-        -- expected5 = pure ([], AGomList [1,2,3])
+        result5 = checkCallArg (AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
+        expected5 = pure ([], AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
 
-        -- result6 = checkCallArg (AGomBooleanLiteral True)
-        -- expected6 = pure ([], AGomBooleanLiteral True)
+        result6 = checkCallArg (AGomBooleanLiteral True)
+        expected6 = pure ([], AGomBooleanLiteral True)
 
-        -- result7 = checkCallArg (AGomNumber 42)
-        -- expected7 = pure ([], AGomNumber 42)
+        result7 = checkCallArg (AGomNumber 42)
+        expected7 = pure ([], AGomNumber 42)
 
-        -- result8 = checkCallArg (AGomStringLiteral "someString")
-        -- expected8 = pure ([], AGomStringLiteral "someString")
+        result8 = checkCallArg (AGomStringLiteral "someString")
+        expected8 = pure ([], AGomStringLiteral "someString")
 
-        -- result9 = checkCallArg autrechose
-        -- expected9 = pure ([], "Invalid argument type in function call" [])
+        result9 = checkCallArg (AGomType "Int")
+        expected9 = throwEvalError "Invalid argument type in function call" []
+
+testTypeResolver :: Test
+testTypeResolver = TestList [
+        TestCase $ assertEqual "Testing AGomType" expected1 result1,
+        TestCase $ assertEqual "Testing AGomTypedIdentifier" expected2 result2,
+        TestCase $ assertEqual "Testing AGomTypeList" expected3 result3,
+        TestCase $ assertEqual "Testing AGomBooleanLiteral" expected4 result4,
+        TestCase $ assertEqual "Testing AGomNumber" expected5 result5,
+        TestCase $ assertEqual "Testing AGomStringLiteral" expected6 result6,
+        TestCase $ assertEqual "Testing invald matching pattern" expected7 result7,
+        TestCase $ assertEqual "Testing invald matching pattern" expected8 result8,
+        TestCase $ assertEqual "Testing invald matching pattern" expected9 result9,
+        TestCase $ assertEqual "Testing invald matching pattern" expected10 result10
+    ]
+    where
+        result1 = typeResolver [] (AGomType "Int")
+        expected1 = pure (AGomType "Int")
+
+        result2 = typeResolver [] (AGomTypedIdentifier { aGomIdentifier = "x", aGomIdentifierType = (AGomType "Int") })
+        expected2 = pure (AGomType "Int")
+
+        result3 = typeResolver [] (AGomTypeList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
+        expected3 = pure (AGomTypeList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
+
+        result4 = typeResolver [] (AGomBooleanLiteral True)
+        expected4 = pure (AGomType "Bool")
+
+        result5 = typeResolver [] (AGomNumber 42)
+        expected5 = pure (AGomType "Int")
+
+        result6 = typeResolver [] (AGomStringLiteral "my_42")
+        expected6 = pure (AGomType "String")
+
+        result7 = typeResolver [] (AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
+        expected7 = throwEvalError ("Couldn't resolve type for 'AGomList [AGomNumber 1,AGomNumber 2,AGomNumber 3]'.") []
+
+        result8 = typeResolver [("key5", AGomNumber 42)] (AGomIdentifier "key5")
+        expected8 = pure (AGomType "Int")
+
+        result9 = typeResolver [("add", AGomNumber 42)] (AGomFunctionCall { aGomFunctionName = AGomIdentifier "add", aGomFunctionArguments = AGomEmpty })
+        expected9 = throwEvalError ("Identifier 'add' is not a function") []
+
+        result10 = typeResolver [("add", AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomEmpty, aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })] (AGomFunctionCall { aGomFunctionName = AGomIdentifier "add", aGomFunctionArguments = AGomEmpty })
+        expected10 = pure (AGomType "Int")
+
+testGomExprToGomAST :: Test
+testGomExprToGomAST = TestList [
+        TestCase $ assertEqual "Testing Number" expected1 result1,
+        TestCase $ assertEqual "Testing Identifier" expected2 result2,
+        TestCase $ assertEqual "Testing GomString" expected3 result3,
+        TestCase $ assertEqual "Testing Boolean" expected4 result4,
+        -- TestCase $ assertEqual "Testing Type SingleType" expected5 result5,
+        -- TestCase $ assertEqual "Testing Type TypeList all same" expected6 result6,
+        TestCase $ assertEqual "Testing Statement" expected7 result7,
+        TestCase $ assertEqual "Testing Operator" expected8 result8,
+        TestCase $ assertEqual "Testing Term" expected9 result9,
+        TestCase $ assertEqual "Testing Expression" expected10 result10,
+        TestCase $ assertEqual "Testing List" expected11 result11
+    ]
+    where
+        result1 = gomExprToGomAST [] (Number 42)
+        expected1 = pure ([], AGomNumber 42)
+
+        result2 = gomExprToGomAST [] (Identifier "quarante_deux")
+        expected2 = pure ([], AGomIdentifier "quarante_deux")
+
+        result3 = gomExprToGomAST [] (GomString "Quarante deux ?!")
+        expected3 = pure ([], AGomStringLiteral "Quarante deux ?!")
+
+        result4 = gomExprToGomAST [] (Boolean True)
+        expected4 = pure ([], AGomBooleanLiteral True)
+
+        -- result5 = gomExprToGomAST [] (Type (SingleType "Int"))
+        -- expected5 = pure ([], AGomType "Int")
+
+        -- result6 = gomExprToGomAST [] (Type (TypeList [Type "String", Type "String", Type "String"]))
+        -- expected6 = pure ([], AGomTypeList $ AGomType "String")
+
+        result7 = gomExprToGomAST [] (Statements [Identifier "x", Number 42])
+        expected7 = pure ([], AGomStatements [AGomIdentifier "x", AGomNumber 42])
+
+        result8 = gomExprToGomAST [] (Operator "+")
+        expected8 = pure ([], AGomOperator "+")
+
+        result9 = gomExprToGomAST [] (Term [Identifier "x", Operator "*", Number 42])
+        expected9 = pure ([], AGomTerm [AGomIdentifier "x", AGomOperator "*", AGomNumber 42])
+
+        result10 = gomExprToGomAST [] (Expression [Number 3, Operator "+", Number 4, Operator "*", Number 6])
+        expected10 = pure ([], AGomExpression [AGomNumber 3, AGomOperator "+", AGomNumber 4, AGomOperator "*", AGomNumber 6])
+
+        result11 = gomExprToGomAST [] (List [Number 21, Number 42, Number 84])
+        expected11 = pure ([], AGomList [AGomNumber 21, AGomNumber 42, AGomNumber 84])
+
+
+
+-- testGomExprToAGomFunctionCall :: Test
+-- testGomExprToAGomFunctionCall = TestList [
+--         TestCase $ assertEqual "Testing gomExprToAGomFunctionCall" expected1 result1
+--     ]
+--     where
+--         result1 = gomExprToAGomFunctionCall [("add", AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomFunctionArgument "x" (AGomType "Int")], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })] (FunctionCall { functionName = Identifier "add", functionArguments = ParameterList [Number 1] })
+--         expected1 = EvalResult $ Right $ ([], (AGomFunctionCall { aGomFunctionName = AGomIdentifier "add", aGomFunctionArguments = AGomParameterList [AGomNumber 1] }))
+
+
+
 
 -- testFunctionCall :: Test
 -- testFunctionCall = TestCase $ assertEqual "testFunctionCall" ~: do
