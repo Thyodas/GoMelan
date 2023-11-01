@@ -24,7 +24,9 @@ module Ast (
     applyToSnd,
     envLookupEval,
     checkType,
-    getAGomFunctionDefinition
+    getAGomFunctionDefinition,
+    typeResolver,
+    gomExprToAGomFunctionCall
 ) where
 
 import Data.List (deleteBy, find)
@@ -94,7 +96,7 @@ data GomAST =
   | AGomFunctionArgument { aGomArgumentName :: GomAST, aGomArgumentType :: GomAST}
   | AGomParameterList [GomAST]
   | AGomInternalFunction InternalFunction
-  | AGomFunctionCall { aGomFunctionName :: GomAST, aGomFunctionArguments :: GomAST }
+  | AGomFunctionCall { aGomFunctionName :: String, aGomFunctionArguments :: GomAST }
   | AGomTypedIdentifier { aGomIdentifier :: String, aGomIdentifierType :: GomAST }
   | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
   | AGomEmpty
@@ -141,19 +143,8 @@ gomExprListToGomASTList env list = do
   (_, allAst) <- traverse (gomExprToGomAST env) list >>= pure . unzip
   return ([], allAst)
 
-checkCallArg :: GomAST -> EvalResult (Env, GomAST)
-checkCallArg ast@(AGomIdentifier s) = pure ([], ast)
-checkCallArg ast@(AGomFunctionCall _ _) = pure ([], ast)
-checkCallArg ast@(AGomExpression _) = pure ([], ast)
-checkCallArg ast@(AGomTerm _) = pure ([], ast)
-checkCallArg ast@(AGomList _) = pure ([], ast)
-checkCallArg ast@(AGomBooleanLiteral _) = pure ([], ast)
-checkCallArg ast@(AGomNumber _) = pure ([], ast)
-checkCallArg ast@(AGomStringLiteral _) = pure ([], ast)
-checkCallArg ast = throwEvalError "Invalid argument type in function call" []
-
 typeResolver :: Env -> GomAST -> EvalResult GomAST
-typeResolver env (AGomFunctionCall (AGomIdentifier s) _) = do
+typeResolver env (AGomFunctionCall s _) = do
   func <- envLookupEval env s
   case func of
     AGomFunctionDefinition { aGomFnReturnType=retType } -> pure retType
@@ -203,7 +194,7 @@ gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
     getAGomFunctionDefinition env name
   let funcDegArgsTypes = map aGomArgumentType funcDefArgs
   _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
-  return $ (env, AGomFunctionCall (AGomIdentifier name) (AGomList argsAst))
+  return $ (env, AGomFunctionCall name (AGomList argsAst))
 
 -- | Error handling
 gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) =
