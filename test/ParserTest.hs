@@ -14,7 +14,8 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith, ErrorTy
     parseList, parseTerm, parseTermWithoutOperator, parseSemicolumn, parseTypedIdentifier, parseParameter,
     parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
     parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
-    parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
+    parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr,
+    parseFactor)
 
 testParseChar :: Test
 testParseChar = TestList
@@ -861,7 +862,12 @@ testParseType = TestList
         in assertEqual "Should parse valid input" expected result
     ]
 
-
+testFactorList :: Test
+testFactorList = TestList
+    [ TestCase $ assertEqual "parseFactorList valid" expected1 result1]
+    where
+        result1 = runParser parseFactor "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
+        expected1 = Right (List [Expression [Number 0],Expression [Number 1],Expression [Number 2],Expression [Number 3],Expression [Number 4],Expression [Number 5],Expression [Number 6],Expression [Number 7],Expression [Number 8],Expression [Number 9],Expression [Number 10]],"")
 
 parserTestList :: Test
 parserTestList = TestList [
@@ -944,7 +950,8 @@ parserTestList = TestList [
     testParseOperatorModulo,
     testParseOperatorInf,
     -- testParseStatement,
-    testParseString
+    testParseString,
+    testFactorList
     -- testParseReturnStatement,
     -- testParseExpression,
     -- testParseGomExpr
