@@ -207,9 +207,12 @@ parseFactorWithOperator = do
     {- term <- parseTerm -}
     return $ operator
 
+parseListAssignement :: Parser GomExpr
+parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpression))
+
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseIdentifier <|> parseLiteral
+    <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -424,7 +427,7 @@ parseAssignent = do
 -- | Parse for loop
 parseForLoopIter :: Parser GomExpr
 parseForLoopIter = do
-    {- symbol <- parseSymbol "for" -}
+    symbol <- parseSymbol "for"
     _ <- parseAmongWhitespace $ parseChar '('
     (initialization, condition, update) <- parseLoopParts
     _ <- parseAmongWhitespace $ parseChar ')'
