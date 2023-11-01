@@ -13,8 +13,8 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith, ErrorTy
     parseModule, parseImportIdentifier, parseCustomType, parseList, parseSemicolumn, parseTypedIdentifier,
     parseParameter, parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
     parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
-    parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr,
-    parseFactor)
+    printErrorDetails, printErrors, printErrorLine, printLineWithError, runAndPrintParser,
+    parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
 
 testShowErrorType :: Test
 testShowErrorType = TestList [
@@ -784,15 +784,67 @@ testParseType = TestList
         in assertEqual "Should parse valid input" expected result
     ]
 
-testFactorList :: Test
-testFactorList = TestList
-    [ TestCase $ assertEqual "parseFactorList valid" expected1 result1]
-    where
-        result1 = runParser parseFactor "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
-        expected1 = Right (List [Expression [Number 0],Expression [Number 1],Expression [Number 2],Expression [Number 3],Expression [Number 4],Expression [Number 5],Expression [Number 6],Expression [Number 7],Expression [Number 8],Expression [Number 9],Expression [Number 10]],"")
+testPrintErrorDetails :: Test
+testPrintErrorDetails = TestList
+    [ "Print MissingIdentifier error details" ~: do
+        let errorType = MissingIdentifier
+        let errorMessage = "Missing identifier error message"
+        let remaining = "Remaining code after error"
+        let parseError = ParseError errorType errorMessage remaining
+        let lineNum = 5
+        let colNum = 10
+        let result = printErrorDetails "Some code" parseError lineNum colNum
+        let expected = "Line 6, Column 11\n               ^\nMissingIdentifier: Missing identifier error message\n"
+        assertEqual "Printing MissingIdentifier error details" expected result
+    ]
+
+testPrintErrors :: Test
+testPrintErrors = TestList
+    [ "Print single error details" ~: do
+        let code = "let x = 10;"
+        let errorType = MissingIdentifier
+        let errorMessage = "Missing identifier error message"
+        let remaining = ";"
+        let parseError = [ParseError errorType errorMessage remaining]
+        let result = printErrors code parseError
+        let expected = "Line 1, Column 11\n 1 | let x = 10;\n               ^\nMissingIdentifier: Missing identifier error message\n"
+        assertEqual "Printing single error details" expected result
+    , "Print multiple error details with separation" ~: do
+        let code = "let x = 10;"
+        let errorType1 = MissingIdentifier
+        let errorMessage1 = "Missing identifier error message"
+        let remaining1 = ";"
+        let errorType2 = MissingFunctionName
+        let errorMessage2 = "Missing function name error message"
+        let remaining2 = "x = 10;"
+        let parseError = [ParseError errorType1 errorMessage1 remaining1, ParseError errorType2 errorMessage2 remaining2]
+        let result = printErrors code parseError
+        let expected = "Line 1, Column 11\n 1 | let x = 10;\n               ^\nMissingIdentifier: Missing identifier error message\n----------\nLine 1, Column 5\n 1 | let x = 10;\n         ^\nMissingFunctionName: Missing function name error message\n"
+        assertEqual "Printing multiple error details with separation" expected result
+    , "stack empty" ~: do
+        let code = "let x = 10;"
+        let parseError = []
+        let result = printErrors code parseError
+        let expected = ""
+        assertEqual "stack empty" expected result
+    ]
+
+testPrintLineWithError :: Test
+testPrintLineWithError = TestList
+    [ "Print line with error details" ~: do
+        let code = "let x = 10;"
+        let errorLine = 1
+        let errorColumn = 5
+        let result = printLineWithError (lines code) errorLine errorColumn
+        let expected = " 1 | let x = 10;\n          ^\n"
+        assertEqual "Printing line with error details" expected result
+    ]
 
 parserTestList :: Test
 parserTestList = TestList [
+    testPrintLineWithError,
+    testPrintErrors,
+    testPrintErrorDetails,
     testShowErrorType,
     testParseFunctionDeclaration,
     testParseType,
