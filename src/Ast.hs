@@ -20,7 +20,11 @@ module Ast (
     envLookup,
     extractSymbol,
     gomExprToGomAST,
-    checkCallArg
+    checkCallArg,
+    applyToSnd,
+    envLookupEval,
+    checkType,
+    getAGomFunctionDefinition
 ) where
 
 import Data.List (deleteBy, find)
