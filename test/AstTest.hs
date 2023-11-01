@@ -106,11 +106,9 @@ testGomExprToGomAST = TestList [
         TestCase $ assertEqual "Testing ForLoopIter" expected18 result18,
         TestCase $ assertEqual "Testing Condition" expected19 result19,
         TestCase $ assertEqual "Testing Function" expected20 result20,
-        TestCase $ assertEqual "Testing Expression" expected21 result21,
-        TestCase $ assertEqual "Testing Function" expected22 result22,
-        TestCase $ assertEqual "Testing Expression" expected23 result23
-
-
+        TestCase $ assertEqual "Testing Shunting Yard" expected21 result21,
+        TestCase $ assertEqual "Testing Shunting Yard with function call" expected22 result22,
+        TestCase $ assertEqual "Testing Shunting Yard with massive operators" expected23 result23
     ]
     where
 
@@ -182,6 +180,24 @@ testGomExprToGomAST = TestList [
 
         result23 = gomExprToGomAST [] (Expression [Number 10,Operator "-",Number 1,Operator "/",Number 3,Operator "==",Number 3,Operator "&&",Number 5,Operator "<=",Number 34,Operator ">=",Number 56,Operator "<",Number 1,Operator ">",Number 100,Operator "&&",Number 4,Operator "!",Number 90,Operator "!=",Number 70])
         expected23 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignDivide,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomNumber 56,AGomNumber 1,AGomNumber 100,AGomOperator SignSup,AGomOperator SignInf,AGomOperator SignSupEqual,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 4,AGomOperator SignAnd,AGomNumber 90,AGomNumber 70,AGomOperator SignNot,AGomOperator SignNotEqual])
+
+
+testEqualType :: Test
+testEqualType = TestList [
+            TestCase $ assertEqual "Testing equal type in an expression" expected1 result1,
+            TestCase $ assertEqual "Testing not equal type in an expression" expected2 result2,
+            TestCase $ assertEqual "Testing empty expression" expected3 result3
+        ]
+
+        where
+            result1 = typeResolver [] (AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomNumber 2,AGomOperator SignMultiply])
+            expected1 = pure (AGomType "Int")
+
+            result2 = typeResolver [] (AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomStringLiteral "SALUT",AGomOperator SignMultiply])
+            expected2 = throwEvalError "Types mismatch in expression, found '[AGomType \"Int\",AGomType \"String\"]'" []
+
+            result3 = typeResolver [] (AGomExpression [])
+            expected3 = throwEvalError "Empty expression" []
 
 -- testGomExprToAGomFunctionCall :: Test
 -- testGomExprToAGomFunctionCall = TestList [
@@ -461,5 +477,6 @@ astTestList = TestList [
     testTypeResolver,
     testGomExprToGomAST,
     testGomExprToAGomFunctionCall,
+    testEqualType,
     testprecedence
     ]

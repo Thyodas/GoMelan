@@ -35,7 +35,7 @@ module Ast (
     gomExprToAGomAssignment
 ) where
 
-import Data.List (deleteBy, find)
+import Data.List (deleteBy, find, nub)
 
 data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
@@ -164,6 +164,14 @@ typeResolver _ (AGomTypeList t) = pure (AGomTypeList t)
 typeResolver _ (AGomBooleanLiteral _) = pure (AGomType "Bool")
 typeResolver _ (AGomNumber _) = pure (AGomType "Int")
 typeResolver _ (AGomStringLiteral _) = pure (AGomType "String")
+typeResolver _ (AGomOperator _) = pure (AGomType "Operator")
+typeResolver env (AGomExpression exprs) = do
+  types <- traverse (typeResolver env) exprs
+  let uniqueTypes = nub (filter (/= AGomType "Operator") types)
+  case uniqueTypes of
+    [] -> throwEvalError "Empty expression" []
+    [singleType] -> pure singleType
+    tList -> throwEvalError ("Types mismatch in expression, found '" ++ show tList ++ "'") []
 typeResolver _ ast = throwEvalError ("Couldn't resolve type for '"
   ++ show ast ++ "'.") []
 
