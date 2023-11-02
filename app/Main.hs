@@ -19,17 +19,16 @@ import Prompt (replLoop)
 fileExecution :: String -> IO ()
 fileExecution path = do
     file <- readFileEither path
-    case file of
+    content <- case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
-        Right content -> case runParser parseCodeToGomExpr content of
-            Left err -> putStr (printErrors content err) >> exitWith (ExitFailure 84)
-            Right (out, _) -> case convertListToAST [] out of
-                EvalResult (Left (EvalError msg _)) -> putStrLn msg >> exitWith (ExitFailure 84)
-                EvalResult (Right (newEnv, asts)) -> print newEnv
-                    >> print asts
+        Right content -> pure content
+    result <- case runCode [] content of
+        Left err -> putStrLn err >> exitWith (ExitFailure 84)
+        Right result -> pure result
+    putStrLn $ show result
 
 replExecution :: IO ()
-replExecution = putStrLn "Welcome to GLaDOS!" >> replLoop internalEnv
+replExecution = putStrLn "Welcome to GLaDOS!" >> replLoop []
 
 startExecution :: [String] -> IO ()
 startExecution [path] = fileExecution path

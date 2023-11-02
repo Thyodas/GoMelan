@@ -44,6 +44,7 @@ data Instructions = Push Val
     | Jump Int
     | PushArg Int
     | PushEnv VmEnvKey
+    | AddEnv VmEnvKey
     | Call
     | Ret
     deriving (Show, Eq)
@@ -98,6 +99,7 @@ instance Binary Instructions where
     put Call = putWord8 4
     put Ret = putWord8 5
     put (Jump i) = putWord8 6 >> put i
+    put (AddEnv key) = putWord8 7 >> put key
 
     get = do
         tag <- getWord8
@@ -110,6 +112,7 @@ instance Binary Instructions where
             get' 4 = return Call
             get' 5 = return Ret
             get' 6 = Jump <$> get
+            get' 7 = AddEnv <$> get
             get' _ = fail "Invalid tag while deserializing Instructions"
 
 
@@ -237,4 +240,9 @@ execHelper env args allInsts ((Jump shift):xs) stack
 
 execHelper env args allInsts ((PushArg i):xs) stack = getIndexEither i args
     "PushArg: invalid index" >>= execHelper env args allInsts xs . (: stack)
+
+execHelper env args allInsts ((AddEnv key):xs) (value:stack) =
+    execHelper ((key, value) : env) args allInsts xs stack
+execHelper _ _ _ ((AddEnv _):_) _ = Left $ "AddEnv: missing value on stack"
+
 execHelper _ _ _ [] _ = Left $ "Missing return instruction"

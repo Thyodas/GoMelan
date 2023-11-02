@@ -11,6 +11,8 @@ import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..), ParseError(..),
     printErrors)
 import Ast (GomAST (AGomIdentifier), EvalResult (..), gomExprToGomAST,
     EvalError(..), Env, GomExpr(..))
+import VirtualMachine.Compiler (compileAllAst, getCompiledInsts, getCompiledEnv)
+import VirtualMachine.Vm (Compiled(..), VmEnv(..))
 
 -- TODO: fix this file so that it handles new GomAST
 
@@ -33,15 +35,18 @@ convertListToAST env (ast:rest) = do
 --     EvalResult (Left (EvalError msg _)) -> Left msg
 
 -- | Parse GomExpr to annalise the syntaxe
-runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
+runCode :: VmEnv -> String -> Either ErrorMsg Compiled
 runCode env code = do
     (gomexpr, _) <- case runParser parseCodeToGomExpr code of
         Right other -> Right other
         Left errList -> Left $ printErrors code errList
-    (newEnv, unevaluatedAst) <- case convertListToAST env gomexpr of
+    (_, unevaluatedAst) <- case convertListToAST [] gomexpr of
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg
-    return (newEnv, unevaluatedAst)
+    compiled <- case compileAllAst env unevaluatedAst of
+        EvalResult (Right results) -> Right results
+        EvalResult (Left (EvalError msg _)) -> Left msg
+    return compiled
 
 -- -- | Check list
 -- evalList :: Env -> [GomAST] -> EvalResult (Env, [GomAST])
