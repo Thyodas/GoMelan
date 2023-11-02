@@ -167,9 +167,10 @@ typeResolver _ (AGomOperator _) = pure (AGomType "Operator")
 typeResolver env (AGomList elements) = do
   types <- traverse (typeResolver env) elements
   let uniqueTypes = nub types
-  if length uniqueTypes == 1
-    then pure $ AGomTypeList uniqueTypes
-    else throwEvalError ("Mixed types in AGomList, found '" ++ show uniqueTypes ++ "'. All types within the list should be the same.") []
+  case uniqueTypes of
+    [] -> throwEvalError "Empty List" []
+    [singleType] -> pure $ AGomTypeList uniqueTypes
+    tList -> throwEvalError ("Types mismatch in list, found '" ++ show tList ++ "'") []
 typeResolver env (AGomExpression exprs) = do
   types <- traverse (typeResolver env) exprs
   let uniqueTypes = nub (filter (/= AGomType "Operator") types)

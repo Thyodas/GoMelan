@@ -51,9 +51,12 @@ testTypeResolver = TestList [
         TestCase $ assertEqual "Testing invald matching pattern" expected7 result7,
         TestCase $ assertEqual "Testing invald matching pattern" expected8 result8,
         TestCase $ assertEqual "Testing invald matching pattern" expected9 result9,
-        TestCase $ assertEqual "Testing invald matching pattern" expected10 result10
+        TestCase $ assertEqual "Testing invald matching pattern" expected10 result10,
+        TestCase $ assertEqual "Testing empty list" expected11 result11,
+        TestCase $ assertEqual "Testing invalid list type" result12 expected12
     ]
     where
+
         result1 = typeResolver [] (AGomType "Int")
         expected1 = pure (AGomType "Int")
 
@@ -83,6 +86,12 @@ testTypeResolver = TestList [
 
         result10 = typeResolver [("add", AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomEmpty, aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })] (AGomFunctionCall { aGomFunctionName = "add", aGomFunctionArguments = AGomEmpty })
         expected10 = pure (AGomType "Int")
+
+        result11 = typeResolver [] (AGomList [])
+        expected11 = throwEvalError "Empty List" []
+
+        result12 = typeResolver [] (AGomList [AGomNumber 1, AGomStringLiteral "test"])
+        expected12 = throwEvalError "Types mismatch in list, found '[AGomType \"Int\",AGomType \"String\"]'" []
 
 testGomExprToGomAST :: Test
 testGomExprToGomAST = TestList [
