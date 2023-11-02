@@ -76,7 +76,7 @@ testTypeResolver = TestList [
         expected6 = pure (AGomType "String")
 
         result7 = typeResolver [] (AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
-        expected7 = pure (AGomTypeList [AGomType "Int"])
+        expected7 = EvalResult {unEvalResult = Right (AGomTypeList [AGomType "Int"])}
 
         result8 = typeResolver [("key5", AGomNumber 42)] (AGomIdentifier "key5")
         expected8 = pure (AGomType "Int")
@@ -149,7 +149,7 @@ testGomExprToGomAST = TestList [
         expected9 = pure ([], AGomTerm [AGomIdentifier "x", AGomOperator SignMultiply, AGomNumber 42])
 
         result10 = gomExprToGomAST [] (Expression [Number 3, Operator "+", Number 4, Operator "*", Number 6])
-        expected10 = pure ([], AGomExpression [AGomNumber 3, AGomNumber 4, AGomOperator SignPlus, AGomNumber 6, AGomOperator SignMultiply])
+        expected10 = pure ([],AGomExpression [AGomNumber 3,AGomNumber 4,AGomOperator SignPlus,AGomNumber 6,AGomOperator SignMultiply])
 
         result11 = gomExprToGomAST [] (List [Number 21, Number 42, Number 84])
         expected11 = pure ([], AGomList [AGomNumber 21, AGomNumber 42, AGomNumber 84])
@@ -170,7 +170,7 @@ testGomExprToGomAST = TestList [
         expected16 = pure ([], AGomIncludeStatement { aGomIncludeList = AGomIdentifier "*", aGomFromModule = AGomIdentifier "myModule" })
 
         result17 = gomExprToGomAST [("x", AGomNumber 41)] (Assignment { assignedIdentifier = Identifier "x", assignedExpression = Number 42 })
-        expected17 = pure ([("x", AGomNumber 42)], AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 42})
+        expected17 = EvalResult {unEvalResult = Right ([("x",AGomNumber 42)],AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 42})}
 
         result18 = gomExprToGomAST [] (ForLoopIter { forLoopInitialization = Empty, forLoopCondition = Expression [Number 42, Operator "<", Number 84], forLoopUpdate = Empty, forLoopIterBlock = Empty })
         expected18 = pure ([],AGomForLoop {aGomForLoopInitialization = AGomEmpty, aGomForLoopCondition = AGomExpression [AGomNumber 42,AGomNumber 84,AGomOperator SignInf], aGomForLoopUpdate = AGomEmpty, aGomForLoopIterBlock = AGomEmpty})
@@ -537,8 +537,500 @@ testFromModule = TestCase $ assertEqual "Extract fromModule" expected (fromModul
     includeExpr = IncludeStatement include from
     expected = from
 
+testIdentifierInTypedIdentifier :: Test
+testIdentifierInTypedIdentifier = TestList
+    [ "Extract identifier from TypedIdentifier" ~:
+        let expr = TypedIdentifier "myIdentifier" (Number 42)
+            expected = "myIdentifier"
+        in assertEqual "Identifier extracted" expected (identifier expr)
+    ]
+
+testAssignedIdentifier :: Test
+testAssignedIdentifier = TestList
+    [ "Extract assigned identifier from Assignment" ~:
+        let idExpr = Identifier "myVar"
+            valExpr = Number 42
+            expr = Assignment idExpr valExpr
+            expected = idExpr
+        in assertEqual "Assigned identifier extracted" expected (assignedIdentifier expr)
+    ]
+
+testAssignedExpression :: Test
+testAssignedExpression = TestList
+    [ "Extract assigned expression from Assignment" ~:
+        let idExpr = Identifier "myVar"
+            valExpr = Number 42
+            expr = Assignment idExpr valExpr
+            expected = valExpr
+        in assertEqual "Assigned expression extracted" expected (assignedExpression expr)
+    ]
+
+testForLoopInitialization :: Test
+testForLoopInitialization = TestList
+    [ "Extract for loop initialization expression from ForLoopIter" ~:
+        let initExpr = Identifier "i"
+            conditionExpr = Operator "<" -- Votre condition d'opérateur
+            updateExpr = Operator "++" -- Votre expression d'incrémentation
+            blockExpr = Statements [] -- Votre expression de bloc
+            expr = ForLoopIter initExpr conditionExpr updateExpr blockExpr
+            expected = initExpr
+        in assertEqual "For loop initialization extracted" expected (forLoopInitialization expr)
+    ]
+
+testForLoopCondition :: Test
+testForLoopCondition = TestList
+    [ "Extract for loop condition expression from ForLoopIter" ~:
+        let initExpr = Identifier "i" -- Votre expression d'initialisation
+            conditionExpr = Operator "<" -- Votre expression de condition
+            updateExpr = Operator "++" -- Votre expression d'incrémentation
+            blockExpr = Statements [] -- Votre expression de bloc
+            expr = ForLoopIter initExpr conditionExpr updateExpr blockExpr
+            expected = conditionExpr
+        in assertEqual "For loop condition extracted" expected (forLoopCondition expr)
+    ]
+
+testForLoopUpdate :: Test
+testForLoopUpdate = TestList
+    [ "Extract for loop update expression from ForLoopIter" ~:
+        let initExpr = Identifier "i" -- Votre expression d'initialisation
+            conditionExpr = Operator "<" -- Votre expression de condition
+            updateExpr = Operator "++" -- Votre expression d'incrémentation
+            blockExpr = Statements [] -- Votre expression de bloc
+            expr = ForLoopIter initExpr conditionExpr updateExpr blockExpr
+            expected = updateExpr
+        in assertEqual "For loop update extracted" expected (forLoopUpdate expr)
+    ]
+
+testForLoopIterBlock :: Test
+testForLoopIterBlock = TestList
+    [ "Extract for loop iteration block from ForLoopIter" ~:
+        let initExpr = Identifier "i" -- Votre expression d'initialisation
+            conditionExpr = Operator "<" -- Votre expression de condition
+            updateExpr = Operator "++" -- Votre expression d'incrémentation
+            blockExpr = Statements [Identifier "x"] -- Votre expression de bloc
+            expr = ForLoopIter initExpr conditionExpr updateExpr blockExpr
+            expected = blockExpr
+        in assertEqual "For loop iteration block extracted" expected (forLoopIterBlock expr)
+    ]
+
+testGomIfCondition :: Test
+testGomIfCondition = TestList
+    [ "Extract gomIfCondition from Condition" ~:
+        let conditionExpr = Operator "=="  -- Votre expression de condition
+            trueExpr = Number 10  -- Votre expression si la condition est vraie
+            falseExpr = Identifier "x"  -- Votre expression si la condition est fausse
+            expr = Condition conditionExpr trueExpr falseExpr
+            expected = conditionExpr
+        in assertEqual "gomIfCondition extracted" expected (gomIfCondition expr)
+    ]
+
+testGomIfTrue :: Test
+testGomIfTrue = TestList
+    [ "Extract gomIfTrue from Condition" ~:
+        let conditionExpr = Operator "=="  -- Votre expression de condition
+            trueExpr = Number 10  -- Votre expression si la condition est vraie
+            falseExpr = Identifier "x"  -- Votre expression si la condition est fausse
+            expr = Condition conditionExpr trueExpr falseExpr
+            expected = trueExpr
+        in assertEqual "gomIfTrue extracted" expected (gomIfTrue expr)
+    ]
+
+testGomIfFalse :: Test
+testGomIfFalse = TestList
+    [ "Extract gomIfFalse from Condition" ~:
+        let conditionExpr = Operator "=="  -- Votre expression de condition
+            trueExpr = Number 10  -- Votre expression si la condition est vraie
+            falseExpr = Identifier "x"  -- Votre expression si la condition est fausse
+            expr = Condition conditionExpr trueExpr falseExpr
+            expected = falseExpr
+        in assertEqual "gomIfFalse extracted" expected (gomIfFalse expr)
+    ]
+
+testFnName :: Test
+testFnName = TestList
+    [ "Extract fnName from Function" ~:
+        let functionname = "myFunction"  -- Nom de la fonction
+            argsExpr = ParameterList [Identifier "x", Identifier "y"]  -- Liste d'arguments de la fonction
+            bodyExpr = Statements [Operator "+", Number 2, Number 3]  -- Corps de la fonction
+            returnTypeExpr = Type (SingleType "Int")
+            functionExpr = Function functionname argsExpr bodyExpr returnTypeExpr
+            expected = functionname
+        in assertEqual "fnName extracted" expected (fnName functionExpr)
+    ]
+
+testFnArguments :: Test
+testFnArguments = TestCase $ do
+    let argumentsExpr = ParameterList [Identifier "x", Identifier "y"]
+    let functionExpr = Function "funcName" argumentsExpr Empty (Type (SingleType"Int"))
+
+    assertEqual "Function Arguments" argumentsExpr (fnArguments functionExpr)
+
+testFnBody :: Test
+testFnBody = TestCase $ do
+    let argumentsExpr = ParameterList [Identifier "x", Identifier "y"]
+    let bodyExpr = Statements [Assignment (Identifier "z") (Number 42)]
+    let functionExpr = Function "funcName" argumentsExpr bodyExpr (Type (SingleType"Int"))
+
+    assertEqual "Function Body" bodyExpr (fnBody functionExpr)
+
+testFnReturnType :: Test
+testFnReturnType = TestCase $ do
+    let argumentsExpr = ParameterList [Identifier "x", Identifier "y"]
+    let bodyExpr = Statements [Assignment (Identifier "z") (Number 42)]
+    let returnTypeExpr = (Type (SingleType"Int"))
+    let functionExpr = Function "funcName" argumentsExpr bodyExpr returnTypeExpr
+
+    assertEqual "Function Return Type" returnTypeExpr (fnReturnType functionExpr)
+
+testShowNumber :: Test
+testShowNumber = TestCase $ do
+    let numExpr = Number 42
+    assertEqual "Show Number" "Number 42" (show numExpr)
+
+testShowIdentifier :: Test
+testShowIdentifier = TestCase $ do
+    let idExpr = Identifier "variable"
+    assertEqual "Show Identifier" "Identifier \"variable\"" (show idExpr)
+
+testShowGomString :: Test
+testShowGomString = TestCase $ do
+    let strExpr = GomString "some text"
+    assertEqual "Show GomString" "GomString \"some text\"" (show strExpr)
+
+testShowBoolean :: Test
+testShowBoolean = TestCase $ do
+    let boolExpr = Boolean True
+    assertEqual "Show Boolean" "Boolean True" (show boolExpr)
+
+testShowType :: Test
+testShowType = TestCase $ do
+    let typeExpr = Type ((SingleType "Int"))
+    assertEqual "Show Type" "Type (SingleType \"Int\")" (show typeExpr)
+
+testShowFunctionCall :: Test
+testShowFunctionCall = TestCase $ do
+    let funcCallExpr = FunctionCall (Identifier "myFunction") (Number 42)
+    assertEqual "Show FunctionCall" "FunctionCall {functionName = Identifier \"myFunction\", functionArguments = Number 42}" (show funcCallExpr)
+
+testShowTypedIdentifier :: Test
+testShowTypedIdentifier = TestCase $ do
+    let typedIdExpr = TypedIdentifier "variable" (Type (SingleType "String"))
+    assertEqual "Show TypedIdentifier" "TypedIdentifier {identifier = \"variable\", identifierType = Type (SingleType \"String\")}" (show typedIdExpr)
+
+testShowIncludeStatement :: Test
+testShowIncludeStatement = TestCase $ do
+    let includeExpr = IncludeStatement (Identifier "moduleA") (Identifier "moduleB")
+    assertEqual "Show IncludeStatement" "IncludeStatement {includeList = Identifier \"moduleA\", fromModule = Identifier \"moduleB\"}" (show includeExpr)
+
+testShowStatements :: Test
+testShowStatements = TestCase $ do
+    let stmtExpr = Statements [Identifier "x", Number 42, GomString "test"]
+    assertEqual "Show Statements" "Statements [Identifier \"x\",Number 42,GomString \"test\"]" (show stmtExpr)
+
+testShowOperator :: Test
+testShowOperator = TestCase $ do
+    let opExpr = Operator "+"
+    assertEqual "Show Operator" "Operator \"+\"" (show opExpr)
+
+testShowTerm :: Test
+testShowTerm = TestCase $ do
+    let termExpr = Term [Identifier "x", Number 42]
+    assertEqual "Show Term" "Term [Identifier \"x\",Number 42]" (show termExpr)
+
+testShowExpression :: Test
+testShowExpression = TestCase $ do
+    let exprExpr = Expression [Identifier "x", Number 42]
+    assertEqual "Show Expression" "Expression [Identifier \"x\",Number 42]" (show exprExpr)
+
+testShowList :: Test
+testShowList = TestCase $ do
+    let listExpr = List [Identifier "x", Number 42]
+    assertEqual "Show List" "List [Identifier \"x\",Number 42]" (show listExpr)
+
+testShowBlock :: Test
+testShowBlock = TestCase $ do
+    let blockExpr = Block [Identifier "x", Number 42]
+    assertEqual "Show Block" "Block [Identifier \"x\",Number 42]" (show blockExpr)
+
+testShowParameterList :: Test
+testShowParameterList = TestCase $ do
+    let paramExpr = ParameterList [Identifier "x", Number 42]
+    assertEqual "Show ParameterList" "ParameterList [Identifier \"x\",Number 42]" (show paramExpr)
+
+testShowEmpty :: Test
+testShowEmpty = TestCase $ do
+    let emptyExpr = Empty
+    assertEqual "Show Empty" "Empty" (show emptyExpr)
+
+testShowForLoopIter :: Test
+testShowForLoopIter = TestCase $ do
+    let forLoopExpr = ForLoopIter (Identifier "i") (Operator "<" ) (Operator "++") (Block [Operator "print"])
+    assertEqual "Show ForLoopIter" "ForLoopIter {forLoopInitialization = Identifier \"i\", forLoopCondition = Operator \"<\", forLoopUpdate = Operator \"++\", forLoopIterBlock = Block [Operator \"print\"]}" (show forLoopExpr)
+
+testShowCondition :: Test
+testShowCondition = TestCase $ do
+    let condExpr = Condition (Identifier "x") (Number 42) (GomString "test")
+    assertEqual "Show Condition" "Condition {gomIfCondition = Identifier \"x\", gomIfTrue = Number 42, gomIfFalse = GomString \"test\"}" (show condExpr)
+
+testShowFunction :: Test
+testShowFunction = TestCase $ do
+    let funcExpr = Function "f" (Identifier "x") (Number 42) (Type (SingleType "Int"))
+    assertEqual "Show Function" "Function {fnName = \"f\", fnArguments = Identifier \"x\", fnBody = Number 42, fnReturnType = Type (SingleType \"Int\")}" (show funcExpr)
+
+testShowGomExpr :: Test
+testShowGomExpr = TestList
+    [ testShowNumber
+    , testShowIdentifier
+    , testShowGomString
+    , testShowBoolean
+    , testShowType
+    , testShowFunctionCall
+    , testShowTypedIdentifier
+    , testShowIncludeStatement
+    , testShowStatements
+    , testShowOperator
+    , testShowTerm
+    , testShowExpression
+    , testShowList
+    , testShowBlock
+    , testShowParameterList
+    , testShowEmpty
+    , testShowForLoopIter
+    , testShowCondition
+    , testShowFunction
+    ]
+
+testShowSingleType :: Test
+testShowSingleType = TestCase $ do
+    let singleTypeExpr = SingleType "Int"
+    assertEqual "Show SingleType" "SingleType \"Int\"" (show singleTypeExpr)
+
+testShowTypeList :: Test
+testShowTypeList = TestCase $ do
+    let typeListExpr = TypeList [SingleType "Int", SingleType "String"]
+    assertEqual "Show TypeList" "TypeList [SingleType \"Int\",SingleType \"String\"]" (show typeListExpr)
+
+testShowGomExprType :: Test
+testShowGomExprType = TestList
+    [ testShowSingleType
+    , testShowTypeList
+    ]
+
+testEqSingleType :: Test
+testEqSingleType = TestCase $ do
+    let singleType1 = SingleType "Int"
+        singleType2 = SingleType "Int"
+        singleType3 = SingleType "String"
+    assertEqual "Equal SingleType" singleType1 singleType2
+    assertBool "Not Equal SingleType" (singleType1 /= singleType3)
+
+testEqTypeList :: Test
+testEqTypeList = TestCase $ do
+    let typeList1 = TypeList [SingleType "Int", SingleType "String"]
+        typeList2 = TypeList [SingleType "Int", SingleType "String"]
+        typeList3 = TypeList [SingleType "Int", SingleType "Bool"]
+    assertEqual "Equal TypeList" typeList1 typeList2
+    assertBool "Not Equal TypeList" (typeList1 /= typeList3)
+
+testEqGomExprType :: Test
+testEqGomExprType = TestList
+    [ testEqSingleType
+    , testEqTypeList
+    ]
+
+testAGomArgumentName :: Test
+testAGomArgumentName = TestCase $ do
+    let argName = AGomIdentifier "x"
+        argType = AGomType "Int"
+        arg = AGomFunctionArgument argName argType
+    assertEqual "aGomArgumentName" argName (aGomArgumentName arg)
+
+testAGomFunctionName :: Test
+testAGomFunctionName = TestCase $ do
+    let funcCall = AGomFunctionCall "f" (AGomNumber 42)
+    assertEqual "aGomFunctionName" "f" (aGomFunctionName funcCall)
+
+testAGomFunctionArguments :: Test
+testAGomFunctionArguments = TestList [
+        TestCase $ assertEqual "aGomFunctionArguments" (AGomNumber 42) (aGomFunctionArguments $ AGomFunctionCall "f" (AGomNumber 42))
+    ]
+
+testAGomIdentifier :: Test
+testAGomIdentifier = TestList
+    [ "Extract identifier from TypedIdentifier" ~:
+        let expr = AGomTypedIdentifier "myIdentifier" (AGomNumber 42)
+            expected = "myIdentifier"
+        in assertEqual "Identifier extracted" expected (aGomIdentifier expr)
+    ]
+
+testAGomIdentifierType :: Test
+testAGomIdentifierType = TestList
+    [ "Extract identifier type from TypedIdentifier" ~:
+        let expr = AGomTypedIdentifier "myIdentifier" (AGomNumber 42)
+            expected = AGomNumber 42
+        in assertEqual "Identifier type extracted" expected (aGomIdentifierType expr)
+    ]
+
+testAGomIncludeList :: Test
+testAGomIncludeList = TestList
+    [ "Extract include list from IncludeStatement" ~:
+        let expr = AGomIncludeStatement (AGomIdentifier "moduleA") (AGomIdentifier "moduleB")
+            expected = AGomIdentifier "moduleA"
+        in assertEqual "Include list extracted" expected (aGomIncludeList expr)
+    ]
+
+testAGomFromModule :: Test
+testAGomFromModule = TestList
+    [ "Extract from module from IncludeStatement" ~:
+        let expr = AGomIncludeStatement (AGomIdentifier "moduleA") (AGomIdentifier "moduleB")
+            expected = AGomIdentifier "moduleB"
+        in assertEqual "From module extracted" expected (aGomFromModule expr)
+    ]
+
+testAGomAssignedIdentifier :: Test
+testAGomAssignedIdentifier = TestList
+    [ "Extract assigned identifier from AssignmentStatement" ~:
+        let expr = AGomAssignment (AGomIdentifier "x") (AGomNumber 42)
+            expected = AGomIdentifier "x"
+        in assertEqual "Assigned identifier extracted" expected (aGomAssignedIdentifier expr)
+    ]
+
+testAGomAssignedExpression :: Test
+testAGomAssignedExpression = TestList
+    [ "Extract assigned expression from AssignmentStatement" ~:
+        let expr = AGomAssignment (AGomIdentifier "x") (AGomNumber 42)
+            expected = AGomNumber 42
+        in assertEqual "Assigned expression extracted" expected (aGomAssignedExpression expr)
+    ]
+
+testAGomForLoopInitialization :: Test
+testAGomForLoopInitialization = TestList
+    [ "Extract for loop initialization from ForLoopIter" ~:
+        let expr = AGomForLoop (AGomAssignment (AGomIdentifier "x") (AGomNumber 0)) (AGomBooleanLiteral True) (AGomAssignment (AGomIdentifier "x") (AGomNumber 1)) (AGomNumber 42)
+            expected = AGomAssignment (AGomIdentifier "x") (AGomNumber 0)
+        in assertEqual "For loop initialization extracted" expected (aGomForLoopInitialization expr)
+    ]
+
+testAGomForLoopCondition :: Test
+testAGomForLoopCondition = TestList
+    [ "Extract for loop condition from ForLoopIter" ~:
+        let expr = AGomForLoop (AGomAssignment (AGomIdentifier "x") (AGomNumber 0)) (AGomBooleanLiteral True) (AGomAssignment (AGomIdentifier "x") (AGomNumber 1)) (AGomNumber 42)
+            expected = AGomBooleanLiteral True
+        in assertEqual "For loop condition extracted" expected (aGomForLoopCondition expr)
+    ]
+
+testAGomForLoopUpdate :: Test
+testAGomForLoopUpdate = TestList
+    [ "Extract for loop update from ForLoopIter" ~:
+        let expr = AGomForLoop (AGomAssignment (AGomIdentifier "x") (AGomNumber 0)) (AGomBooleanLiteral True) (AGomAssignment (AGomIdentifier "x") (AGomNumber 1)) (AGomNumber 42)
+            expected = AGomAssignment (AGomIdentifier "x") (AGomNumber 1)
+        in assertEqual "For loop update extracted" expected (aGomForLoopUpdate expr)
+    ]
+
+testAGomForLoopIterBlock :: Test
+testAGomForLoopIterBlock = TestList
+    [ "Extract for loop block from ForLoopIter" ~:
+        let expr = AGomForLoop (AGomAssignment (AGomIdentifier "x") (AGomNumber 0)) (AGomBooleanLiteral True) (AGomAssignment (AGomIdentifier "x") (AGomNumber 1)) (AGomBlock [AGomNumber 1, AGomNumber 2, AGomNumber 3])
+            expected = AGomBlock [AGomNumber 1, AGomNumber 2, AGomNumber 3]
+        in assertEqual "For loop block extracted" expected (aGomForLoopIterBlock expr)
+    ]
+
+testAGomIfCondition :: Test
+testAGomIfCondition = TestList
+    [ "Extract if condition from Condition" ~:
+        let expr = AGomCondition (AGomBooleanLiteral True) (AGomNumber 42) (AGomNumber 0)
+            expected = AGomBooleanLiteral True
+        in assertEqual "If condition extracted" expected (aGomIfCondition expr)
+    ]
+
+testAGomIfTrue :: Test
+testAGomIfTrue = TestList
+    [ "Extract if true expression from Condition" ~:
+        let expr = AGomCondition (AGomBooleanLiteral True) (AGomNumber 42) (AGomNumber 0)
+            expected = AGomNumber 42
+        in assertEqual "If true expression extracted" expected (aGomIfTrue expr)
+    ]
+
+testAGomIfFalse :: Test
+testAGomIfFalse = TestList
+    [ "Extract if false expression from Condition" ~:
+        let expr = AGomCondition (AGomBooleanLiteral True) (AGomNumber 42) (AGomNumber 0)
+            expected = AGomNumber 0
+        in assertEqual "If false expression extracted" expected (aGomIfFalse expr)
+    ]
+
+testAGomFnName :: Test
+testAGomFnName = TestList
+    [ "Extract function name from FunctionDefinition" ~:
+        let expr = AGomFunctionDefinition "f" (AGomParameterList []) (AGomNumber 42) (AGomType "Int")
+            expected = "f"
+        in assertEqual "Function name extracted" expected (aGomFnName expr)
+    ]
+
+testAGomFnArguments :: Test
+testAGomFnArguments = TestList
+    [ "Extract function arguments from Function" ~:
+        let expr = AGomFunctionDefinition "f" (AGomParameterList [AGomTypedIdentifier "x" (AGomType "Int"), AGomTypedIdentifier "y" (AGomType "Bool")]) (AGomNumber 42) (AGomType "Int")
+            expected = AGomParameterList [AGomTypedIdentifier "x" (AGomType "Int"), AGomTypedIdentifier "y" (AGomType "Bool")]
+        in assertEqual "Function arguments extracted" expected (aGomFnArguments expr)
+    ]
+
+testAGomFnBody :: Test
+testAGomFnBody = TestList
+    [ "Extract function body from FunctionDefinition" ~:
+        let expr = AGomFunctionDefinition "f" (AGomParameterList []) (AGomNumber 42) (AGomType "Int")
+            expected = AGomNumber 42
+        in assertEqual "Function body extracted" expected (aGomFnBody expr)
+    ]
+
+testAGomFnReturnType :: Test
+testAGomFnReturnType = TestList
+    [ "Extract function return type from FunctionDefinition" ~:
+        let expr = AGomFunctionDefinition "f" (AGomParameterList []) (AGomNumber 42) (AGomType "Int")
+            expected = AGomType "Int"
+        in assertEqual "Function return type extracted" expected (aGomFnReturnType expr)
+    ]
+
+
 astTestList :: Test
 astTestList = TestList [
+    testAGomFnReturnType,
+    testAGomFnBody,
+    testAGomFnArguments,
+    testAGomFnName,
+    testAGomIfFalse,
+    testAGomIfTrue,
+    testAGomIfCondition,
+    testAGomForLoopIterBlock,
+    testAGomForLoopUpdate,
+    testAGomForLoopCondition,
+    testAGomForLoopInitialization,
+    testAGomAssignedExpression,
+    testAGomAssignedIdentifier,
+    testAGomFromModule,
+    testAGomIncludeList,
+    testAGomIdentifierType,
+    testAGomIdentifier,
+    testAGomFunctionArguments,
+    testAGomFunctionName,
+    testAGomArgumentName,
+    testEqGomExprType,
+    testShowGomExprType,
+    testShowGomExpr,
+    testFnReturnType,
+    testFnBody,
+    testFnArguments,
+    testFnName,
+    testGomIfFalse,
+    testGomIfTrue,
+    testGomIfCondition,
+    testForLoopUpdate,
+    testForLoopIterBlock,
+    testForLoopCondition,
+    testForLoopInitialization,
+    testAssignedExpression,
+    testAssignedIdentifier,
+    testIdentifierInTypedIdentifier,
     testFromModule,
     testIdentifierType,
     testIncludeList,
