@@ -1,10 +1,4 @@
 fn main() -> Int
 {
-    res: Int = 0;
-    o: Int = 0;
-    n: Int = 10;
-
-    for (o; o != n; o = o + 1) {
-        res = res + o * 2;
-    }
+    res: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 }

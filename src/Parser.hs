@@ -5,18 +5,10 @@
 -- Parser
 -}
 
--- module Parser (
---     ParseError(..), parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
---     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
---     ,parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
---     parseUntilAny, parseComment, parseGomExpr, parseBlock
--- ) where
-
 module Parser where
 import Control.Applicative (Alternative(..))
 import Ast (GomExpr(..), GomExprType(..))
 import Text.Printf (printf)
-import Text.ParserCombinators.ReadP (count)
 
 data ErrorType = MissingClosing
     | MissingOpening
@@ -146,7 +138,8 @@ parseStatement = parseAmongWhitespace (
     parseSemicolumn (
         parseVariableDeclaration
         <|> parseReturnStatement
-        <|> parseAssignent)
+        <|> parseAssignent
+        <|> parseExpression)
     <|> parseForLoopIter
     <|> parseCondition)
 
@@ -176,43 +169,12 @@ parseExpression = Expression <$> parseExpression'
         parseSubExpression = parseAmongWhitespace (
             parseFactor <|> parseBetween '(' ')' parseExpression)
 
--- | Parse a term with a binary operator and another expression
--- parseTermWithOperator :: Parser GomExpr
--- parseTermWithOperator = do
---     term <- parseTerm
---     operator <- parseBinaryOperator
---     expression <- parseExpression
---     return $ case operator of
---         Identifier "+" -> Statements [(Identifier "+"), term, expression]
---         Identifier "-" -> Statements [(Identifier "-"), term, expression]
---         Identifier "*" -> Statements [(Identifier "*"), term, expression]
---         Identifier "/" -> Statements [(Identifier "/"), term, expression]
---         Identifier "%" -> Statements [(Identifier "%"), term, expression]
---         _          -> expression
-
--- | Parse a term without a binary operator
-parseTermWithoutOperator :: Parser GomExpr
-parseTermWithoutOperator = parseTerm
-
--- | Parse a term
-parseTerm :: Parser GomExpr
-parseTerm = Term <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator
-            <|> parseFactor <|> parseBetween '(' ')' parseTerm)
-
--- | Parse a factor with a binary operator and another term
-parseFactorWithOperator :: Parser GomExpr
-parseFactorWithOperator = do
-    {- factor <- parseAmongWhitespace parseFactor -}
-    operator <- parseAmongWhitespace parseBinaryOperator
-    {- term <- parseTerm -}
-    return $ operator
-
 parseListAssignement :: Parser GomExpr
 parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpression))
 
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
+    <|> parseAssignmentPlusPlus <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -312,10 +274,10 @@ parseType = Type <$> parseType' <?> ParseError MissingType "Expected a type."
 -- | Parse a typed identifier
 parseTypedIdentifier :: Parser GomExpr
 parseTypedIdentifier = do
-    id' <- parseIdentifier
+    name <- parseToken
     _ <- parseAmongWhitespace $ parseChar ':'
     idType <- parseAmongWhitespace $ parseType
-    return $ TypedIdentifier {identifier=id', identifierType=idType}
+    return $ TypedIdentifier {identifier=name, identifierType=idType}
 
 -- | Parse a parameter
 parseParameter :: Parser GomExpr
@@ -415,6 +377,13 @@ parseToken = parseSome (parseAnyChar parserTokenChar)
 parseIdentifier :: Parser GomExpr
 parseIdentifier = Identifier <$> parseToken
 
+parseAssignmentPlusPlus :: Parser GomExpr
+parseAssignmentPlusPlus = do
+    id <- parseTypedIdentifier <|> parseIdentifier
+    _ <- parseAmongWhitespace $ parseSymbol "++"
+    return $ Assignment {assignedIdentifier=id,
+                            assignedExpression=Expression [id, Operator "+", Number 1]}
+
 -- | Parse variable / fonction assigment
 parseAssignent :: Parser GomExpr
 parseAssignent = do
@@ -427,7 +396,7 @@ parseAssignent = do
 -- | Parse for loop
 parseForLoopIter :: Parser GomExpr
 parseForLoopIter = do
-    symbol <- parseSymbol "for"
+    _ <- parseSymbol "for"
     _ <- parseAmongWhitespace $ parseChar '('
     (initialization, condition, update) <- parseLoopParts
     _ <- parseAmongWhitespace $ parseChar ')'
@@ -543,13 +512,14 @@ parseList parser = do
 -- | Parser pour une déclaration de variable
 parseVariableDeclaration :: Parser GomExpr
 parseVariableDeclaration = do
-    variableName <- parseAmongWhitespace $ parseIdentifier
+    variableName <- parseAmongWhitespace parseToken
     _ <- parseChar ':'
-    variableType <- parseAmongWhitespace $ parseType
+    variableType <- parseAmongWhitespace parseType
     _ <- parseChar '='
-    variableValue <- parseAmongWhitespace $ parseIdentifier
-    return $ Statements [Identifier "var", variableName, variableType,
-        variableValue]
+    variableValue <- parseAmongWhitespace parseExpression
+    return $ Assignment {assignedIdentifier=TypedIdentifier {
+        identifier=variableName, identifierType=variableType},
+        assignedExpression=variableValue}
 
 -- | parse everything between { and } and return a list of GomExpr
 parseBlock :: Parser GomExpr
@@ -575,17 +545,18 @@ parseFunctionDeclarationArgument = parseAmongWhitespace $ ParameterList <$>
         parseList parseParameter
 
 parseFunctionDeclarationReturnType :: Parser GomExpr
-parseFunctionDeclarationReturnType = parseAmongWhitespace $ parseType
+parseFunctionDeclarationReturnType = do
+    _ <- parseAmongWhitespace $ parseSymbol "->" <?> ParseError
+        MissingFunctionReturnType "Expected '->' after function arguments."
+    parseAmongWhitespace $ parseType
         <?> ParseError MissingFunctionReturnType
         "Expected a return type after '->'."
 
 parseFunctionDeclaration :: Parser GomExpr
 parseFunctionDeclaration = do
-    _ <- parseAmongWhitespace parseIdentifier  -- Le mot-clé "fn"
-    fctName <- parseAmongWhitespace parseIdentifier
+    _ <- parseAmongWhitespace $ parseSymbol "fn"
+    fctName <- parseAmongWhitespace parseToken
     arguments <- parseFunctionDeclarationArgument
-    _ <- parseAmongWhitespace $ parseSymbol "->" <?> ParseError
-        MissingFunctionReturnType "Expected '->' after function arguments."
     returnType <- parseFunctionDeclarationReturnType
     body <- parseAmongWhitespace $ parseBlock
     return $ Function {fnName=fctName,
@@ -618,42 +589,41 @@ parseExpressionList = List <$> parseList parseExpression
 
 -- | Ensuite, vous pouvez combiner tous ces parsers pour gérer la structure de votre langage
 parseGomExpr :: Parser GomExpr
-parseGomExpr = parseFunctionDeclaration
+parseGomExpr = parseIncludeStatement <|> parseFunctionDeclaration
 
 -- | Parse code to return GomExpr
 parseCodeToGomExpr :: Parser [GomExpr]
 parseCodeToGomExpr = parseSome parseGomExpr
 
-printErrorDetails :: String -> ParseError -> Int -> Int -> IO ()
+printErrorDetails :: String -> ParseError -> Int -> Int -> String
 printErrorDetails code (ParseError errType msg _) lineNum colNum =
-    printf "Line %d, Column %d\n" (lineNum + 1) (colNum + 1) >>
-    printLineWithError (lines code) lineNum colNum >>
+    printf "Line %d, Column %d\n" (lineNum + 1) (colNum + 1) ++
+    printLineWithError (lines code) lineNum colNum ++
     printf "%s: %s\n" (show errType) msg
-    
-printErrors :: String -> ParseErrorStack -> IO ()
-printErrors _ [] = return ()
-printErrors code (err@(ParseError errType msg remaining) : rest) =
+
+printErrors :: String -> ParseErrorStack -> String
+printErrors _ [] = ""
+printErrors code (err@(ParseError _ _ remaining) : rest) =
     let lenRemaining = length remaining
         consumed = length code - lenRemaining + 1
         consumedLines = lines (take consumed code)
         lineNum = length consumedLines - 1
         colNum = length (last consumedLines) - 1
-    in printErrorDetails code err lineNum colNum >> if null rest
-    then return () else putStrLn (replicate 10 '-') >> printErrors code rest
+    in printErrorDetails code err lineNum colNum ++ if null rest
+    then "" else printf (replicate 10 '-') ++ "\n" ++ printErrors code rest
 
-printErrorLine :: [String] -> Int -> Int -> IO ()
+printErrorLine :: [String] -> Int -> Int -> String
 printErrorLine codeLines lenBiggestLineNum lineNum
-    | lineNum < 0 = return ()
-    | lineNum >= length codeLines = return ()
+    | lineNum < 0 = ""
+    | lineNum >= length codeLines = ""
     | otherwise = printf " %*d | %s\n" lenBiggestLineNum (lineNum + 1)
         (codeLines !! lineNum)
 
-printLineWithError :: [String] -> Int -> Int -> IO ()
+printLineWithError :: [String] -> Int -> Int -> String
 printLineWithError codeLines lineNum col =
-    printErrorLine codeLines lenBiggestLineNum (lineNum - 1) >>
-    printErrorLine codeLines lenBiggestLineNum lineNum >>
-    putStrLn (replicate (lenBiggestLineNum + length "  | " + col) ' '
-            ++ "^")
+    printErrorLine codeLines lenBiggestLineNum (lineNum - 1) ++
+    printErrorLine codeLines lenBiggestLineNum lineNum ++
+    replicate (lenBiggestLineNum + length "  | " + col) ' ' ++ "^\n"
         where
             lenBiggestLineNum = length (show (lineNum + 1))
 
@@ -665,5 +635,4 @@ runAndPrintParser parser code =
         Right (result, _) -> print result
         Left errors ->
             putStrLn "Parser Errors:" >>
-            print errors >>
-            printErrors code (reverse errors)
+            putStr (printErrors code (reverse errors))
