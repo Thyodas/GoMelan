@@ -73,7 +73,7 @@ testTypeResolver = TestList [
         expected6 = pure (AGomType "String")
 
         result7 = typeResolver [] (AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
-        expected7 = throwEvalError ("Couldn't resolve type for 'AGomList [AGomNumber 1,AGomNumber 2,AGomNumber 3]'.") []
+        expected7 = pure (AGomTypeList [AGomType "Int"])
 
         result8 = typeResolver [("key5", AGomNumber 42)] (AGomIdentifier "key5")
         expected8 = pure (AGomType "Int")
@@ -161,7 +161,7 @@ testGomExprToGomAST = TestList [
         expected16 = pure ([], AGomIncludeStatement { aGomIncludeList = AGomIdentifier "*", aGomFromModule = AGomIdentifier "myModule" })
 
         result17 = gomExprToGomAST [("x", AGomNumber 41)] (Assignment { assignedIdentifier = Identifier "x", assignedExpression = Number 42 })
-        expected17 = pure ([("x", AGomNumber 42)], AGomEmpty)
+        expected17 = pure ([("x", AGomNumber 42)], AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 42})
 
         result18 = gomExprToGomAST [] (ForLoopIter { forLoopInitialization = Empty, forLoopCondition = Expression [Number 42, Operator "<", Number 84], forLoopUpdate = Empty, forLoopIterBlock = Empty })
         expected18 = pure ([],AGomForLoop {aGomForLoopInitialization = AGomEmpty, aGomForLoopCondition = AGomExpression [AGomNumber 42,AGomNumber 84,AGomOperator SignInf], aGomForLoopUpdate = AGomEmpty, aGomForLoopIterBlock = AGomEmpty})
@@ -444,7 +444,7 @@ testGomExprToAGomAssignment = TestList [
         env5 = []
 
         result1 = gomExprToAGomAssignment env (Assignment (Identifier "x") (Number 10))
-        expected1 = EvalResult {unEvalResult = Right ([("x",AGomNumber 10)],AGomEmpty)}
+        expected1 = EvalResult {unEvalResult = Right ([("x",AGomNumber 10)],AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 10})}
 
         result2 = gomExprToAGomAssignment env2 (Assignment (Identifier "y") (GomString "hello"))
         expected2 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomType \"String\"' but expected 'AGomType \"Int\"'." [])}
