@@ -14,7 +14,8 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith, ErrorTy
     parseParameter, parseAssignent, parseForLoopIter, parseCondition, parseIncludeList, parseFunctionCall, parseParameterList,
     parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
     printErrorDetails, printErrors, printErrorLine, printLineWithError, runAndPrintParser,
-    parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr)
+    parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr,
+    parseListAssignement)
 
 testShowErrorType :: Test
 testShowErrorType = TestList [
@@ -508,6 +509,12 @@ testParseReturnType = TestList
         result1 = runParser parseReturnType "Int"
         expected1 = Right (Identifier "Int","")
 
+testListAssignement :: Test
+testListAssignement = TestList
+    [ TestCase $ assertEqual "Testing list assignement" expected1 result1]
+    where
+        result1 = runParser parseAssignent "res: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];"
+        expected1 = Right (Assignment {assignedIdentifier = TypedIdentifier {identifier = "res", identifierType = Type (TypeList [SingleType "Int"])}, assignedExpression = Expression [List [Expression [Number 0],Expression [Number 1],Expression [Number 2],Expression [Number 3],Expression [Number 4],Expression [Number 5],Expression [Number 6],Expression [Number 7],Expression [Number 8],Expression [Number 9],Expression [Number 10]]]},";")
 
 testParseList :: Test
 testParseList = TestList
@@ -922,7 +929,8 @@ parserTestList = TestList [
     testParseOperatorModulo,
     testParseOperatorInf,
     -- testParseStatement,
-    testParseString
+    testParseString,
+    testListAssignement
     -- testParseReturnStatement,
     -- testParseExpression,
     -- testParseGomExpr
