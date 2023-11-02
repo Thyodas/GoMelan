@@ -5,13 +5,6 @@
 -- Parser
 -}
 
--- module Parser (
---     ParseError(..), parseCodeToGomExpr, Parser(..), parseChar, parseAnyChar, parseOr,
---     parseAnd, parseAndWith, parseMany, parseSome, parseInt, parsePair, parseList
---     ,parserTokenChar, parseIdentifier, parseNumber, parseBoolean, parseAtom,
---     parseUntilAny, parseComment, parseGomExpr, parseBlock
--- ) where
-
 module Parser where
 import Control.Applicative (Alternative(..))
 import Ast (GomExpr(..), GomExprType(..))
@@ -145,7 +138,8 @@ parseStatement = parseAmongWhitespace (
     parseSemicolumn (
         parseVariableDeclaration
         <|> parseReturnStatement
-        <|> parseAssignent)
+        <|> parseAssignent
+        <|> parseExpression)
     <|> parseForLoopIter
     <|> parseCondition)
 
@@ -180,7 +174,7 @@ parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpress
 
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
+    <|> parseAssignmentPlusPlus <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -382,6 +376,13 @@ parseToken = parseSome (parseAnyChar parserTokenChar)
 -- | Parse a symbol as string and return a GomExpr
 parseIdentifier :: Parser GomExpr
 parseIdentifier = Identifier <$> parseToken
+
+parseAssignmentPlusPlus :: Parser GomExpr
+parseAssignmentPlusPlus = do
+    id <- parseTypedIdentifier <|> parseIdentifier
+    _ <- parseAmongWhitespace $ parseSymbol "++"
+    return $ Assignment {assignedIdentifier=id,
+                            assignedExpression=Expression [id, Operator "+", Number 1]}
 
 -- | Parse variable / fonction assigment
 parseAssignent :: Parser GomExpr
