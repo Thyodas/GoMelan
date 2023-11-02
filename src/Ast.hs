@@ -164,6 +164,12 @@ typeResolver _ (AGomBooleanLiteral _) = pure (AGomType "Bool")
 typeResolver _ (AGomNumber _) = pure (AGomType "Int")
 typeResolver _ (AGomStringLiteral _) = pure (AGomType "String")
 typeResolver _ (AGomOperator _) = pure (AGomType "Operator")
+typeResolver env (AGomList elements) = do
+  types <- traverse (typeResolver env) elements
+  let uniqueTypes = nub types
+  if length uniqueTypes == 1
+    then pure $ AGomTypeList uniqueTypes
+    else throwEvalError ("Mixed types in AGomList, found '" ++ show uniqueTypes ++ "'. All types within the list should be the same.") []
 typeResolver env (AGomExpression exprs) = do
   types <- traverse (typeResolver env) exprs
   let uniqueTypes = nub (filter (/= AGomType "Operator") types)
@@ -173,8 +179,6 @@ typeResolver env (AGomExpression exprs) = do
     tList -> throwEvalError ("Types mismatch in expression, found '" ++ show tList ++ "'") []
 typeResolver _ ast = throwEvalError ("Couldn't resolve type for '"
   ++ show ast ++ "'.") []
-
-
 
 -- | Check if type is valid recursively
 -- | Takes the GomAST to check and a type to check its resolution with
@@ -234,7 +238,7 @@ gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
   (_, valGomAST) <- gomExprToGomAST env valExpr
   (idName, typeToCheck) <- getIdDetails env idGomAST
   _ <- checkType env valGomAST typeToCheck
-  return ([(idName, valGomAST)], AGomEmpty)
+  return ([(idName, valGomAST)], AGomAssignment idGomAST valGomAST)
 gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
 precedence :: GomExpr -> Int
