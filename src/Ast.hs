@@ -40,6 +40,7 @@ data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
 
 data GomExpr = Number Int
+    | GomFloat Float
     | Identifier String
     | GomString String
     | Boolean Bool
@@ -87,6 +88,7 @@ data EnumOperator = SignPlus
 
 data GomAST =
     AGomNumber Int
+  | AGomFloat Float
   | AGomIdentifier String
   | AGomStringLiteral String
   | AGomBooleanLiteral Bool
@@ -161,6 +163,7 @@ typeResolver _ (AGomTypedIdentifier _ t) = pure t
 typeResolver _ (AGomType t) = pure (AGomType t)
 typeResolver _ (AGomTypeList t) = pure (AGomTypeList t)
 typeResolver _ (AGomBooleanLiteral _) = pure (AGomType "Bool")
+typeResolver _ (AGomFloat _) = pure (AGomType "Float")
 typeResolver _ (AGomNumber _) = pure (AGomType "Int")
 typeResolver _ (AGomStringLiteral _) = pure (AGomType "String")
 typeResolver _ (AGomOperator _) = pure (AGomType "Operator")
@@ -281,6 +284,7 @@ gomExprListToGomASTListShuntingYard env exprList = do
 
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
+gomExprToGomAST _ (GomFloat f) = pure ([], AGomFloat f)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
 gomExprToGomAST _ (GomString s) = pure ([], AGomStringLiteral s)
 gomExprToGomAST _ (Boolean b) = pure ([], AGomBooleanLiteral b)

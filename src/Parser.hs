@@ -173,7 +173,7 @@ parseListAssignement :: Parser GomExpr
 parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpression))
 
 parseFactor :: Parser GomExpr
-parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
+parseFactor = (GomFloat <$> parseFloat) <|> (Number <$> parseNumber) <|> parseFunctionCall
     <|> parseAssignmentPlusPlus <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
@@ -206,7 +206,6 @@ parseSymbol str = parseSymbol' str <?> ParseError MissingExpression
             a <- (: []) <$> parseChar x
             b <- parseSymbol' xs
             return (a ++ b)
-
 
 -- | Parse operator ADD '+'
 parseOperatorPlus :: Parser String
@@ -267,7 +266,8 @@ parseType = Type <$> parseType' <?> ParseError MissingType "Expected a type."
         parseType' :: Parser GomExprType
         parseType' = SingleType <$> (parseSymbol "Int"
                 <|> parseSymbol "String"
-                <|> parseSymbol "Bool")
+                <|> parseSymbol "Bool"
+                <|> parseSymbol "Float")
             <|> TypeList <$> (: []) <$> parseBetween '[' ']' parseType'
             <|> parseCustomType
 
@@ -347,6 +347,18 @@ parseMany parser = (:) <$> parser <*> parseMany parser <|> pure []
 -- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
 parseSome :: Parser a -> Parser [a]
 parseSome parser = (:) <$> parser <*> parseMany parser
+
+parseUFloat :: Parser Float
+parseUFloat = do
+    nb <- parseSome (parseAnyChar ['0'..'9'])
+    dot <- parseChar '.'
+    dec <- parseSome (parseAnyChar ['0'..'9'])
+    return $ read (nb ++ [dot] ++ dec)
+
+parseFloat :: Parser Float
+parseFloat = negate <$> (parseChar '-' *> parseUFloat)
+    <|> (parseChar '+' *> parseUFloat)
+    <|> parseUFloat
 
 -- | Parse unsigned integer and return it
 parseUInt :: Parser Int
