@@ -326,8 +326,8 @@ gomExprToGomAST env (Function name args body retType) = do
   (_, args') <- gomExprToGomAST env args
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
-  (_, body') <- gomExprToGomAST ((name, tempFunction) : env) body
-  return ([], AGomFunctionDefinition name args' body' retType')
+  (newEnv, body') <- gomExprToGomAST ((name, tempFunction) : env) body
+  return (newEnv, AGomFunctionDefinition name args' body' retType')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
 operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)
