@@ -17,6 +17,8 @@ import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvVal
    operatorToGomAST, getIdDetails, precedence, gomExprToAGomAssignment
    )
 
+import VirtualMachine.Vm (EnumOperator(..))
+
 testEnv :: Env
 testEnv = internalEnv ++  [
     ("key1", AGomIdentifier "value1"),

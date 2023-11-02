@@ -35,6 +35,7 @@ module Ast (
 ) where
 
 import Data.List (deleteBy, find, nub)
+import VirtualMachine.Vm (EnumOperator(..))
 
 data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
@@ -69,21 +70,6 @@ instance Show InternalFunction where
 
 instance Eq InternalFunction where
   _ == _ = True
-
-data EnumOperator = SignPlus
-    | SignMinus
-    | SignMultiply
-    | SignDivide
-    | SignModulo
-    | SignEqual
-    | SignNotEqual
-    | SignNot
-    | SignAnd
-    | SignInfEqual
-    | SignSupEqual
-    | SignInf
-    | SignSup
-    deriving (Show, Eq, Enum)
 
 data GomAST =
     AGomNumber Int
@@ -193,6 +179,7 @@ checkType env astA astB = do
       ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
       ++ show resolvedB ++ "'.") []
 
+-- TODO: finish this function (missing transformation of block and so on)
 getAGomFunctionDefinition :: Env -> String -> EvalResult GomAST
 getAGomFunctionDefinition env name = do
   func <- envLookupEval env name
@@ -348,6 +335,8 @@ operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
 operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
 operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)
 operatorToGomAST (Operator ">") = pure (AGomOperator SignSup)
+operatorToGomAST (Operator op) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
+operatorToGomAST _ = throwEvalError "Expected an Operator" []
 
 extractSymbol :: GomExpr -> Maybe String
 extractSymbol (Identifier s) = Just s

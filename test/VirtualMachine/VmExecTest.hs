@@ -9,16 +9,15 @@ module VirtualMachine.VmExecTest (vmExecTestList) where
 
 import Test.HUnit
 import InternalFunctions (internalEnv)
-import Ast (Ast(..), envInsert)
 import Execution (runCode)
-import VirtualMachine.Vm (Val(..), Operations(..), Instructions(..), Stack,
+import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
    Insts, exec)
 
 testSimpleVmExec :: Test
 testSimpleVmExec = TestCase $ do
    let env = []
    let args = []
-   let instructions = [Push (VNum 5), Push (VNum 3), Push (VOp Add), Call, Ret]
+   let instructions = [Push (VNum 5), Push (VNum 3), Push (VOp SignPlus), Call, Ret]
    let stack = []
    let result = exec env args instructions stack
    let expected = Right (VNum 8)
@@ -29,14 +28,14 @@ testAbsCodeInEnv = TestCase $ do
    let env = [("abs", VFunction [
          PushArg 0,
          Push (VNum 0),
-         Push (VOp Less),
+         Push (VOp SignMinus),
          Call,
          JumpIfFalse 2,
          PushArg 0,
          Ret,
          PushArg 0,
          Push (VNum (-1)),
-         Push (VOp Mul),
+         Push (VOp SignMultiply),
          Call,
          Ret])]
    let args = []
@@ -51,19 +50,19 @@ testFactorialCodeInEnv = TestCase $ do
    let env = [("fact", VFunction [
          Push (VNum 1),
          PushArg 0,
-         Push (VOp Less),
+         Push (VOp SignMinus),
          Call,
          JumpIfFalse 2,
          Push (VNum 1),
          Ret,
          Push (VNum 1),
          PushArg 0,
-         Push (VOp Sub),
+         Push (VOp SignMinus),
          Call,
          PushEnv "fact",
          Call,
          PushArg 0,
-         Push (VOp Mul),
+         Push (VOp SignMultiply),
          Call,
          Ret])]
    let args = []
@@ -107,7 +106,7 @@ testDivisionByZero :: Test
 testDivisionByZero = TestCase $ do
    let env = []
    let args = []
-   let instructions = [Push (VNum 10), Push (VNum 0), Push (VOp Div), Call, Ret]
+   let instructions = [Push (VNum 10), Push (VNum 0), Push (VOp SignDivide), Call, Ret]
    let stack = []
    let result = exec env args instructions stack
    let expected = Left "Div: division by zero"
@@ -117,7 +116,7 @@ testInvalidOperationArguments :: Test
 testInvalidOperationArguments = TestCase $ do
    let env = []
    let args = []
-   let instructions = [Push (VBool True), Push (VNum 3), Push (VOp Add), Call, Ret]  -- Trying to add a boolean and a number
+   let instructions = [Push (VBool True), Push (VNum 3), Push (VOp SignPlus), Call, Ret]  -- Trying to add a boolean and a number
    let stack = []
    let result = exec env args instructions stack
    let expected = Left "Add: invalid arguments"

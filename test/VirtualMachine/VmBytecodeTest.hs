@@ -9,9 +9,8 @@ module VirtualMachine.VmBytecodeTest (vmBytecodeTestList) where
 
 import Test.HUnit
 import InternalFunctions (internalEnv)
-import Ast (Ast(..), envInsert)
 import Execution (runCode)
-import VirtualMachine.Vm (Val(..), Operations(..), Instructions(..), Stack,
+import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
    Insts, exec)
 import Data.Binary (encode, decode, decodeOrFail)
 import Data.Binary.Get (ByteOffset)
@@ -30,25 +29,32 @@ testValBinary = TestList [
       testBinaryEncodingDecoding [Push (VBool True)],
       testBinaryEncodingDecoding [Push (VStr "Hello, World!")],
       testBinaryEncodingDecoding [Push (VList [VNum 1, VNum 2, VNum 3])],
-      testBinaryEncodingDecoding [Push (VOp Add)],
+      testBinaryEncodingDecoding [Push (VOp SignPlus)],
       testBinaryEncodingDecoding [Push (VFunction [Push (VNum 5), Push (VNum 3),
-         Push (VOp Add), Call, Ret])],
+         Push (VOp SignPlus), Call, Ret])],
       testBinaryEncodingDecoding [Push VNil]
    ]
 
 testOperationsBinary :: Test
 testOperationsBinary = TestList [
-      testBinaryEncodingDecoding [Push (VOp Add)],
-      testBinaryEncodingDecoding [Push (VOp Sub)],
-      testBinaryEncodingDecoding [Push (VOp Mul)],
-      testBinaryEncodingDecoding [Push (VOp Div)],
-      testBinaryEncodingDecoding [Push (VOp Eq)],
-      testBinaryEncodingDecoding [Push (VOp Less)]
+      testBinaryEncodingDecoding [Push (VOp SignPlus)],
+      testBinaryEncodingDecoding [Push (VOp SignMinus)],
+      testBinaryEncodingDecoding [Push (VOp SignDivide)],
+      testBinaryEncodingDecoding [Push (VOp SignMultiply)],
+      testBinaryEncodingDecoding [Push (VOp SignModulo)],
+      testBinaryEncodingDecoding [Push (VOp SignEqual)],
+      testBinaryEncodingDecoding [Push (VOp SignNotEqual)],
+      testBinaryEncodingDecoding [Push (VOp SignNot)],
+      testBinaryEncodingDecoding [Push (VOp SignAnd)],
+      testBinaryEncodingDecoding [Push (VOp SignInfEqual)],
+      testBinaryEncodingDecoding [Push (VOp SignSupEqual)],
+      testBinaryEncodingDecoding [Push (VOp SignInf)],
+      testBinaryEncodingDecoding [Push (VOp SignSup)]
    ]
 
 testInstructionsBinary :: Test
 testInstructionsBinary = TestList [
-      testBinaryEncodingDecoding [Push (VNum 5), Push (VNum 3), Push (VOp Add),
+      testBinaryEncodingDecoding [Push (VNum 5), Push (VNum 3), Push (VOp SignPlus),
          Call, Ret],
       testBinaryEncodingDecoding [PushArg 0],
       testBinaryEncodingDecoding [PushArg 1],
@@ -69,19 +75,19 @@ testBinaryDecodingFailure encodedData expectedError = TestCase $ do
 testValBinaryFailure :: Test
 testValBinaryFailure = TestList [
    testBinaryDecodingFailure (BS.pack [0, 0, 0, 1])
-      "Invalid tag while deserializing Val"
+      "not enough bytes"
    ]
 
 testOperationsBinaryFailure :: Test
 testOperationsBinaryFailure = TestList [
    testBinaryDecodingFailure (BS.pack [0, 1, 2, 4])
-      "Invalid tag while deserializing Operations"
+      "not enough bytes"
    ]
 
 testInstructionsBinaryFailure :: Test
 testInstructionsBinaryFailure = TestList [
    testBinaryDecodingFailure (BS.pack [0, 1, 2, 4])
-      "Invalid tag while deserializing Instructions"
+      "not enough bytes"
    ]
 
 vmBytecodeTestList :: Test
