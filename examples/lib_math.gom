@@ -1,0 +1,28 @@
+#FUNCTIONS:
+power
+round
+abs
+facorial
+sum (of Int list)
+square
+isPrime
+log
+nlog
+exp
+cos
+sin
+tan
+acos
+asin
+atan
+degrees
+radians
+
+
+#CONSTANTS:
+INF
+PI
+E (constante de Néper)
+TAU (2PI circle constant)
+G (gravité)
+C (célérité)
