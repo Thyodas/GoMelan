@@ -175,37 +175,6 @@ parseExpression = Expression <$> parseExpression'
         parseSubExpression = parseAmongWhitespace (
             parseFactor <|> parseBetween '(' ')' parseExpression)
 
--- | Parse a term with a binary operator and another expression
--- parseTermWithOperator :: Parser GomExpr
--- parseTermWithOperator = do
---     term <- parseTerm
---     operator <- parseBinaryOperator
---     expression <- parseExpression
---     return $ case operator of
---         Identifier "+" -> Statements [(Identifier "+"), term, expression]
---         Identifier "-" -> Statements [(Identifier "-"), term, expression]
---         Identifier "*" -> Statements [(Identifier "*"), term, expression]
---         Identifier "/" -> Statements [(Identifier "/"), term, expression]
---         Identifier "%" -> Statements [(Identifier "%"), term, expression]
---         _          -> expression
-
--- | Parse a term without a binary operator
-parseTermWithoutOperator :: Parser GomExpr
-parseTermWithoutOperator = parseTerm
-
--- | Parse a term
-parseTerm :: Parser GomExpr
-parseTerm = Term <$> (parseSome $ parseAmongWhitespace $ parseBinaryOperator
-            <|> parseFactor <|> parseBetween '(' ')' parseTerm)
-
--- | Parse a factor with a binary operator and another term
-parseFactorWithOperator :: Parser GomExpr
-parseFactorWithOperator = do
-    {- factor <- parseAmongWhitespace parseFactor -}
-    operator <- parseAmongWhitespace parseBinaryOperator
-    {- term <- parseTerm -}
-    return $ operator
-
 parseListAssignement :: Parser GomExpr
 parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpression))
 

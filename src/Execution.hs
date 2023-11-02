@@ -5,15 +5,6 @@
 -- Execution
 -}
 
-{-
--- EPITECH PROJECT, 2023
--- B-FUN-500-STG-5-1-glados-marie.giacomel [WSL: Ubuntu]
--- File description:
--- Execution
--}
-
-module Execution (runCode, convertListToAST) where
-
 module Execution (runCode, convertListToAST) where
 
 import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..), ParseError(..),
@@ -68,14 +59,3 @@ runCode env code = do
 -- runAllAst env asts = case evalList env asts of
 --     EvalResult (Right results) -> Right results
 --     EvalResult (Left (EvalError msg _)) -> Left msg
-
--- | Parse GomExpr to annalise the syntaxe
-runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
-runCode env code = do
-    (gomexpr, _) <- case runParser parseCodeToGomExpr code of
-        Right other -> Right other
-        Left errList -> Left $ printErrors code errList
-    (newEnv, unevaluatedAst) <- case convertListToAST env gomexpr of
-        EvalResult (Right results) -> Right results
-        EvalResult (Left (EvalError msg _)) -> Left msg
-    return (newEnv, unevaluatedAst)

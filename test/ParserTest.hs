@@ -922,8 +922,7 @@ parserTestList = TestList [
     testParseOperatorModulo,
     testParseOperatorInf,
     -- testParseStatement,
-    testParseString,
-    testFactorList
+    testParseString
     -- testParseReturnStatement,
     -- testParseExpression,
     -- testParseGomExpr

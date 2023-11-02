@@ -134,13 +134,13 @@ testGomExprToGomAST = TestList [
         expected7 = pure ([], AGomStatements [AGomIdentifier "x", AGomNumber 42])
 
         result8 = gomExprToGomAST [] (Operator "+")
-        expected8 = pure ([], AGomOperator "+")
+        expected8 = pure ([], AGomOperator SignPlus)
 
         result9 = gomExprToGomAST [] (Term [Identifier "x", Operator "*", Number 42])
-        expected9 = pure ([], AGomTerm [AGomIdentifier "x", AGomOperator "*", AGomNumber 42])
+        expected9 = pure ([], AGomTerm [AGomIdentifier "x", AGomOperator SignMultiply, AGomNumber 42])
 
         result10 = gomExprToGomAST [] (Expression [Number 3, Operator "+", Number 4, Operator "*", Number 6])
-        expected10 = pure ([], AGomExpression [AGomNumber 3, AGomOperator "+", AGomNumber 4, AGomOperator "*", AGomNumber 6])
+        expected10 = pure ([], AGomExpression [AGomNumber 3, AGomNumber 4, AGomOperator SignPlus, AGomNumber 6, AGomOperator SignMultiply])
 
         result11 = gomExprToGomAST [] (List [Number 21, Number 42, Number 84])
         expected11 = pure ([], AGomList [AGomNumber 21, AGomNumber 42, AGomNumber 84])

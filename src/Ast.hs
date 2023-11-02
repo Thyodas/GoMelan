@@ -22,7 +22,6 @@ module Ast (
     envLookup,
     extractSymbol,
     gomExprToGomAST,
-    checkCallArg,
     applyToSnd,
     envLookupEval,
     checkType,
