@@ -461,8 +461,81 @@ testGomExprToAGomAssignment = TestList [
         result6 = gomExprToAGomAssignment env5 (Assignment (Number 10) (Number 20))
         expected6 = EvalResult $ Left (EvalError "Expected an Identifier" [])
 
+testEqGomExpr :: Test
+testEqGomExpr = TestList
+    [
+    TestCase $ assertEqual "Equality for Number" expr1 expr2,
+    TestCase $ assertBool "Inequality for Number" (expr1 /= expr3),
+    TestCase $ assertEqual "Equality for Identifier" expr4 expr5,
+    TestCase $ assertBool "Inequality for Identifier" (expr4 /= expr6)
+    ]
+    where
+        expr1 = Number 10
+        expr2 = Number 10
+        expr3 = Number 20
+        expr4 = Identifier "x"
+        expr5 = Identifier "x"
+        expr6 = Identifier "y"
+
+testFunctionName :: Test
+testFunctionName = TestList
+    [
+    TestCase $ assertEqual "Extract Function Name" func (functionName functionCall)
+    ]
+    where
+        func = Identifier "add"
+        args = Number 1
+        functionCall = FunctionCall func args
+
+testFunctionArguments :: Test
+testFunctionArguments = TestList
+    [ TestCase $ assertEqual "Extract Function Arguments" args (functionArguments functionCall)
+    ]
+    where
+        func = Identifier "add"
+        args = Number 1
+        functionCall = FunctionCall func args
+
+-- testIdentifier :: Test
+-- testIdentifier = TestList
+--     [ TestCase $ assertEqual "Extract Identifier" expected (identifier result)
+--     ]
+--     where
+--         result = Identifier "x"
+--         expected = "x"
+
+testIdentifierType :: Test
+testIdentifierType = TestList
+    [ TestCase $ assertEqual "Extract Identifier Type" identType (identifierType identTypeExpr)
+    ]
+    where
+        identType = Identifier "int"
+        identTypeExpr = TypedIdentifier "x" identType
+
+testIncludeList :: Test
+testIncludeList = TestList
+    [ TestCase $ assertEqual "Extract Include List" include (includeList includeExpr)
+    ]
+    where
+        include = Identifier "moduleA"
+        includeExpr = IncludeStatement include (Identifier "moduleB")
+
+testFromModule :: Test
+testFromModule = TestCase $ assertEqual "Extract fromModule" expected (fromModule includeExpr)
+  where
+    include = Identifier "moduleA"
+    from = Identifier "moduleB"
+    includeExpr = IncludeStatement include from
+    expected = from
+
 astTestList :: Test
 astTestList = TestList [
+    testFromModule,
+    testIdentifierType,
+    testIncludeList,
+    testFunctionArguments,
+    testFunctionName,
+    testEqGomExpr,
     testGomExprToAGomAssignment,
     testGetIdDetails,
     testOperatorToGomAST,
