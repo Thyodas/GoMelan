@@ -134,6 +134,13 @@ gomExprListToGomASTList env list = do
   (_, allAst) <- traverse (gomExprToGomAST env) list >>= pure . unzip
   return ([], allAst)
 
+gomExprListToGomASTListEnv :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
+gomExprListToGomASTListEnv env [] = pure (env, [])
+gomExprListToGomASTListEnv env (ast:rest) = do
+  (newEnv, result) <- gomExprToGomAST env ast
+  (finalEnv, results) <- gomExprListToGomASTListEnv (newEnv ++ env) rest
+  pure (finalEnv ++ newEnv, result : results)
+
 typeResolver :: Env -> GomAST -> EvalResult GomAST
 typeResolver env (AGomFunctionCall s _) = do
   func <- envLookupEval env s
@@ -266,6 +273,15 @@ gomExprListToGomASTListShuntingYard env exprList = do
   (_, allAst) <- traverse (gomExprToGomAST env) postFixExpr >>= pure . unzip
   return ([], reverse allAst)
 
+removeNewAssignment :: Env -> Env -> Env
+removeNewAssignment globalEnv env = filter (not . (isNew globalEnv)) env
+    where
+      isNew :: Env -> EnvEntry -> Bool
+      isNew _ (_, AGomAssignment _ _) = True
+      isNew globalEnv' (key, _) = case envLookup globalEnv' key of
+        Just _ -> False
+        Nothing -> True
+
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
@@ -289,7 +305,7 @@ gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
 gomExprToGomAST env (List l) = applyToSnd AGomList <$>
     gomExprListToGomASTList env l
 gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$>
-    gomExprListToGomASTList env b
+    gomExprListToGomASTListEnv env b
 gomExprToGomAST env (ParameterList p) = applyToSnd AGomParameterList <$>
     gomExprListToGomASTList env p
 gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall
@@ -307,19 +323,21 @@ gomExprToGomAST env (ForLoopIter init cond update block) = do
   (_, init') <- gomExprToGomAST env init
   (_, cond') <- gomExprToGomAST env cond
   (_, update') <- gomExprToGomAST env update
-  (_, block') <- gomExprToGomAST env block
-  return ([], AGomForLoop init' cond' update' block')
+  (blockEnv, block') <- gomExprToGomAST env block
+  return (removeNewAssignment env blockEnv, AGomForLoop init' cond' update' block')
 gomExprToGomAST env (Condition cond true false) = do
   (_, cond') <- gomExprToGomAST env cond
-  (_, true') <- gomExprToGomAST env true
-  (_, false') <- gomExprToGomAST env false
-  return ([], AGomCondition cond' true' false')
+  (trueEnv, true') <- gomExprToGomAST env true
+  (falseEnv, false') <- gomExprToGomAST env false
+  return (removeNewAssignment env trueEnv ++ removeNewAssignment env falseEnv,
+    AGomCondition cond' true' false')
 gomExprToGomAST env (Function name args body retType) = do
   (_, args') <- gomExprToGomAST env args
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
   (newEnv, body') <- gomExprToGomAST ((name, tempFunction) : env) body
-  return (newEnv, AGomFunctionDefinition name args' body' retType')
+  return (removeNewAssignment env newEnv,
+    AGomFunctionDefinition name args' body' retType')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
 operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)

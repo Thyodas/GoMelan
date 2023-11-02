@@ -23,8 +23,8 @@ convertListToAST :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 convertListToAST env [] = pure (env, [])
 convertListToAST env (ast:rest) = do
   (newEnv, result) <- gomExprToGomAST env ast
-  (finalEnv, results) <- convertListToAST newEnv rest
-  pure (finalEnv, result : results)
+  (finalEnv, results) <- convertListToAST (newEnv ++ env) rest
+  pure (finalEnv ++ newEnv, result : results)
 
 -- -- | Execute all AST
 -- runAllAst :: Env -> [GomAST] -> Either ErrorMsg (Env, [GomAST])

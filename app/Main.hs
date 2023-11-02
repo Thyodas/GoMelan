@@ -23,7 +23,7 @@ fileExecution path = do
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right content -> case runParser parseCodeToGomExpr content of
             Left err -> putStr (printErrors content err) >> exitWith (ExitFailure 84)
-            Right (out, _) -> case convertListToAST internalEnv out of
+            Right (out, _) -> case convertListToAST [] out of
                 EvalResult (Left (EvalError msg _)) -> putStrLn msg >> exitWith (ExitFailure 84)
                 EvalResult (Right (newEnv, asts)) -> print newEnv
                     >> print asts
