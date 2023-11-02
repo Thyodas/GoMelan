@@ -148,7 +148,7 @@ parseReturnStatement :: Parser GomExpr
 parseReturnStatement = do
     _ <- parseSymbol "return"
     expression <- parseAmongWhitespace parseExpression
-    return expression
+    return $ ReturnStatement expression
 
 -- | Parse an expression
 parseExpression :: Parser GomExpr
