@@ -11,8 +11,8 @@ import Test.HUnit
 import Data.Maybe
 import InternalFunctions (internalEnv)
 import Ast (Env, envInsert, envLookup, Ast(..), evalAST,
-   EvalResult(..), SExpr(..), sexprToAST, InternalFunction(..), sexprToLambda,
-   sexprToDefun, extractSymbol, evalASTCall, EvalError(..), evalASTCondition)
+   EvalResult(..), GomExpr(..), gomexprToAST, InternalFunction(..), gomexprToLambda,
+   gomexprToDefun, extractSymbol, evalASTCall, EvalError(..), evalASTCondition)
 
 testEnv :: Env
 testEnv = internalEnv ++ [
@@ -87,23 +87,23 @@ testAstConditionNotACondition = TestCase $ assertEqual "Ast condition" expected 
         expected = EvalResult (Left (EvalError "Condition must be a condition" [ANumber 42]))
         env = internalEnv
 
-testLambdaSexprToAST :: Test
-testLambdaSexprToAST = "testLambdaSexprToAST" ~: do
-    let input = List [Symbol "define", Symbol "add", List [Symbol "lambda", List [Symbol "a", Symbol "b"], List [Symbol "+", Symbol "a", Symbol "b"]]]
+testLambdaGomexprToAST :: Test
+testLambdaGomexprToAST = "testLambdaGomexprToAST" ~: do
+    let input = List [Identifier "define", Identifier "add", List [Identifier "lambda", List [Identifier "a", Identifier "b"], List [Identifier "+", Identifier "a", Identifier "b"]]]
     let expected = ADefine {symbol = "add", expression = AFunction {argumentNames = ["a","b"], body = ACall {function = "+", arguments = [ASymbol "a",ASymbol "b"]}}}
-    assertEqual "should parse lambda expression" expected (fromJust (sexprToAST input))
+    assertEqual "should parse lambda expression" expected (fromJust (gomexprToAST input))
 
-testDefineSexprToAST :: Test
-testDefineSexprToAST = "sexprDefineToAST" ~: do
-    let input = List [Symbol "define", List [Symbol "add", Symbol "a", Symbol "b"], List [Symbol "+", Symbol "a", Symbol "b"]]
+testDefineGomexprToAST :: Test
+testDefineGomexprToAST = "gomexprDefineToAST" ~: do
+    let input = List [Identifier "define", List [Identifier "add", Identifier "a", Identifier "b"], List [Identifier "+", Identifier "a", Identifier "b"]]
     let expected = Just (ADefine {symbol = "add", expression = ADefun {argumentNames = ["a","b"], body = ACall {function = "+", arguments = [ASymbol "a",ASymbol "b"]}}})
-    assertEqual "should parse define expression" expected (sexprToAST input)
+    assertEqual "should parse define expression" expected (gomexprToAST input)
 
-testDefunSexprToAST :: Test
-testDefunSexprToAST = "sexprDefunToAST" ~: do
-  let input = List [Symbol "defun", Symbol "add", List [Symbol "a", Symbol "b"], List [Symbol "*", Symbol "a", Symbol "b"]]
+testDefunGomexprToAST :: Test
+testDefunGomexprToAST = "gomexprDefunToAST" ~: do
+  let input = List [Identifier "defun", Identifier "add", List [Identifier "a", Identifier "b"], List [Identifier "*", Identifier "a", Identifier "b"]]
   let expected = Just (ADefine { symbol = "add", expression = ADefun { argumentNames = ["a", "b"], body = ACall { function = "*", arguments = [ASymbol "a", ASymbol "b"] } }})
-  assertEqual "should parse defun expression" expected (sexprToAST input)
+  assertEqual "should parse defun expression" expected (gomexprToAST input)
 
 testRecursiveFunction :: Test
 testRecursiveFunction = TestCase $ assertEqual "Recursive function" expected result
@@ -116,34 +116,34 @@ testRecursiveFunction = TestCase $ assertEqual "Recursive function" expected res
                 ifFalse = ANumber 1
             }))]
 
-testSexprToCondition :: Test
-testSexprToCondition = TestCase $ assertEqual "Sexpr to condition" expected result
+testGomexprToCondition :: Test
+testGomexprToCondition = TestCase $ assertEqual "Gomexpr to condition" expected result
     where
-        result = sexprToAST (List [Symbol "if", Symbol "x", Symbol "y", Symbol "z"])
+        result = gomexprToAST (List [Identifier "if", Identifier "x", Identifier "y", Identifier "z"])
         expected = Just (ACondition {
                 condition = ASymbol "x",
                 ifTrue = ASymbol "y",
                 ifFalse = ASymbol "z"
             })
 
-testShowSExpr :: Test
-testShowSExpr = TestCase $ assertEqual "Show SExpr" expected result
+testShowGomExpr :: Test
+testShowGomExpr = TestCase $ assertEqual "Show GomExpr" expected result
     where
-        result = show (List [Symbol "if", Symbol "x", Symbol "y", Symbol "z"])
-        expected = "List [Symbol \"if\",Symbol \"x\",Symbol \"y\",Symbol \"z\"]"
+        result = show (List [Identifier "if", Identifier "x", Identifier "y", Identifier "z"])
+        expected = "List [Identifier \"if\",Identifier \"x\",Identifier \"y\",Identifier \"z\"]"
 
-testEqSExpr :: Test
-testEqSExpr = TestList [
-    TestCase $ assertEqual "Eq SExpr" expected result,
-    TestCase $ assertEqual "Eq SExpr" expected2 result2,
-    TestCase $ assertEqual "Eq SExpr" expected3 result3,
-    TestCase $ assertEqual "Eq SExpr" expected4 result4,
-    TestCase $ assertEqual "Eq SExpr" expected5 result5
+testEqGomExpr :: Test
+testEqGomExpr = TestList [
+    TestCase $ assertEqual "Eq GomExpr" expected result,
+    TestCase $ assertEqual "Eq GomExpr" expected2 result2,
+    TestCase $ assertEqual "Eq GomExpr" expected3 result3,
+    TestCase $ assertEqual "Eq GomExpr" expected4 result4,
+    TestCase $ assertEqual "Eq GomExpr" expected5 result5
     ]
     where
         result = List [] == List []
         expected = True
-        result2 = Symbol "z" == Symbol "z"
+        result2 = Identifier "z" == Identifier "z"
         expected2 = True
         result3 = Number 2 == Number 2
         expected3 = True
@@ -158,27 +158,27 @@ testShowInternalFunction = TestCase $ assertEqual "Show InternalFunction" expect
         result = show (InternalFunction (\_ -> EvalResult (Right (ANumber 42))))
         expected = "<Internal Function>"
 
-testSexprToAST :: Test
-testSexprToAST = TestList
-    [ TestCase $ assertEqual "Sexpr to AST" (Just (ADefine "x" (ANumber 42))) result
-    , TestCase $ assertEqual "Sexpr to AST" (Just (ABoolean True)) result2
-    , TestCase $ assertEqual "Sexpr to AST" Nothing result3
+testGomexprToAST :: Test
+testGomexprToAST = TestList
+    [ TestCase $ assertEqual "Gomexpr to AST" (Just (ADefine "x" (ANumber 42))) result
+    , TestCase $ assertEqual "Gomexpr to AST" (Just (ABoolean True)) result2
+    , TestCase $ assertEqual "Gomexpr to AST" Nothing result3
     ]
     where
-        result = sexprToAST (List [Symbol "define", Symbol "x", Number 42])
-        result2 = sexprToAST (Boolean True)
-        result3 = sexprToAST (List [])
+        result = gomexprToAST (List [Identifier "define", Identifier "x", Number 42])
+        result2 = gomexprToAST (Boolean True)
+        result3 = gomexprToAST (List [])
 
-testSexprToLambda :: Test
-testSexprToLambda = TestCase $ assertEqual "Sexpr to Lambda" expected result
+testGomexprToLambda :: Test
+testGomexprToLambda = TestCase $ assertEqual "Gomexpr to Lambda" expected result
     where
-        result = sexprToLambda (List [Symbol "x", Symbol "y"]) (Boolean True)
+        result = gomexprToLambda (List [Identifier "x", Identifier "y"]) (Boolean True)
         expected = Nothing
 
-testsexprToDefun :: Test
-testsexprToDefun = TestCase $ assertEqual "Sexpr to defun" expected result
+testgomexprToDefun :: Test
+testgomexprToDefun = TestCase $ assertEqual "Gomexpr to defun" expected result
     where
-        result = sexprToDefun (List [Symbol "name"]) (List [Symbol "x", Symbol "y"]) (Boolean True)
+        result = gomexprToDefun (List [Identifier "name"]) (List [Identifier "x", Identifier "y"]) (Boolean True)
         expected = Nothing
 
 testextractSymbol :: Test
@@ -211,7 +211,7 @@ testAstCallWithSymbolNotAFunction :: Test
 testAstCallWithSymbolNotAFunction = TestCase $ assertEqual "Ast call" expected result
     where
         result = evalASTCall [ADefine "x" (ANumber 42)] (ACall "x" [])
-        expected = EvalResult (Left (EvalError ("Symbol in env 'x' is not a function.") [ANumber 42]))
+        expected = EvalResult (Left (EvalError ("Identifier in env 'x' is not a function.") [ANumber 42]))
 
 testAstCallWithSymbolNotInEnv :: Test
 testAstCallWithSymbolNotInEnv = TestCase $ assertEqual "Ast call" expected result
@@ -222,8 +222,8 @@ testAstCallWithSymbolNotInEnv = TestCase $ assertEqual "Ast call" expected resul
 
 testEvalAST :: Test
 testEvalAST = TestList
-    [ TestCase $ assertEqual "EvalAST - Symbol found" expectedFound resultFound
-    , TestCase $ assertEqual "EvalAST - Symbol not found" expectedNotFound resultNotFound
+    [ TestCase $ assertEqual "EvalAST - Identifier found" expectedFound resultFound
+    , TestCase $ assertEqual "EvalAST - Identifier not found" expectedNotFound resultNotFound
     , TestCase $ assertEqual "EvalAST - Define expression" expectedDefine resultDefine
     , TestCase $ assertEqual "EvalAST - Condition expression" expectedCondition resultCondition
     , TestCase $ assertEqual "EvalAST - Defun expression" expectedDefun resultDefun
@@ -235,7 +235,7 @@ testEvalAST = TestList
         expectedFound = EvalResult (Right (env, ANumber 42))
 
         resultNotFound = evalAST env (ASymbol "y")
-        expectedNotFound = EvalResult (Left (EvalError "Symbol 'y' not found in env" []))
+        expectedNotFound = EvalResult (Left (EvalError "Identifier 'y' not found in env" []))
 
         resultDefine = evalAST env (ADefine "y" (ANumber 10))
         expectedDefine = EvalResult (Right (envInsert env "y" (ANumber 10), ANumber 10))
@@ -260,16 +260,16 @@ astTestList = TestList [
     testAst,
     testAstEnv,
     testAstConditon,
-    testDefunSexprToAST,
+    testDefunGomexprToAST,
     testRecursiveFunction,
-    testLambdaSexprToAST,
-    testSexprToCondition,
-    testShowSExpr,
-    testEqSExpr,
+    testLambdaGomexprToAST,
+    testGomexprToCondition,
+    testShowGomExpr,
+    testEqGomExpr,
     testShowInternalFunction,
-    testSexprToAST,
-    testSexprToLambda,
-    testsexprToDefun,
+    testGomexprToAST,
+    testGomexprToLambda,
+    testgomexprToDefun,
     testextractSymbol,
     testAstCall,
     testAstCallWithNothing,
@@ -280,5 +280,5 @@ astTestList = TestList [
     testAstConditionNotBoolean,
     testAstConditionNotACondition,
     -- testInsertCheckKeyFalse,
-    testDefineSexprToAST
+    testDefineGomexprToAST
     ]
