@@ -23,6 +23,7 @@ dependencies:
 - binary
 - bytestring
 - safe
+- cmdargs >= 0.10 && < 0.11
 
 ghc-options:
 - -Wall

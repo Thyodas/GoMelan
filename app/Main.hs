@@ -15,6 +15,7 @@ import File (readFileEither)
 import System.Environment (getArgs)
 import System.Exit ( exitWith, ExitCode (ExitFailure))
 import Prompt (replLoop)
+import ExternalArgs (getGomelanArgs)
 
 fileExecution :: String -> IO ()
 fileExecution path = do
@@ -38,6 +39,7 @@ startExecution _ = putStrLn "Usage: ./funEvalExpr [file]"
 
 main :: IO ()
 main = do
-    args <- getArgs
+    getGomelanArgs
+    -- args <- getArgs
     -- [path] <- exitOnError progName args
-    startExecution args
+    -- startExecution args
