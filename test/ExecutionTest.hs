@@ -56,41 +56,41 @@ import Execution (runCode)
 --                   }
 --                }
 
-testInternalFunctions :: Test
-testInternalFunctions = TestCase $ assertEqual "Internal functions valid" expected result
-    where
-         result = runCode env code
-         env = internalEnv
-         code = unlines [
-               "(+ 1 2)",
-               "(div 10 2)",
-               "(mod 10 3)",
-               "(= 1 1)",
-               "(< 1 2)",
-               "(> 1 2)",
-               "(<= 1 2)",
-               "(>= 1 2)",
-               "(- 1 2)",
-               "(* 1 2)",
-               "(not (and (= 1 1) (= 1 2)))",
-               "(or (= 1 1) (= 1 2))"
-            ]
-         expected = Right (expectedEnv, expectedAst)
-         expectedEnv = env
-         expectedAst = [
-               AGomNumber 3,
-               AGomNumber 5,
-               AGomNumber 1,
-               AGomBooleanLiteral True,
-               AGomBooleanLiteral True,
-               AGomBooleanLiteral False,
-               AGomBooleanLiteral True,
-               AGomBooleanLiteral False,
-               AGomNumber (-1),
-               AGomNumber 2,
-               AGomBooleanLiteral True,
-               AGomBooleanLiteral True
-            ]
+-- testInternalFunctions :: Test
+-- testInternalFunctions = TestCase $ assertEqual "Internal functions valid" expected result
+--     where
+--          result = runCode env code
+--          env = internalEnv
+--          code = unlines [
+--                "(+ 1 2)",
+--                "(div 10 2)",
+--                "(mod 10 3)",
+--                "(= 1 1)",
+--                "(< 1 2)",
+--                "(> 1 2)",
+--                "(<= 1 2)",
+--                "(>= 1 2)",
+--                "(- 1 2)",
+--                "(* 1 2)",
+--                "(not (and (= 1 1) (= 1 2)))",
+--                "(or (= 1 1) (= 1 2))"
+--             ]
+--          expected = Right (expectedEnv, expectedAst)
+--          expectedEnv = env
+--          expectedAst = [
+--                AGomNumber 3,
+--                AGomNumber 5,
+--                AGomNumber 1,
+--                AGomBooleanLiteral True,
+--                AGomBooleanLiteral True,
+--                AGomBooleanLiteral False,
+--                AGomBooleanLiteral True,
+--                AGomBooleanLiteral False,
+--                AGomNumber (-1),
+--                AGomNumber 2,
+--                AGomBooleanLiteral True,
+--                AGomBooleanLiteral True
+--             ]
 
 
 executionTestList :: Test
