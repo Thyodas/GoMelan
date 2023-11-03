@@ -5,9 +5,8 @@
 -- Compiler
 -}
 
-module VirtualMachine.Compiler () where
-
-
+module VirtualMachine.Compiler (compileAllAst, getCompiledInsts,
+    getCompiledEnv) where
 
 import Ast (GomAST(..), EvalResult(..), EvalError(..), InternalFunction(..),
     throwEvalError)
@@ -26,6 +25,8 @@ compileAst _ (AGomBooleanLiteral x) = pure $ Compiled [] [Push (VBool x)]
 compileAst _ (AGomStringLiteral x) = pure $ Compiled [] [Push (VStr x)]
 
 compileAst _ (AGomEmpty) = pure $ Compiled [] []
+
+compileAst _ (AGomIdentifier name) = pure $ Compiled [] [PushEnv name]
 
 compileAst env (AGomParameterList params) = do
     compiledParams <- mapM (compileAst env) params
@@ -57,13 +58,60 @@ compileAst env (AGomCondition cond thenExpr elseExpr) = do
             ++ compiledElseInsts
     return $ Compiled (compiledThenEnv ++ compiledElseEnv) compiledInsts
 
+compileAst env (AGomAssignment idName expr) = do
+    name <- case idName of
+        AGomTypedIdentifier name _ -> pure name
+        AGomIdentifier name -> pure name
+        _ -> throwEvalError "Invalid assignment identifier." []
+    compiledExpr <- compileAst env expr
+    let compiledExprInsts = getCompiledInsts compiledExpr
+    return $ Compiled [] (compiledExprInsts ++ [AddEnv name])
+
+compileAst env (AGomFunctionDefinition fnName (AGomParameterList fnArgs) fnBody _) = do
+    compiledBody <- compileAst env fnBody
+    let args = concat [[PushArg i, AddEnv el] | (i, AGomTypedIdentifier el _) <- zip [0..] fnArgs]
+    let compiledBodyInsts = args ++ getCompiledInsts compiledBody
+    return $ Compiled [(fnName, VFunction compiledBodyInsts)] []
+
+compileAst env (AGomForLoop lInit lCond lUpdate lBody) = do
+    compiledInit <- compileAst env lInit
+    compiledCond <- compileAst env lCond
+    compiledUpdate <- compileAst env lUpdate
+    compiledBody <- compileAst env lBody
+    let compiledInitInsts = getCompiledInsts compiledInit
+    let compiledCondInsts = getCompiledInsts compiledCond
+    let compiledUpdateInsts = getCompiledInsts compiledUpdate
+    let compiledBodyInsts = getCompiledInsts compiledBody
+    let compiledBodyEnv = getCompiledEnv compiledBody
+    return $ Compiled compiledBodyEnv (compiledInitInsts ++ compiledCondInsts
+            ++ [JumpIfFalse (length compiledBodyInsts + 1)]
+            ++ compiledBodyInsts ++ compiledUpdateInsts
+            ++ compiledCondInsts ++ [Jump (-(length compiledBodyInsts
+            + length compiledUpdateInsts + length compiledCondInsts + 1))])
+
+compileAst env (AGomBlock block) = do
+    compiledBlock <- compileAllAst env block
+    let compiledBlockInsts = getCompiledInsts compiledBlock
+    let compiledBlockEnv = getCompiledEnv compiledBlock
+    return $ Compiled compiledBlockEnv compiledBlockInsts
+
+compileAst env (AGomReturnStatement expr) = do
+    compiledExpr <- compileAst env expr
+    let compiledExprInsts = getCompiledInsts compiledExpr
+    return $ Compiled [] (compiledExprInsts ++ [Ret])
+
 
 compileAst _ unknown = throwEvalError ("Not implemented yet: '"
     ++ show unknown ++ "'.") []
 
 compileAllAst :: VmEnv -> [GomAST] -> EvalResult Compiled
-compileAllAst env asts = do
-    compiledAsts <- mapM (compileAst env) asts
-    let compiledEnv = concatMap getCompiledEnv compiledAsts
-    let compiledInsts = concatMap getCompiledInsts compiledAsts
-    return $ Compiled compiledEnv compiledInsts
+compileAllAst _ [] = pure $ Compiled [] []
+compileAllAst env (ast:rest) = do
+    compiledAst <- compileAst env ast
+    let compiledAstEnv = getCompiledEnv compiledAst
+    compiledRest <- compileAllAst (compiledAstEnv ++ env) rest
+    let compiledAstInsts = getCompiledInsts compiledAst
+    let compiledRestInsts = getCompiledInsts compiledRest
+    let compiledRestEnv = getCompiledEnv compiledRest
+    return $ Compiled (compiledAstEnv ++ compiledRestEnv)
+        (compiledAstInsts ++ compiledRestInsts)

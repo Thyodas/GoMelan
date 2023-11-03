@@ -285,7 +285,7 @@ testParseReturnStatement = TestList
     ]
     where
         result1 = runParser parseReturnStatement "return 42;"
-        expected1 = Right (Expression [Number 42],";")
+        expected1 = Right (ReturnStatement (Expression [Number 42]), ";")
 
 
 testParseExpression :: Test
@@ -700,7 +700,7 @@ testParseFunctionDeclaration = TestList
         expected1 = Right (Function {fnName = "multiply", fnArguments = ParameterList [TypedIdentifier {identifier = "a", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = "b", identifierType = Type (SingleType "Int")}], fnBody = Block [Assignment {assignedIdentifier = TypedIdentifier {identifier = "c", identifierType = Type (SingleType "Int")}, assignedExpression = Expression [Identifier "a"]}], fnReturnType = Type (SingleType "Int")},"")
 
         result2 = runParser parseFunctionDeclaration "fn multiply() -> Int { return 0; }"
-        expected2 = Right (Function {fnName = "multiply", fnArguments = ParameterList [], fnBody = Block [Expression [Number 0]], fnReturnType = Type (SingleType "Int")},"")
+        expected2 = Right (Function {fnName = "multiply", fnArguments = ParameterList [], fnBody = Block [ReturnStatement (Expression [Number 0])], fnReturnType = Type (SingleType "Int")},"")
 
         result3 = runParser parseFunctionDeclaration "fn multiply(a: Int, b: Int -> Int {}"
         expected3 = Left [ParseError MissingExpression "Expected ')' but got '-'." "-> Int {}"]
