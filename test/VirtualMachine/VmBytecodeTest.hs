@@ -199,62 +199,63 @@ testJump = TestList
 
 testValShow :: Test
 testValShow = TestList [
-   TestCase $ assertEqual "Show VNum" "VNum 5" (show (VNum 5)),
-   TestCase $ assertEqual "Show VBool" "VBool True" (show (VBool True)),
-   TestCase $ assertEqual "Show VStr" "VStr \"hello\"" (show (VStr "hello")),
-   TestCase $ assertEqual "Show VFunction" "VFunction []" (show (VFunction []))
+   TestCase $ assertEqual "Show VNum" "5" (show (VNum 5)),
+   TestCase $ assertEqual "Show VBool" "True" (show (VBool True)),
+   TestCase $ assertEqual "Show VStr" "hello" (show (VStr "hello")),
+   TestCase $ assertEqual "Show VFunction" "" (show (VFunction []))
    ]
 
 testShowVNum :: Test
 testShowVNum = TestCase $ do
     let v = VNum 42
-    assertEqual "Show VNum" "VNum 42" (show v)
+    assertEqual "Show VNum" "42" (show v)
 
 testShowVBool :: Test
 testShowVBool = TestCase $ do
     let v = VBool True
-    assertEqual "Show VBool True" "VBool True" (show v)
+    assertEqual "Show VBool True" "True" (show v)
 
 testShowVStr :: Test
 testShowVStr = TestCase $ do
     let v = VStr "Hello"
-    assertEqual "Show VStr Hello" "VStr \"Hello\"" (show v)
+    assertEqual "Show VStr Hello" "Hello" (show v)
 
 testShowVList :: Test
 testShowVList = TestCase $ do
     let v = VList [VNum 1, VStr "two", VBool True]
-    assertEqual "Show VList" "VList [VNum 1,VStr \"two\",VBool True]" (show v)
+    assertEqual "Show VList" "[1,two,True]" (show v)
 
 testShowVOp :: Test
 testShowVOp = TestCase $ do
     let v = VOp SignPlus
-    assertEqual "Show VOp SignPlus" "VOp SignPlus" (show v)
+    assertEqual "Show VOp SignPlus" "+" (show v)
 
 testShowVFunction :: Test
 testShowVFunction = TestCase $ do
     let v = VFunction [Push (VNum 1), Push (VNum 2)]
-    assertEqual "Show VFunction" "VFunction [Push (VNum 1),Push (VNum 2)]" (show v)
+    assertEqual "Show VFunction" "Push 1\nPush 2\n" (show v)
 
 testShowVNil :: Test
 testShowVNil = TestCase $ do
     let v = VNil
-    assertEqual "Show VNil" "VNil" (show v)
+    assertEqual "Show VNil" "null" (show v)
 
 testShowEnumOperator :: Test
 testShowEnumOperator = TestList [
-   TestCase $ assertEqual "Show SignPlus" "SignPlus" (show SignPlus),
-   TestCase $ assertEqual "Show SignMinus" "SignMinus" (show SignMinus),
-   TestCase $ assertEqual "Show SignMultiply" "SignMultiply" (show SignMultiply),
-   TestCase $ assertEqual "Show SignDivide" "SignDivide" (show SignDivide),
-   TestCase $ assertEqual "Show SignModulo" "SignModulo" (show SignModulo),
-   TestCase $ assertEqual "Show SignEqual" "SignEqual" (show SignEqual),
-   TestCase $ assertEqual "Show SignNotEqual" "SignNotEqual" (show SignNotEqual),
-   TestCase $ assertEqual "Show SignNot" "SignNot" (show SignNot),
-   TestCase $ assertEqual "Show SignAnd" "SignAnd" (show SignAnd),
-   TestCase $ assertEqual "Show SignInfEqual" "SignInfEqual" (show SignInfEqual),
-   TestCase $ assertEqual "Show SignSupEqual" "SignSupEqual" (show SignSupEqual),
-   TestCase $ assertEqual "Show SignInf" "SignInf" (show SignInf),
-   TestCase $ assertEqual "Show SignSup" "SignSup" (show SignSup)
+   TestCase $ assertEqual "Show SignPlus" "+" (show SignPlus),
+   TestCase $ assertEqual "Show SignMinus" "-" (show SignMinus),
+   TestCase $ assertEqual "Show SignMultiply" "*" (show SignMultiply),
+   TestCase $ assertEqual "Show SignDivide" "/" (show SignDivide),
+   TestCase $ assertEqual "Show SignModulo" "%" (show SignModulo),
+   TestCase $ assertEqual "Show SignEqual" "==" (show SignEqual),
+   TestCase $ assertEqual "Show SignNotEqual" "!=" (show SignNotEqual),
+   TestCase $ assertEqual "Show SignNot" "!" (show SignNot),
+   TestCase $ assertEqual "Show SignAnd" "&&" (show SignAnd),
+   TestCase $ assertEqual "Show SignOr" "||" (show SignOr),
+   TestCase $ assertEqual "Show SignInfEqual" "<=" (show SignInfEqual),
+   TestCase $ assertEqual "Show SignSupEqual" ">=" (show SignSupEqual),
+   TestCase $ assertEqual "Show SignInf" "<" (show SignInf),
+   TestCase $ assertEqual "Show SignSup" ">" (show SignSup)
    ]
 
 testShowCompiled :: Test
@@ -262,7 +263,7 @@ testShowCompiled = TestCase $ do
     let env = [("x", VNum 5), ("y", VBool True)]
     let instructions = [Push (VNum 1), Push (VNum 2), Push (VOp SignPlus)]
     let compiled = Compiled env instructions
-    let expectedShow = "Compiled " ++ show env ++ " " ++ show instructions
+    let expectedShow =  "(\"x\",5), [(\"y\",True)]"
     assertEqual "Show Compiled" expectedShow (show compiled)
 
 testEnumOperatorEq :: Test

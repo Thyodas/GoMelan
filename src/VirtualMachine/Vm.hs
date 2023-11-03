@@ -32,7 +32,7 @@ instance Show Val where
     show (VList x) = show x
     show (VOp x) = show x
     show (VFunction x) = foldl (\ x' xs -> x' ++ show xs) "" x
-    show (VNil) = show "null"
+    show (VNil) = "null"
 
 data EnumOperator = SignPlus
     | SignMinus
