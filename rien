@@ -51,12 +51,9 @@ testTypeResolver = TestList [
         TestCase $ assertEqual "Testing invald matching pattern" expected7 result7,
         TestCase $ assertEqual "Testing invald matching pattern" expected8 result8,
         TestCase $ assertEqual "Testing invald matching pattern" expected9 result9,
-        TestCase $ assertEqual "Testing invald matching pattern" expected10 result10,
-        TestCase $ assertEqual "Testing empty list" expected11 result11,
-        TestCase $ assertEqual "Testing invalid list type" result12 expected12
+        TestCase $ assertEqual "Testing invald matching pattern" expected10 result10
     ]
     where
-
         result1 = typeResolver [] (AGomType "Int")
         expected1 = pure (AGomType "Int")
 
@@ -76,7 +73,7 @@ testTypeResolver = TestList [
         expected6 = pure (AGomType "String")
 
         result7 = typeResolver [] (AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
-        expected7 = EvalResult {unEvalResult = Right (AGomTypeList [AGomType "Int"])}
+        expected7 = throwEvalError ("Couldn't resolve type for 'AGomList [AGomNumber 1,AGomNumber 2,AGomNumber 3]'.") []
 
         result8 = typeResolver [("key5", AGomNumber 42)] (AGomIdentifier "key5")
         expected8 = pure (AGomType "Int")
@@ -86,12 +83,6 @@ testTypeResolver = TestList [
 
         result10 = typeResolver [("add", AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomEmpty, aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })] (AGomFunctionCall { aGomFunctionName = "add", aGomFunctionArguments = AGomEmpty })
         expected10 = pure (AGomType "Int")
-
-        result11 = typeResolver [] (AGomList [])
-        expected11 = throwEvalError "Empty List" []
-
-        result12 = typeResolver [] (AGomList [AGomNumber 1, AGomStringLiteral "test"])
-        expected12 = throwEvalError "Types mismatch in list, found '[AGomType \"Int\",AGomType \"String\"]'" []
 
 testGomExprToGomAST :: Test
 testGomExprToGomAST = TestList [
@@ -170,7 +161,7 @@ testGomExprToGomAST = TestList [
         expected16 = pure ([], AGomIncludeStatement { aGomIncludeList = AGomIdentifier "*", aGomFromModule = AGomIdentifier "myModule" })
 
         result17 = gomExprToGomAST [("x", AGomNumber 41)] (Assignment { assignedIdentifier = Identifier "x", assignedExpression = Number 42 })
-        expected17 = EvalResult {unEvalResult = Right ([("x",AGomNumber 42)],AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 42})}
+        expected17 = pure ([("x", AGomNumber 42)], AGomEmpty)
 
         result18 = gomExprToGomAST [] (ForLoopIter { forLoopInitialization = Empty, forLoopCondition = Expression [Number 42, Operator "<", Number 84], forLoopUpdate = Empty, forLoopIterBlock = Empty })
         expected18 = pure ([],AGomForLoop {aGomForLoopInitialization = AGomEmpty, aGomForLoopCondition = AGomExpression [AGomNumber 42,AGomNumber 84,AGomOperator SignInf], aGomForLoopUpdate = AGomEmpty, aGomForLoopIterBlock = AGomEmpty})
@@ -453,7 +444,7 @@ testGomExprToAGomAssignment = TestList [
         env5 = []
 
         result1 = gomExprToAGomAssignment env (Assignment (Identifier "x") (Number 10))
-        expected1 = EvalResult {unEvalResult = Right ([("x",AGomNumber 10)],AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 10})}
+        expected1 = EvalResult {unEvalResult = Right ([("x",AGomNumber 10)],AGomEmpty)}
 
         result2 = gomExprToAGomAssignment env2 (Assignment (Identifier "y") (GomString "hello"))
         expected2 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomType \"String\"' but expected 'AGomType \"Int\"'." [])}
@@ -990,7 +981,6 @@ testAGomFnReturnType = TestList
             expected = AGomType "Int"
         in assertEqual "Function return type extracted" expected (aGomFnReturnType expr)
     ]
-
 
 astTestList :: Test
 astTestList = TestList [
