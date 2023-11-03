@@ -252,6 +252,7 @@ precedence (Operator op) = case op of
   "<" -> 3
   ">" -> 3
   "&&" -> 4
+  "||" -> 4
   "!" -> 5
   _ -> 0
 precedence _ = 0
@@ -354,6 +355,7 @@ operatorToGomAST (Operator "==") = pure (AGomOperator SignEqual)
 operatorToGomAST (Operator "!=") = pure (AGomOperator SignNotEqual)
 operatorToGomAST (Operator "!") = pure (AGomOperator SignNot)
 operatorToGomAST (Operator "&&") = pure (AGomOperator SignAnd)
+operatorToGomAST (Operator "||") = pure (AGomOperator SignOr)
 operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
 operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
 operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)

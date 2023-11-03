@@ -23,7 +23,16 @@ data Val = VNum Int
     | VOp EnumOperator
     | VFunction Insts
     | VNil
-    deriving (Show, Eq)
+    deriving (Eq)
+
+instance Show Val where
+    show (VNum x) = show x
+    show (VBool x) = show x
+    show (VStr x) = x
+    show (VList x) = show x
+    show (VOp x) = show x
+    show (VFunction x) = foldl (\ x' xs -> x' ++ show xs) "" x
+    show (VNil) = show "null"
 
 data EnumOperator = SignPlus
     | SignMinus
@@ -34,11 +43,28 @@ data EnumOperator = SignPlus
     | SignNotEqual
     | SignNot
     | SignAnd
+    | SignOr
     | SignInfEqual
     | SignSupEqual
     | SignInf
     | SignSup
-    deriving (Show, Eq, Enum, Bounded)
+    deriving (Eq, Enum, Bounded)
+
+instance Show EnumOperator where
+  show SignPlus = "+"
+  show SignMinus = "-"
+  show SignMultiply = "*"
+  show SignDivide = "/"
+  show SignModulo = "%"
+  show SignEqual = "=="
+  show SignNotEqual = "!="
+  show SignNot = "!"
+  show SignAnd = "&&"
+  show SignOr = "||"
+  show SignInfEqual = "<="
+  show SignSupEqual = ">="
+  show SignInf = "<"
+  show SignSup = ">"
 
 data Instructions = Push Val
     | JumpIfFalse Int
@@ -48,15 +74,28 @@ data Instructions = Push Val
     | AddEnv VmEnvKey
     | Call
     | Ret
-    deriving (Show, Eq)
+    deriving (Eq)
+
+instance Show Instructions where
+  show (Push x) = "Push " ++ (show x) ++ "\n"
+  show (JumpIfFalse x) = "If false " ++ (show x) ++ "\n"
+  show (Jump x) = "Jump to " ++ (show x) ++ "\n"
+  show (PushArg x) = "Push " ++ (show x) ++ "\n"
+  show (PushEnv x) = "Push to env " ++ (show x) ++ "\n"
+  show (AddEnv x) = "Add to env " ++ (show x) ++ "\n"
+  show Call = "Call\n"
+  show Ret = "Return\n"
 
 type Stack = [Val]
 type Insts = [Instructions]
 type Args = [Val]
 
 data Compiled = Compiled VmEnv Insts
-                deriving (Show)
 
+instance Show Compiled where
+  show (Compiled [] insts) = show insts
+  show (Compiled [x] insts) = show x ++ ", " ++ show insts
+  show (Compiled (x:xs) insts) = show x ++ ", " ++ show xs
 
 instance Binary Val where
     put (VNum num) = putWord8 0 >> put num
