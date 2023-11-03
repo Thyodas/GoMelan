@@ -15,6 +15,7 @@ import Control.Monad (when)
 
 data Options = Run   {}
     | Build   {}
+    | Interactive   {}
     deriving (Data, Typeable, Show, Eq)
 
 run :: Options
@@ -25,8 +26,12 @@ build :: Options
 build = Build {}
     &= details  [ "Build Gomelan" ]
 
+interactive :: Options
+interactive = Interactive {}
+    &= details  [ "Run Gomelan in interactive mode" ]
+
 myModes :: Mode (CmdArgs Options)
-myModes = cmdArgsMode $ modes [run, build]
+myModes = cmdArgsMode $ modes [run, build, interactive]
     &= versionArg [explicit, name "version", name "v", summary _PROGRAM_INFO]
     &= summary (_PROGRAM_INFO ++ ", " ++ _COPYRIGHT)
     &= help _PROGRAM_ABOUT
@@ -51,3 +56,4 @@ optionHandler opts = exec opts
 exec :: Options -> IO ()
 exec opts@Run = putStrLn $ "Run option !"
 exec opts@Build = putStrLn $ "Build option !"
+exec opts@Interactive = putStrLn $ "Build option !"
