@@ -151,7 +151,7 @@ testGomExprToGomAST = TestList [
         expected9 = pure ([], AGomTerm [AGomIdentifier "x", AGomOperator SignMultiply, AGomNumber 42])
 
         result10 = gomExprToGomAST [] (Expression [Number 3, Operator "+", Number 4, Operator "*", Number 6])
-        expected10 = pure ([], AGomExpression [AGomNumber 3, AGomNumber 4, AGomOperator SignPlus, AGomNumber 6, AGomOperator SignMultiply])
+        expected10 = pure ([], AGomExpression [AGomNumber 3,AGomNumber 4,AGomNumber 6,AGomOperator SignMultiply,AGomOperator SignPlus])
 
         result11 = gomExprToGomAST [] (List [Number 21, Number 42, Number 84])
         expected11 = pure ([], AGomList [AGomNumber 21, AGomNumber 42, AGomNumber 84])
@@ -181,16 +181,16 @@ testGomExprToGomAST = TestList [
         expected19 = pure ([],AGomCondition {aGomIfCondition = AGomExpression [AGomNumber 42,AGomNumber 84,AGomOperator SignInf], aGomIfTrue = AGomExpression [AGomBooleanLiteral True], aGomIfFalse = AGomExpression [AGomBooleanLiteral False]})
 
         result20 = gomExprToGomAST [] (Function { fnName = "add", fnArguments = ParameterList [TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")}], fnBody = Empty, fnReturnType = Type (SingleType "Int") })
-        expected20 = pure ([], AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomParameterList  [AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"}], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })
+        expected20 = pure ([],AGomFunctionDefinition {aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"}], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int"})
 
         result21 = gomExprToGomAST [] (Expression [Number 1,Operator "+",Number 1,Operator "*",Number 2])
-        expected21 = EvalResult $ Right $ ([], AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomNumber 2,AGomOperator SignMultiply])
+        expected21 = EvalResult $ Right $ ([], AGomExpression [AGomNumber 1,AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus])
 
         result22 = gomExprToGomAST [] (Function {fnName = "main", fnArguments = ParameterList [], fnBody = Block [Expression [FunctionCall {functionName = Identifier "main", functionArguments = ParameterList []},Operator "+",Number 1,Operator "*",Number 2]], fnReturnType = Type (SingleType "Int")})
-        expected22 = EvalResult $ Right $ ([],AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = "main", aGomFunctionArguments = AGomList []},AGomNumber 1,AGomOperator SignPlus,AGomNumber 2,AGomOperator SignMultiply]], aGomFnReturnType = AGomType "Int"})
+        expected22 = EvalResult $ Right $ ([],AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = "main", aGomFunctionArguments = AGomList []},AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus]], aGomFnReturnType = AGomType "Int"})
 
         result23 = gomExprToGomAST [] (Expression [Number 10,Operator "-",Number 1,Operator "/",Number 3,Operator "==",Number 3,Operator "&&",Number 5,Operator "<=",Number 34,Operator ">=",Number 56,Operator "<",Number 1,Operator ">",Number 100,Operator "&&",Number 4,Operator "!",Number 90,Operator "!=",Number 70])
-        expected23 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignDivide,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomNumber 56,AGomNumber 1,AGomNumber 100,AGomOperator SignSup,AGomOperator SignInf,AGomOperator SignSupEqual,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 4,AGomOperator SignAnd,AGomNumber 90,AGomNumber 70,AGomOperator SignNot,AGomOperator SignNotEqual])
+        expected23 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomNumber 3,AGomOperator SignDivide,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 56,AGomOperator SignSupEqual,AGomNumber 1,AGomOperator SignInf,AGomNumber 100,AGomOperator SignSup,AGomNumber 4,AGomNumber 90,AGomOperator SignNot,AGomOperator SignAnd,AGomNumber 70,AGomOperator SignNotEqual])
 
 
 testEqualType :: Test
@@ -422,17 +422,17 @@ testGetIdDetails = TestList
 
 testprecedence :: Test
 testprecedence = TestList
-    [ TestCase $ assertEqual "precedence" 1 (precedence(Operator "+"))
-    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "-"))
-    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "*"))
-    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "/"))
-    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "=="))
-    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "!="))
-    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "<="))
-    , TestCase $ assertEqual "precedence" 3 (precedence(Operator ">="))
-    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "<"))
-    , TestCase $ assertEqual "precedence" 3 (precedence(Operator ">"))
-    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "&&"))
+    [ TestCase $ assertEqual "precedence" 3 (precedence(Operator "+"))
+    , TestCase $ assertEqual "precedence" 3 (precedence(Operator "-"))
+    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "*"))
+    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "/"))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "=="))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "!="))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "<="))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator ">="))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator "<"))
+    , TestCase $ assertEqual "precedence" 2 (precedence(Operator ">"))
+    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "&&"))
     , TestCase $ assertEqual "precedence" 5 (precedence(Operator "!"))
     , TestCase $ assertEqual "precedence" 0 (precedence(Operator "&"))
     , TestCase $ assertEqual "precedence" 0 (precedence(Number 42))

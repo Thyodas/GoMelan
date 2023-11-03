@@ -261,14 +261,12 @@ shuntingYard :: [GomExpr] -> [GomExpr]
 shuntingYard expr = reverse $ shuntingYard' expr [] []
 
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
-shuntingYard' [] outputStack operatorStack = outputStack ++ reverse operatorStack
-shuntingYard' (e:expr) outputStack operatorStack =
-  case e of
-    op@(Operator _) ->
-      let (oStack, oQueue) = span (\x -> precedence op <= precedence x) operatorStack
-      in shuntingYard' expr (outputStack ++ oQueue) (op:oStack)
-    (Number _) -> shuntingYard' expr (outputStack ++ [e]) operatorStack
-    other -> shuntingYard' expr (outputStack ++ [other]) operatorStack
+shuntingYard' [] outputStack operatorStack = reverse outputStack ++ operatorStack
+shuntingYard' (o@(Operator _):expr) outputStack stack@(o'@(Operator _):operatorStack)
+  | (precedence o) > (precedence o') = shuntingYard' expr outputStack (o:stack)
+  | otherwise = shuntingYard' expr (reverse stack ++ outputStack) [o]
+shuntingYard' (o@(Operator op):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
+shuntingYard' (e:expr) outputStack operatorStack = shuntingYard' expr (e:outputStack) operatorStack
 
 gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 gomExprListToGomASTListShuntingYard env exprList = do
