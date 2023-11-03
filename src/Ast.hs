@@ -52,6 +52,7 @@ data GomExpr = Number Int
     | List [GomExpr]
     | Block [GomExpr]
     | ParameterList [GomExpr]
+    | ReturnStatement GomExpr
     | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
     | TypedIdentifier { identifier :: String, identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
@@ -87,6 +88,7 @@ data GomAST =
   | AGomFunctionArgument { aGomArgumentName :: GomAST, aGomArgumentType :: GomAST}
   | AGomParameterList [GomAST]
   | AGomInternalFunction InternalFunction
+  | AGomReturnStatement GomAST
   | AGomFunctionCall { aGomFunctionName :: String, aGomFunctionArguments :: GomAST }
   | AGomTypedIdentifier { aGomIdentifier :: String, aGomIdentifierType :: GomAST }
   | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
@@ -338,6 +340,9 @@ gomExprToGomAST env (Function name args body retType) = do
   (newEnv, body') <- gomExprToGomAST ((name, tempFunction) : env) body
   return (removeNewAssignment env newEnv,
     AGomFunctionDefinition name args' body' retType')
+gomExprToGomAST env (ReturnStatement expr) = do
+  (_, expr') <- gomExprToGomAST env expr
+  return ([], AGomReturnStatement expr')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
 operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)
