@@ -11,7 +11,7 @@ module VirtualMachine.Compiler (compileAllAst, getCompiledInsts,
 import Ast (GomAST(..), EvalResult(..), EvalError(..), InternalFunction(..),
     throwEvalError)
 import VirtualMachine.Vm (Instructions(..), Val(..), Stack,
-    Insts, Compiled(..), EnumOperator(..), VmEnv(..))
+    Insts, Compiled(..), EnumOperator(..), VmEnv(..), getOperationNbArgs)
 
 getCompiledEnv :: Compiled -> VmEnv
 getCompiledEnv (Compiled env _) = env
@@ -32,11 +32,13 @@ compileAst env (AGomParameterList params) = do
     compiledParams <- mapM (compileAst env) params
     return $ Compiled [] (concatMap getCompiledInsts compiledParams)
 
-compileAst env (AGomFunctionCall name args) = do
-    compiledArgs <- compileAst env args
+compileAst env (AGomFunctionCall name argList@(AGomParameterList args)) = do
+    compiledArgs <- compileAst env argList
     let compiledArgsInsts = getCompiledInsts compiledArgs
-    return $ Compiled [] (compiledArgsInsts ++ [PushEnv name, Call])
-compileAst _ (AGomOperator op) = pure $ Compiled [] [Push (VOp op), Call]
+    return $ Compiled [] (compiledArgsInsts
+        ++ [PushEnv name, Call (length args)])
+compileAst _ (AGomOperator op) = pure $ Compiled [] [Push (VOp op),
+    Call (getOperationNbArgs op)]
 
 compileAst env (AGomExpression exprList) = do
     compiledExprs <- mapM (compileAst env) exprList

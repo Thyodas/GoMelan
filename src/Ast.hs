@@ -208,7 +208,7 @@ gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
     getAGomFunctionDefinition env name
   let funcDegArgsTypes = map aGomArgumentType funcDefArgs
   _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
-  return $ (env, AGomFunctionCall name (AGomList argsAst))
+  return $ (env, AGomFunctionCall name (AGomParameterList argsAst))
 
 -- | Error handling
 gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) =

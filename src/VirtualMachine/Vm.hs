@@ -7,7 +7,7 @@
 
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
     Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
-    execHelper) where
+    execHelper, getOperationNbArgs) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
@@ -67,23 +67,24 @@ instance Show EnumOperator where
   show SignSup = ">"
 
 data Instructions = Push Val
-    | JumpIfFalse Int
-    | Jump Int
-    | PushArg Int
-    | PushEnv VmEnvKey
-    | AddEnv VmEnvKey
-    | Call
-    | Ret
+    | JumpIfFalse Int       -- Jump if false
+    | Jump Int              -- Unconditional Jump to instruction (can be negative)
+    | PushArg Int           -- Push argument n on the stack
+    | PushEnv VmEnvKey      -- Push value of key in env on the stack
+    | AddEnv VmEnvKey       -- Add value on top of stack to env
+    | Call Int                  -- Call a closure and put n elements in args
+    | Ret                   -- Return from a closure
     deriving (Eq)
 
 instance Show Instructions where
   show (Push x) = "Push " ++ (show x) ++ "\n"
   show (JumpIfFalse x) = "If false " ++ (show x) ++ "\n"
-  show (Jump x) = "Jump to " ++ (show x) ++ "\n"
-  show (PushArg x) = "Push " ++ (show x) ++ "\n"
-  show (PushEnv x) = "Push to env " ++ (show x) ++ "\n"
+  show (Jump x) | x < 0 = "Jump back " ++ (show (-x)) ++ " instructions\n"
+                | otherwise = "Jump " ++ (show x) ++ " instructions\n"
+  show (PushArg x) = "Push to stack, arg " ++ (show x) ++ "\n"
+  show (PushEnv x) = "Push to stack, env key '" ++ (show x) ++ "'\n"
   show (AddEnv x) = "Add to env " ++ (show x) ++ "\n"
-  show Call = "Call\n"
+  show (Call x) = "Call with " ++ (show x) ++ " args\n"
   show Ret = "Return\n"
 
 type Stack = [Val]
@@ -136,7 +137,7 @@ instance Binary Instructions where
     put (JumpIfFalse i) = putWord8 1 >> put i
     put (PushArg i) = putWord8 2 >> put i
     put (PushEnv key) = putWord8 3 >> put key
-    put Call = putWord8 4
+    put (Call x) = putWord8 4 >> put x
     put Ret = putWord8 5
     put (Jump i) = putWord8 6 >> put i
     put (AddEnv key) = putWord8 7 >> put key
@@ -149,7 +150,7 @@ instance Binary Instructions where
             get' 1 = JumpIfFalse <$> get
             get' 2 = PushArg <$> get
             get' 3 = PushEnv <$> get
-            get' 4 = return Call
+            get' 4 = Call <$> get
             get' 5 = return Ret
             get' 6 = Jump <$> get
             get' 7 = AddEnv <$> get
@@ -192,6 +193,10 @@ main = do
                 Left errMsg -> putStrLn $ "Execution Error: " ++ errMsg
                 Right val -> print val
 
+getOperationNbArgs :: EnumOperator -> Int
+getOperationNbArgs SignNot = 1
+getOperationNbArgs _other = 2
+
 execOperation :: EnumOperator -> Args -> Either String Val
 execOperation SignPlus (VNum a:VNum b:_) = Right (VNum (a + b))
 execOperation SignPlus _ = Left ("Add: invalid arguments")
@@ -221,6 +226,8 @@ execOperation SignModulo (VNum a:VNum b:_) = Right (VNum (a `mod` b))
 execOperation SignModulo _ = Left ("Mod: invalid arguments")
 execOperation SignNotEqual (a:b:_) = Right (VBool (a /= b))
 execOperation SignNotEqual _ = Left ("Neq: invalid number of arguments")
+execOperation SignOr (VBool a:VBool b:_) = Right (VBool (a || b))
+execOperation SignOr _ = Left ("Or: invalid arguments")
 
 execCall :: VmEnv -> Args -> Val -> Either String Val
 execCall env args (VFunction insts) = execHelper env args insts insts []
@@ -254,9 +261,11 @@ execHelper env args allInsts ((PushEnv envKey):xs) stack = case vmEnvLookup env 
     Nothing -> Left $ "PushEnv: missing value in env"
 execHelper env args allInsts ((Push value):xs) stack =
     execHelper env args allInsts xs (value : stack)
-execHelper _ _ _ (Call:_) [] = Left $ "Call: missing value on stack"
-execHelper env args allInsts (Call:xs) (call:stack) = execCall env stack call
-    >>= execHelper env args allInsts xs . (: stack)
+execHelper _ _ _ (Call _:_) [] = Left $ "Call: missing value on stack"
+execHelper env args allInsts (Call x:xs) (call:stack)
+    | x < 0 = Left $ "Call: invalid number of arguments"
+    | otherwise = execCall env (take x stack) call
+        >>= execHelper env args allInsts xs . (: drop x stack)
 execHelper _ _ _ ((Ret):_) (value:_) = Right $ value
 execHelper _ _ _ ((Ret):_) _ = Left $ "Ret: missing value on stack"
 

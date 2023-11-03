@@ -31,7 +31,7 @@ testValBinary = TestList [
       testBinaryEncodingDecoding [Push (VList [VNum 1, VNum 2, VNum 3])],
       testBinaryEncodingDecoding [Push (VOp SignPlus)],
       testBinaryEncodingDecoding [Push (VFunction [Push (VNum 5), Push (VNum 3),
-         Push (VOp SignPlus), Call, Ret])],
+         Push (VOp SignPlus), Call 2, Ret])],
       testBinaryEncodingDecoding [Push VNil]
    ]
 
@@ -55,12 +55,12 @@ testOperationsBinary = TestList [
 testInstructionsBinary :: Test
 testInstructionsBinary = TestList [
       testBinaryEncodingDecoding [Push (VNum 5), Push (VNum 3), Push (VOp SignPlus),
-         Call, Ret],
+         Call 0, Ret],
       testBinaryEncodingDecoding [PushArg 0],
       testBinaryEncodingDecoding [PushArg 1],
       testBinaryEncodingDecoding [PushEnv "myKey"],
       testBinaryEncodingDecoding [JumpIfFalse 2],
-      testBinaryEncodingDecoding [Call],
+      testBinaryEncodingDecoding [Call 2],
       testBinaryEncodingDecoding [Ret],
       testBinaryEncodingDecoding [Jump 2]
    ]
@@ -93,12 +93,13 @@ testInstructionsBinaryFailure = TestList [
 
 testExecCallWithFunction :: Test
 testExecCallWithFunction = TestCase $ do
-   let env = [("double", VFunction [PushArg 0, Push (VNum 2), Push (VOp SignMultiply), Ret])]
+   let env = []
    let args = [VNum 5]
-   let instructions = Call : PushEnv "double" : Ret : []
+   let instructions = [PushArg 0, Push (VNum 2),
+                        Push (VOp SignMultiply), Call 2, Ret]
    let stack = []
    let result = execCall env args (VFunction instructions)
-   let expected = Left "Call: missing value on stack"
+   let expected = Right (VNum 10)
    assertEqual "ExecCall with function" expected result
 
 testExecCallWithOp :: Test
@@ -152,7 +153,7 @@ testExecHelper :: Test
 testExecHelper = TestList [
    TestCase $ assertEqual "ExecHelper with PushEnv" (Right (VNum 5)) (execHelper [("x", VNum 5)] [] [PushEnv "x", Ret] [PushEnv "x", Ret] []),
    TestCase $ assertEqual "ExecHelper with Push" (Right (VNum 5)) (execHelper [] [] [Push (VNum 5), Ret] [Push (VNum 5), Ret] []),
-   TestCase $ assertEqual "ExecHelper with Call" (Left "PushArg: invalid index") (execHelper [("double", VFunction [PushArg 0, Push (VNum 2), Push (VOp SignMultiply), Ret])] [VNum 5] [PushEnv "double", Call, Ret] [PushEnv "double", Call, Ret] []),
+   TestCase $ assertEqual "ExecHelper with Call" (Left "PushArg: invalid index") (execHelper [("double", VFunction [PushArg 0, Push (VNum 2), Push (VOp SignMultiply), Ret])] [VNum 5] [PushEnv "double", Call 0, Ret] [PushEnv "double", Call 0, Ret] []),
    TestCase $ assertEqual "ExecHelper with JumpIfFalse" (Left "Missing return instruction") (execHelper [] [] [Push (VBool False), JumpIfFalse 2, Push (VNum 5), Ret] [Push (VBool False), JumpIfFalse 2, Push (VNum 5), Ret] []),
    TestCase $ assertEqual "ExecHelper with Jump" (Left "Missing return instruction") (execHelper [] [] [Push (VNum 5), Jump 2, Push (VNum 10), Ret] [Push (VNum 5), Jump 2, Push (VNum 10), Ret] []),
    TestCase $ assertEqual "ExecHelper with PushArg" (Right (VNum 5)) (execHelper [] [VNum 5] [PushArg 0, Ret] [PushArg 0, Ret] [])
@@ -162,7 +163,7 @@ testPushEnvMissingValue :: Test
 testPushEnvMissingValue = TestCase $ do
     let env = []
         args = [VNum 42, VStr "test", VBool True]
-        insts = [PushEnv "variable", Call, Ret]
+        insts = [PushEnv "variable", Call 1, Ret]
         result = execHelper env args insts insts []
     assertEqual "PushEnv: missing value in env" (Left "PushEnv: missing value in env") result
 
