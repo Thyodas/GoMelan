@@ -6,7 +6,8 @@
 -}
 
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
-    Stack, Insts, Compiled(..), VmEnv(..), main) where
+    Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
+    execHelper) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
@@ -112,6 +113,8 @@ instance Binary Instructions where
             get' 6 = Jump <$> get
             get' _ = fail "Invalid tag while deserializing Instructions"
 
+instance Eq Compiled where
+    (Compiled env1 insts1) == (Compiled env2 insts2) = env1 == env2 && insts1 == insts2
 
 instance Binary Compiled where
     put (Compiled insts args) = put insts >> put args

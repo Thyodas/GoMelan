@@ -11,7 +11,7 @@ import Test.HUnit
 import InternalFunctions (internalEnv)
 import Execution (runCode)
 import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
-   Insts, exec)
+   Insts, exec, execCall, execOperation, execHelper, Compiled(..), VmEnv(..))
 import Data.Binary (encode, decode, decodeOrFail)
 import Data.Binary.Get (ByteOffset)
 import qualified Data.ByteString.Lazy as BS
@@ -61,7 +61,8 @@ testInstructionsBinary = TestList [
       testBinaryEncodingDecoding [PushEnv "myKey"],
       testBinaryEncodingDecoding [JumpIfFalse 2],
       testBinaryEncodingDecoding [Call],
-      testBinaryEncodingDecoding [Ret]
+      testBinaryEncodingDecoding [Ret],
+      testBinaryEncodingDecoding [Jump 2]
    ]
 
 -- Helper function to test decoding failures
@@ -90,8 +91,219 @@ testInstructionsBinaryFailure = TestList [
       "not enough bytes"
    ]
 
+testExecCallWithFunction :: Test
+testExecCallWithFunction = TestCase $ do
+   let env = [("double", VFunction [PushArg 0, Push (VNum 2), Push (VOp SignMultiply), Ret])]
+   let args = [VNum 5]
+   let instructions = Call : PushEnv "double" : Ret : []
+   let stack = []
+   let result = execCall env args (VFunction instructions)
+   let expected = Left "Call: missing value on stack"
+   assertEqual "ExecCall with function" expected result
+
+testExecCallWithOp :: Test
+testExecCallWithOp = TestCase $ do
+   let env = []
+   let args = [VNum 5, VNum 3]
+   let result = execCall env args (VOp SignPlus)
+   let expected = Right (VNum 8)
+   assertEqual "ExecCall with operation" expected result
+
+testExecCallWithInvalidArgs :: Test
+testExecCallWithInvalidArgs = TestCase $ do
+   let env = []
+   let args = []
+   let result = execCall env args (VNum 5)
+   let expected = Left "Call: invalid arguments"
+   assertEqual "ExecCall with invalid arguments" expected result
+
+testExecOperation :: Test
+testExecOperation = TestList [
+   TestCase $ assertEqual "Addition with valid arguments" (Right (VNum 8)) (execOperation SignPlus [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Addition with invalid arguments" (Left "Add: invalid arguments") (execOperation SignPlus [VNum 5]),
+   TestCase $ assertEqual "Subtraction with valid arguments" (Right (VNum 2)) (execOperation SignMinus [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Subtraction with invalid arguments" (Left "Sub: invalid arguments") (execOperation SignMinus [VNum 5]),
+   TestCase $ assertEqual "Multiplication with valid arguments" (Right (VNum 15)) (execOperation SignMultiply [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Multiplication with invalid arguments" (Left "Mul: invalid arguments") (execOperation SignMultiply [VNum 5]),
+   TestCase $ assertEqual "Division with valid arguments" (Right (VNum 2)) (execOperation SignDivide [VNum 6, VNum 3]),
+   TestCase $ assertEqual "Division with invalid arguments" (Left "Div: invalid arguments") (execOperation SignDivide [VNum 5]),
+   TestCase $ assertEqual "Equality with valid arguments" (Right (VBool True)) (execOperation SignEqual [VNum 5, VNum 5]),
+   TestCase $ assertEqual "Equality with invalid number of arguments" (Left "Eq: invalid number of arguments") (execOperation SignEqual [VNum 5]),
+   TestCase $ assertEqual "Less than with valid arguments" (Right (VBool True)) (execOperation SignInf [VNum 3, VNum 5]),
+   TestCase $ assertEqual "Less than with invalid arguments" (Left "Less: invalid arguments") (execOperation SignInf [VNum 5]),
+   TestCase $ assertEqual "Greater than with valid arguments" (Right (VBool True)) (execOperation SignSup [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Greater than with invalid arguments" (Left "Greater: invalid arguments") (execOperation SignSup [VNum 5]),
+   TestCase $ assertEqual "Less than or equal with valid arguments" (Right (VBool True)) (execOperation SignInfEqual [VNum 3, VNum 5]),
+   TestCase $ assertEqual "Less than or equal with invalid arguments" (Left "LessEq: invalid arguments") (execOperation SignInfEqual [VNum 5]),
+   TestCase $ assertEqual "Greater than or equal with valid arguments" (Right (VBool True)) (execOperation SignSupEqual [VNum 5, VNum 5]),
+   TestCase $ assertEqual "Greater than or equal with invalid arguments" (Left "GreaterEq: invalid arguments") (execOperation SignSupEqual [VNum 5]),
+   TestCase $ assertEqual "And with valid arguments" (Right (VBool True)) (execOperation SignAnd [VBool True, VBool True]),
+   TestCase $ assertEqual "And with invalid arguments" (Left "And: invalid arguments") (execOperation SignAnd [VBool True]),
+   TestCase $ assertEqual "Not with valid arguments" (Right (VBool False)) (execOperation SignNot [VBool True]),
+   TestCase $ assertEqual "Not with invalid arguments" (Left "Not: invalid arguments") (execOperation SignNot [VNum 5]),
+   TestCase $ assertEqual "Modulo with valid arguments" (Right (VNum 1)) (execOperation SignModulo [VNum 5, VNum 2]),
+   TestCase $ assertEqual "Modulo with division by zero" (Left "Mod: modulo by zero") (execOperation SignModulo [VNum 0, VNum 5]),
+   TestCase $ assertEqual "Modulo with invalid arguments" (Left "Mod: invalid arguments") (execOperation SignModulo [VNum 5]),
+   TestCase $ assertEqual "Inequality with valid arguments" (Right (VBool True)) (execOperation SignNotEqual [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Inequality with invalid number of arguments" (Left "Neq: invalid number of arguments") (execOperation SignNotEqual [VNum 5])
+   ]
+
+testExecHelper :: Test
+testExecHelper = TestList [
+   TestCase $ assertEqual "ExecHelper with PushEnv" (Right (VNum 5)) (execHelper [("x", VNum 5)] [] [PushEnv "x", Ret] [PushEnv "x", Ret] []),
+   TestCase $ assertEqual "ExecHelper with Push" (Right (VNum 5)) (execHelper [] [] [Push (VNum 5), Ret] [Push (VNum 5), Ret] []),
+   TestCase $ assertEqual "ExecHelper with Call" (Left "PushArg: invalid index") (execHelper [("double", VFunction [PushArg 0, Push (VNum 2), Push (VOp SignMultiply), Ret])] [VNum 5] [PushEnv "double", Call, Ret] [PushEnv "double", Call, Ret] []),
+   TestCase $ assertEqual "ExecHelper with JumpIfFalse" (Left "Missing return instruction") (execHelper [] [] [Push (VBool False), JumpIfFalse 2, Push (VNum 5), Ret] [Push (VBool False), JumpIfFalse 2, Push (VNum 5), Ret] []),
+   TestCase $ assertEqual "ExecHelper with Jump" (Left "Missing return instruction") (execHelper [] [] [Push (VNum 5), Jump 2, Push (VNum 10), Ret] [Push (VNum 5), Jump 2, Push (VNum 10), Ret] []),
+   TestCase $ assertEqual "ExecHelper with PushArg" (Right (VNum 5)) (execHelper [] [VNum 5] [PushArg 0, Ret] [PushArg 0, Ret] [])
+   ]
+
+testPushEnvMissingValue :: Test
+testPushEnvMissingValue = TestCase $ do
+    let env = []
+        args = [VNum 42, VStr "test", VBool True]
+        insts = [PushEnv "variable", Call, Ret]
+        result = execHelper env args insts insts []
+    assertEqual "PushEnv: missing value in env" (Left "PushEnv: missing value in env") result
+
+testJumpIfFalse :: Test
+testJumpIfFalse = TestList
+    [ TestCase $ assertEqual "JumpIfFalse - true condition" (Right (VNum 42)) $
+        execHelper [] [] instructions [JumpIfFalse 2, Ret] [VBool True, VNum 42]
+    , TestCase $ assertEqual "JumpIfFalse - negative shift" (Left "Missing return instruction") $
+        execHelper [] [] instructions [JumpIfFalse (-1), Ret] [VBool False, VNum 42]
+    ]
+  where
+    instructions = [Push (VNum 1), Push (VNum 2)]
+
+testJumpIfFalseNumeric :: Test
+testJumpIfFalseNumeric = TestList
+    [ TestCase $ assertEqual "JumpIfFalse - negative shift" (Left "Missing return instruction") $
+        execHelper [] [] instructions [JumpIfFalse (-1), Ret] [VNum 1, VNum 42]
+    , TestCase $ assertEqual "JumpIfFalse - positive shift" (Left "Missing return instruction") $
+        execHelper [] [] instructions [JumpIfFalse 2, Ret] [VNum 1, VNum 42]
+    ]
+  where
+    instructions = [Push (VNum 1), Push (VNum 2)]
+
+testJump :: Test
+testJump = TestList
+    [ TestCase $ assertEqual "Jump - negative shift" (Left "Missing return instruction") $
+        execHelper [] [] instructions [Jump (-1), Ret] [VNum 0, VNum 42]
+    , TestCase $ assertEqual "Jump - positive shift" (Left "Missing return instruction") $
+        execHelper [] [] instructions [Jump 2, Ret] [VNum 0, VNum 42]
+    -- Ajoutez d'autres tests pour couvrir davantage de cas
+    ]
+  where
+    instructions = [Push (VNum 1), Push (VNum 2)]
+
+testValShow :: Test
+testValShow = TestList [
+   TestCase $ assertEqual "Show VNum" "VNum 5" (show (VNum 5)),
+   TestCase $ assertEqual "Show VBool" "VBool True" (show (VBool True)),
+   TestCase $ assertEqual "Show VStr" "VStr \"hello\"" (show (VStr "hello")),
+   TestCase $ assertEqual "Show VFunction" "VFunction []" (show (VFunction []))
+   ]
+
+testShowVNum :: Test
+testShowVNum = TestCase $ do
+    let v = VNum 42
+    assertEqual "Show VNum" "VNum 42" (show v)
+
+testShowVBool :: Test
+testShowVBool = TestCase $ do
+    let v = VBool True
+    assertEqual "Show VBool True" "VBool True" (show v)
+
+testShowVStr :: Test
+testShowVStr = TestCase $ do
+    let v = VStr "Hello"
+    assertEqual "Show VStr Hello" "VStr \"Hello\"" (show v)
+
+testShowVList :: Test
+testShowVList = TestCase $ do
+    let v = VList [VNum 1, VStr "two", VBool True]
+    assertEqual "Show VList" "VList [VNum 1,VStr \"two\",VBool True]" (show v)
+
+testShowVOp :: Test
+testShowVOp = TestCase $ do
+    let v = VOp SignPlus
+    assertEqual "Show VOp SignPlus" "VOp SignPlus" (show v)
+
+testShowVFunction :: Test
+testShowVFunction = TestCase $ do
+    let v = VFunction [Push (VNum 1), Push (VNum 2)]
+    assertEqual "Show VFunction" "VFunction [Push (VNum 1),Push (VNum 2)]" (show v)
+
+testShowVNil :: Test
+testShowVNil = TestCase $ do
+    let v = VNil
+    assertEqual "Show VNil" "VNil" (show v)
+
+testShowEnumOperator :: Test
+testShowEnumOperator = TestList [
+   TestCase $ assertEqual "Show SignPlus" "SignPlus" (show SignPlus),
+   TestCase $ assertEqual "Show SignMinus" "SignMinus" (show SignMinus),
+   TestCase $ assertEqual "Show SignMultiply" "SignMultiply" (show SignMultiply),
+   TestCase $ assertEqual "Show SignDivide" "SignDivide" (show SignDivide),
+   TestCase $ assertEqual "Show SignModulo" "SignModulo" (show SignModulo),
+   TestCase $ assertEqual "Show SignEqual" "SignEqual" (show SignEqual),
+   TestCase $ assertEqual "Show SignNotEqual" "SignNotEqual" (show SignNotEqual),
+   TestCase $ assertEqual "Show SignNot" "SignNot" (show SignNot),
+   TestCase $ assertEqual "Show SignAnd" "SignAnd" (show SignAnd),
+   TestCase $ assertEqual "Show SignInfEqual" "SignInfEqual" (show SignInfEqual),
+   TestCase $ assertEqual "Show SignSupEqual" "SignSupEqual" (show SignSupEqual),
+   TestCase $ assertEqual "Show SignInf" "SignInf" (show SignInf),
+   TestCase $ assertEqual "Show SignSup" "SignSup" (show SignSup)
+   ]
+
+testShowCompiled :: Test
+testShowCompiled = TestCase $ do
+    let env = [("x", VNum 5), ("y", VBool True)]
+    let instructions = [Push (VNum 1), Push (VNum 2), Push (VOp SignPlus)]
+    let compiled = Compiled env instructions
+    let expectedShow = "Compiled " ++ show env ++ " " ++ show instructions
+    assertEqual "Show Compiled" expectedShow (show compiled)
+
+testEnumOperatorEq :: Test
+testEnumOperatorEq = TestList [
+   TestCase $ assertEqual "SignPlus == SignPlus" SignPlus SignPlus,
+   TestCase $ assertEqual "SignMinus == SignMinus" SignMinus SignMinus,
+   TestCase $ assertEqual "SignMultiply == SignMultiply" SignMultiply SignMultiply,
+   TestCase $ assertEqual "SignDivide == SignDivide" SignDivide SignDivide,
+   TestCase $ assertEqual "SignModulo == SignModulo" SignModulo SignModulo,
+   TestCase $ assertEqual "SignEqual == SignEqual" SignEqual SignEqual,
+   TestCase $ assertEqual "SignNotEqual == SignNotEqual" SignNotEqual SignNotEqual,
+   TestCase $ assertEqual "SignNot == SignNot" SignNot SignNot,
+   TestCase $ assertEqual "SignAnd == SignAnd" SignAnd SignAnd,
+   TestCase $ assertEqual "SignInfEqual == SignInfEqual" SignInfEqual SignInfEqual,
+   TestCase $ assertEqual "SignSupEqual == SignSupEqual" SignSupEqual SignSupEqual,
+   TestCase $ assertEqual "SignInf == SignInf" SignInf SignInf,
+   TestCase $ assertEqual "SignSup == SignSup" SignSup SignSup
+   ]
+
 vmBytecodeTestList :: Test
 vmBytecodeTestList = TestList [
+   testEnumOperatorEq,
+   testShowCompiled,
+   testShowEnumOperator,
+   testShowVNum,
+   testShowVBool,
+   testShowVStr,
+   testShowVList,
+   testShowVOp,
+   testShowVFunction,
+   testShowVNil,
+   testValShow,
+   testJump,
+   testJumpIfFalseNumeric,
+   testJumpIfFalse,
+   testPushEnvMissingValue,
+   testExecHelper,
+   testExecOperation,
+   testExecCallWithInvalidArgs,
+   testExecCallWithOp,
+   testExecCallWithFunction,
     testValBinary,
     testOperationsBinary,
     testInstructionsBinary,
