@@ -206,7 +206,7 @@ gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
   (_, argsAst) <- gomExprListToGomASTList env args
   AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)} <-
     getAGomFunctionDefinition env name
-  let funcDegArgsTypes = map aGomArgumentType funcDefArgs
+  let funcDegArgsTypes = map aGomIdentifierType funcDefArgs
   _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
   return $ (env, AGomFunctionCall name (AGomParameterList argsAst))
 
@@ -283,6 +283,12 @@ removeNewAssignment globalEnv env = filter (not . (isNew globalEnv)) env
         Just _ -> False
         Nothing -> True
 
+aGomTypedIdentifierToEnvEntry :: GomAST -> EvalResult EnvEntry
+aGomTypedIdentifierToEnvEntry val@(AGomTypedIdentifier name _) = pure (name,
+  val)
+aGomTypedIdentifierToEnvEntry _ = throwEvalError "Expected a TypedIdentifier"
+  []
+
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
@@ -333,11 +339,12 @@ gomExprToGomAST env (Condition cond true false) = do
   return (removeNewAssignment env trueEnv ++ removeNewAssignment env falseEnv,
     AGomCondition cond' true' false')
 gomExprToGomAST env (Function name args body retType) = do
-  (_, args') <- gomExprToGomAST env args
+  (_, args'@(AGomParameterList argsList)) <- gomExprToGomAST env args
+  envArgs <- traverse aGomTypedIdentifierToEnvEntry argsList
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
-  (newEnv, body') <- gomExprToGomAST ((name, tempFunction) : env) body
-  return (removeNewAssignment env newEnv,
+  (newEnv, body') <- gomExprToGomAST (envArgs ++ (name, tempFunction) :  env) body
+  return ((removeNewAssignment env newEnv) ++ [(name, tempFunction)],
     AGomFunctionDefinition name args' body' retType')
 gomExprToGomAST env (ReturnStatement expr) = do
   (_, expr') <- gomExprToGomAST env expr

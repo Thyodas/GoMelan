@@ -8,7 +8,7 @@
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
     Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
     execHelper, getOperationNbArgs, serializeAndWriteCompiled,
-        readAndDeserializeCompiled, _ENTRY_POINT_AST) where
+        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
@@ -264,7 +264,7 @@ exec env args insts stack = execHelper env args insts insts stack
 execHelper :: VmEnv -> Args -> Insts -> Insts -> Stack -> Either String Val
 execHelper env args allInsts ((PushEnv envKey):xs) stack = case vmEnvLookup env envKey of
     Just value -> execHelper env args allInsts xs (value : stack)
-    Nothing -> Left $ "PushEnv: missing value in env"
+    Nothing -> Left $ "PushEnv: missing value in env for key '" ++ envKey ++ "'."
 execHelper env args allInsts ((Push value):xs) stack =
     execHelper env args allInsts xs (value : stack)
 execHelper _ _ _ (Call _:_) [] = Left $ "Call: missing value on stack"

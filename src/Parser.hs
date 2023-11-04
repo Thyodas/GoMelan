@@ -566,7 +566,7 @@ parseFunctionDeclaration = do
 parseFunctionCall :: Parser GomExpr
 parseFunctionCall = do
     fctName <- parseIdentifier
-    arguments <- ParameterList <$> parseList parseIdentifier
+    arguments <- ParameterList <$> parseList parseExpression
     return $ FunctionCall {functionName=fctName,
         functionArguments=arguments}
 
