@@ -297,13 +297,13 @@ testParseExpression = TestList
     ]
     where
         result1 = runParser parseExpression "1 + 2"
-        expected1 = Right (Expression [Number 1,Operator "+" Empty,Number 2],"")
+        expected1 = Right (Expression [Number 1,Operator "+",Number 2],"")
 
         result2 = runParser parseExpression "x"
         expected2 = Right (Expression [Identifier "x"],"")
 
         result3 = runParser parseExpression "(1 + 2)"
-        expected3 = Right (Expression [Expression [Number 1,Operator "+" Empty,Number 2]],"")
+        expected3 = Right (Expression [Expression [Number 1,Operator "+",Number 2]],"")
 
 
 
@@ -578,17 +578,17 @@ testParseForLoopIter = TestList
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter variable assigment in block" ~:
         let input = "for (x = 0; x < 10; x = x + 1) { x : Int = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 0]}, forLoopCondition = Expression [Identifier "x",Operator "<" Empty,Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+" Empty,Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")}, assignedExpression = Expression [Number 1]}]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 0]}, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")}, assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter pure empty" ~:
         let input = "for (x = 0; x < 10;) { x = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 0]}, forLoopCondition = Expression [Identifier "x",Operator "<" Empty,Number 10], forLoopUpdate = Empty, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 0]}, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Empty, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter expression in block" ~:
         let input = "for (; x < 10; x = x + 1) { x = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Empty, forLoopCondition = Expression [Identifier "x",Operator "<" Empty,Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+" Empty,Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Empty, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+" ,Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter without block" ~:
@@ -619,12 +619,12 @@ testParseCondition :: Test
 testParseCondition = TestList
     [ "Test parseCondition with else block" ~:
         let input = "if (x > 0) { x = 1; } else { x = 2; }"
-            expected = Right (Condition {gomIfCondition = Expression [Identifier "x",Operator ">" Empty,Number 0], gomIfTrue = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}], gomIfFalse = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 2]}]},"")
+            expected = Right (Condition {gomIfCondition = Expression [Identifier "x",Operator ">",Number 0], gomIfTrue = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}], gomIfFalse = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 2]}]},"")
             result = runParser parseCondition input
         in assertEqual "Should parse valid input with else block" expected result
     , "Test parseCondition without else block" ~:
         let input = "if (x > 0) { x = 1; }"
-            expected = Right (Condition {gomIfCondition = Expression [Identifier "x",Operator ">" Empty,Number 0], gomIfTrue = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}], gomIfFalse = Empty},"")
+            expected = Right (Condition {gomIfCondition = Expression [Identifier "x",Operator ">",Number 0], gomIfTrue = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}], gomIfFalse = Empty},"")
             result = runParser parseCondition input
         in assertEqual "Should parse valid input without else block" expected result
     , "Test parseCondition with invalid input" ~:

@@ -133,6 +133,7 @@ parseBetween open close parser = do
 parseString :: Parser GomExpr
 parseString = GomString <$> (parseChar '"' *> parseUntilAny ['"'])
 
+-- | Parse Statement
 parseStatement :: Parser GomExpr
 parseStatement = parseAmongWhitespace (
     parseSemicolumn (
@@ -169,12 +170,26 @@ parseExpression = Expression <$> parseExpression'
         parseSubExpression = parseAmongWhitespace (
             parseFactor <|> parseBetween '(' ')' parseExpression)
 
+-- | Parse list assigment on list creation
 parseListAssignement :: Parser GomExpr
 parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpression))
 
+-- | Parse list with [index] and return an Access
+parseAccess :: Parser GomExpr
+parseAccess = do
+    var <- parseUntilAny "["
+    case runParser (parseExpression) var of
+        Right (expression, []) -> do
+            index <- parseExpression
+            _ <- parseChar ']'
+            return $ Access { accessList = expression, accessIndex = index }
+        Right _ -> throwParseError MissingExpression "Expected an expression before []"
+        Left _ -> throwParseError MissingExpression "Expected an expression."
+
+-- | Parse factor
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
+    <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseAccess <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -185,14 +200,14 @@ handleOtherCases = Parser $ \str -> Left [
 
 -- | Parse binary operators
 parseBinaryOperator :: Parser GomExpr
-parseBinaryOperator = flip Operator Empty <$>
+parseBinaryOperator = Operator <$>
                 (parseOperatorPlus <|> parseOperatorMinus <|>
                 parseOperatorMultiply <|> parseOperatorDivide <|>
                 parseOperatorModulo <|> parseOperatorEqual <|>
                 parseOperatorNotEqual <|> parseOperatorNot <|>
                 parseOperatorAnd <|> parseOperatorInfEqual <|>
                 parseOperatorSupEqual <|> parseOperatorInf <|>
-                parseOperatorSup) <|> parseOperatorAccess
+                parseOperatorSup)
 
 -- | Parse a given string
 parseSymbol :: String -> Parser String
@@ -215,11 +230,6 @@ parseOperatorPlus = parseSymbol "+"
 -- | Parse operator SUB '-'
 parseOperatorMinus :: Parser String
 parseOperatorMinus = parseSymbol "-"
-
-parseOperatorAccess :: Parser GomExpr
-parseOperatorAccess = do
-    expression <-  parseBetween '[' ']' parseExpression
-    return $ Operator "[]" expression
 
 -- | Parse operator MUL ''
 parseOperatorMultiply :: Parser String
@@ -382,20 +392,22 @@ parseToken = parseSome (parseAnyChar parserTokenChar)
 parseIdentifier :: Parser GomExpr
 parseIdentifier = Identifier <$> parseToken
 
+-- | Parse an assignment variable with ++ or --
 parseAssignmentPlusPlus :: Parser GomExpr
 parseAssignmentPlusPlus = do
     id' <- parseTypedIdentifier <|> parseIdentifier
     op <- parseAmongWhitespace $ (parseSymbol "++" <|> parseSymbol "--")
     return $ Assignment {assignedIdentifier=id',
-                            assignedExpression=Expression [id', Operator (take 1 op) Empty, Number 1]}
+                            assignedExpression=Expression [id', Operator (take 1 op), Number 1]}
 
+-- | Parse an assignment variable with +=, -=, *=, /= or %=
 parseAssignmentOperator :: Parser GomExpr
 parseAssignmentOperator =  do
     id' <- parseTypedIdentifier <|> parseIdentifier
     op <- parseAmongWhitespace $ (parseSymbol "+=" <|> parseSymbol "-=" <|> parseSymbol "*=" <|> parseSymbol "/=" <|> parseSymbol "%=")
     expression <- parseAmongWhitespace $ parseExpression
     return $ Assignment {assignedIdentifier=id',
-                            assignedExpression=Expression [id', Operator (take 1 op) Empty, expression]}
+                            assignedExpression=Expression [id', Operator (take 1 op), expression]}
 
 -- | Parse variable / fonction assigment
 parseAssignent :: Parser GomExpr

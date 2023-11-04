@@ -43,9 +43,10 @@ data GomExpr = Number Int
     | Boolean Bool
     | Type GomExprType
     | Statements [GomExpr]
-    | Operator String GomExpr -- Opertaor "[]"
+    | Operator String
     | Term [GomExpr]
     | Expression [GomExpr]
+    | Access { accessList :: GomExpr, accessIndex :: GomExpr } -- Opertaor "[]"
     | List [GomExpr]
     | Block [GomExpr]
     | ParameterList [GomExpr]
@@ -74,6 +75,7 @@ data GomAST =
   | AGomOperator EnumOperator
   | AGomTerm [GomAST]
   | AGomExpression [GomAST]
+  | AGomAccess { aGomAccessList :: GomAST, aGomAccessIndex :: GomAST } -- Opertaor "[]"
   | AGomList [GomAST]
   | AGomBlock [GomAST]
   | AGomFunctionArgument { aGomArgumentName :: GomAST, aGomArgumentType :: GomAST}
@@ -209,6 +211,13 @@ typeResolver env (AGomExpression exprs) = do
     [] -> throwEvalError "Empty expression" []
     [singleType] -> pure singleType
     tList -> throwEvalError ("Types mismatch in expression, found '" ++ show tList ++ "'") []
+typeResolver env (AGomAccess list index) = do
+  _ <- checkType env index (AGomType "Int")
+  subtype <- case typeResolver env list of
+    EvalResult (Right (AGomTypeList (subtype:_))) -> pure subtype
+    other -> other
+  return subtype
+
 typeResolver _ ast = throwEvalError ("Couldn't resolve type for '"
   ++ show ast ++ "'.") []
 
@@ -279,7 +288,7 @@ gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
 gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
 precedence :: GomExpr -> Int
-precedence (Operator op Empty) = case op of
+precedence (Operator op) = case op of
   "||" -> 1
   "&&" -> 1
   "==" -> 2
@@ -302,10 +311,10 @@ shuntingYard expr = reverse $ shuntingYard' expr [] []
 
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
 shuntingYard' [] outputStack operatorStack = reverse outputStack ++ operatorStack
-shuntingYard' (o@(Operator _ Empty):expr) outputStack stack@(o'@(Operator _ Empty):_)
+shuntingYard' (o@(Operator _):expr) outputStack stack@(o'@(Operator _):_)
   | (precedence o) > (precedence o') = shuntingYard' expr outputStack (o:stack)
   | otherwise = shuntingYard' expr (reverse stack ++ outputStack) [o]
-shuntingYard' (o@(Operator _ Empty):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
+shuntingYard' (o@(Operator _):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
 shuntingYard' (e:expr) outputStack operatorStack = shuntingYard' expr (e:outputStack) operatorStack
 
 gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
@@ -341,13 +350,19 @@ gomExprToGomAST env (Type (TypeList t)) = do
 gomExprToGomAST env (Statements s) = do
   (_, allAst) <- gomExprListToGomASTList env s
   return ([], AGomStatements allAst)
-gomExprToGomAST _ op@(Operator _ _) = do
+gomExprToGomAST _ op@(Operator _) = do
   result <- operatorToGomAST op
   return ([], result)
 gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$>
     gomExprListToGomASTList env t
 gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
     gomExprListToGomASTListShuntingYard env e
+
+gomExprToGomAST env (Access list index) = do
+  (_, list') <- gomExprToGomAST env list
+  (_, index') <- gomExprToGomAST env index
+  return ([], AGomAccess list' index')
+
 gomExprToGomAST env (List l) = applyToSnd AGomList <$>
     gomExprListToGomASTList env l
 gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$>
@@ -390,21 +405,21 @@ gomExprToGomAST env (ReturnStatement expr) = do
   return ([], AGomReturnStatement expr')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
-operatorToGomAST (Operator "+" Empty) = pure (AGomOperator SignPlus)
-operatorToGomAST (Operator "-" Empty) = pure (AGomOperator SignMinus)
-operatorToGomAST (Operator "*" Empty) = pure (AGomOperator SignMultiply)
-operatorToGomAST (Operator "/" Empty) = pure (AGomOperator SignDivide)
-operatorToGomAST (Operator "%" Empty) = pure (AGomOperator SignModulo)
-operatorToGomAST (Operator "==" Empty) = pure (AGomOperator SignEqual)
-operatorToGomAST (Operator "!=" Empty) = pure (AGomOperator SignNotEqual)
-operatorToGomAST (Operator "!" Empty) = pure (AGomOperator SignNot)
-operatorToGomAST (Operator "&&" Empty) = pure (AGomOperator SignAnd)
-operatorToGomAST (Operator "||" Empty) = pure (AGomOperator SignOr)
-operatorToGomAST (Operator "<=" Empty) = pure (AGomOperator SignInfEqual)
-operatorToGomAST (Operator ">=" Empty) = pure (AGomOperator SignSupEqual)
-operatorToGomAST (Operator "<" Empty) = pure (AGomOperator SignInf)
-operatorToGomAST (Operator ">" Empty) = pure (AGomOperator SignSup)
-operatorToGomAST (Operator op Empty) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
+operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)
+operatorToGomAST (Operator "-") = pure (AGomOperator SignMinus)
+operatorToGomAST (Operator "*") = pure (AGomOperator SignMultiply)
+operatorToGomAST (Operator "/") = pure (AGomOperator SignDivide)
+operatorToGomAST (Operator "%") = pure (AGomOperator SignModulo)
+operatorToGomAST (Operator "==") = pure (AGomOperator SignEqual)
+operatorToGomAST (Operator "!=") = pure (AGomOperator SignNotEqual)
+operatorToGomAST (Operator "!") = pure (AGomOperator SignNot)
+operatorToGomAST (Operator "&&") = pure (AGomOperator SignAnd)
+operatorToGomAST (Operator "||") = pure (AGomOperator SignOr)
+operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
+operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
+operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)
+operatorToGomAST (Operator ">") = pure (AGomOperator SignSup)
+operatorToGomAST (Operator op) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
 operatorToGomAST _ = throwEvalError "Expected an Operator" []
 
 extractSymbol :: GomExpr -> Maybe String
