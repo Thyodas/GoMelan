@@ -153,10 +153,10 @@ testGomExprToGomAST = TestList [
         result8 = gomExprToGomAST [] (Operator "+")
         expected8 = pure ([], AGomOperator SignPlus)
 
-        result9 = gomExprToGomAST [] (Term [Identifier "x", Operator "*" , Number 42])
+        result9 = gomExprToGomAST [] (Term [Identifier "x", Operator "*", Number 42])
         expected9 = pure ([], AGomTerm [AGomIdentifier "x", AGomOperator SignMultiply, AGomNumber 42])
 
-        result10 = gomExprToGomAST [] (Expression [Number 3, Operator "+" , Number 4, Operator "*" , Number 6])
+        result10 = gomExprToGomAST [] (Expression [Number 3, Operator "+", Number 4, Operator "*", Number 6])
         expected10 = pure ([], AGomExpression [AGomNumber 3,AGomNumber 4,AGomNumber 6,AGomOperator SignMultiply,AGomOperator SignPlus])
 
         result11 = gomExprToGomAST [] (List [Number 21, Number 42, Number 84])
@@ -180,7 +180,7 @@ testGomExprToGomAST = TestList [
         result17 = gomExprToGomAST [("x", AGomNumber 41)] (Assignment { assignedIdentifier = Identifier "x", assignedExpression = Number 42 })
         expected17 = pure ([("x", AGomNumber 42)], AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 42})
 
-        result18 = gomExprToGomAST [] (ForLoopIter { forLoopInitialization = Empty, forLoopCondition = Expression [Number 42, Operator "<" , Number 84], forLoopUpdate = Empty, forLoopIterBlock = Empty })
+        result18 = gomExprToGomAST [] (ForLoopIter { forLoopInitialization = Empty, forLoopCondition = Expression [Number 42, Operator "<", Number 84], forLoopUpdate = Empty, forLoopIterBlock = Empty })
         expected18 = pure ([],AGomForLoop {aGomForLoopInitialization = AGomEmpty, aGomForLoopCondition = AGomExpression [AGomNumber 42,AGomNumber 84,AGomOperator SignInf], aGomForLoopUpdate = AGomEmpty, aGomForLoopIterBlock = AGomEmpty})
 
         result19 = gomExprToGomAST [] (Condition { gomIfCondition = Expression [Number 42, Operator "<", Number 84], gomIfTrue = Expression [Boolean True], gomIfFalse = Expression [Boolean False] })

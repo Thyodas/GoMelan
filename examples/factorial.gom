@@ -3,8 +3,7 @@ fn factorial(n: Int) -> Int
     if (n == 0) {
         return 1;
     } else {
-        b: Int = n - 1;
-        return n * factorial(b);
+        return n * factorial(n - 1);
     }
 }
 

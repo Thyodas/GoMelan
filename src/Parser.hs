@@ -325,6 +325,11 @@ parseParameterList :: Parser GomExpr
 parseParameterList = ParameterList <$> parseSep ','
                     (parseAmongWhitespace parseParameter)
 
+-- | Parse list of call function parameter
+parseCallParameterList :: Parser GomExpr
+parseCallParameterList = ParameterList <$> parseSep ','
+                    (parseAmongWhitespace parseExpression)
+
 -- | Parse specific char of a string passed in arg and return a parser
 parseAnyChar :: String -> Parser Char
 parseAnyChar toFind = Parser $ \str -> case str of

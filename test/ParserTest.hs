@@ -588,7 +588,7 @@ testParseForLoopIter = TestList
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter expression in block" ~:
         let input = "for (; x < 10; x = x + 1) { x = 1; }"
-            expected = Right (ForLoopIter {forLoopInitialization = Empty, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+" ,Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
+            expected = Right (ForLoopIter {forLoopInitialization = Empty, forLoopCondition = Expression [Identifier "x",Operator "<",Number 10], forLoopUpdate = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Number 1]}, forLoopIterBlock = Block [Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Number 1]}]},"")
             result = runParser parseForLoopIter input
         in assertEqual "Should handle invalid input" expected result
     , "Test parseForLoopIter without block" ~:
