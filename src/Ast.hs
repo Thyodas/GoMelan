@@ -11,7 +11,6 @@ module Ast (
     GomAST(..),
     EvalError(..),
     EvalResult(..),
-    InternalFunction(..),
     Env,
     EnumOperator(..),
     EnvKey,
@@ -39,8 +38,8 @@ data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
 
 data GomExpr = Number Int
-    | Identifier String
-    | GomString String
+    | Identifier [Char]
+    | GomString [Char]
     | Boolean Bool
     | Type GomExprType
     | Statements [GomExpr]
@@ -52,30 +51,24 @@ data GomExpr = Number Int
     | ParameterList [GomExpr]
     | ReturnStatement GomExpr
     | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
-    | TypedIdentifier { identifier :: String, identifierType :: GomExpr}
+    | TypedIdentifier { identifier :: [Char], identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
     | Empty
     | Assignment { assignedIdentifier :: GomExpr, assignedExpression :: GomExpr }
     | ForLoopIter { forLoopInitialization :: GomExpr, forLoopCondition :: GomExpr,
                     forLoopUpdate :: GomExpr, forLoopIterBlock :: GomExpr }
     | Condition { gomIfCondition :: GomExpr, gomIfTrue :: GomExpr, gomIfFalse :: GomExpr }
-    | Function { fnName :: String, fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
+    | Function { fnName :: [Char], fnArguments :: GomExpr, fnBody :: GomExpr, fnReturnType :: GomExpr }
     deriving (Show, Eq)
 
-newtype InternalFunction = InternalFunction ([GomAST] -> EvalResult GomAST)
-
-instance Show InternalFunction where
-  show _ = "<Internal Function>"
-
-instance Eq InternalFunction where
-  _ == _ = True
 
 data GomAST =
     AGomNumber Int
-  | AGomIdentifier String
-  | AGomStringLiteral String
+  | AGomIdentifier [Char]
+  | AGomStringLiteral [Char]
   | AGomBooleanLiteral Bool
-  | AGomType String
+  | AGomTypeAny
+  | AGomType [Char]
   | AGomTypeList [GomAST]
   | AGomStatements [GomAST]
   | AGomOperator EnumOperator
@@ -85,16 +78,16 @@ data GomAST =
   | AGomBlock [GomAST]
   | AGomFunctionArgument { aGomArgumentName :: GomAST, aGomArgumentType :: GomAST}
   | AGomParameterList [GomAST]
-  | AGomInternalFunction InternalFunction
+  | AGomInternalFunction { aGomInternalName :: String, aGomInternalArguments :: GomAST, aGomInternalReturnType :: GomAST}
   | AGomReturnStatement GomAST
-  | AGomFunctionCall { aGomFunctionName :: String, aGomFunctionArguments :: GomAST }
-  | AGomTypedIdentifier { aGomIdentifier :: String, aGomIdentifierType :: GomAST }
+  | AGomFunctionCall { aGomFunctionName :: [Char], aGomFunctionArguments :: GomAST }
+  | AGomTypedIdentifier { aGomIdentifier :: [Char], aGomIdentifierType :: GomAST }
   | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
   | AGomEmpty
   | AGomAssignment { aGomAssignedIdentifier :: GomAST, aGomAssignedExpression :: GomAST }
   | AGomForLoop { aGomForLoopInitialization :: GomAST, aGomForLoopCondition :: GomAST, aGomForLoopUpdate :: GomAST, aGomForLoopIterBlock :: GomAST }
   | AGomCondition { aGomIfCondition :: GomAST, aGomIfTrue :: GomAST, aGomIfFalse :: GomAST }
-  | AGomFunctionDefinition { aGomFnName :: String, aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
+  | AGomFunctionDefinition { aGomFnName :: [Char], aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
   deriving (Show, Eq)
 
 data EnumOperator = SignPlus
@@ -155,6 +148,14 @@ instance Monad EvalResult where
   --   EvalResult (Left e) -> EvalResult (Left e)
   --   EvalResult (Right (_, x')) -> EvalResult (Right (env, x'))
 
+internalEnv :: Env
+internalEnv = [
+        ("len", AGomInternalFunction
+            "len"
+            (AGomParameterList [AGomTypedIdentifier "list" (AGomTypeList [AGomTypeAny])])
+            (AGomType "Int"))
+    ]
+
 applyToSnd :: (b -> c) -> (a, b) -> (a, c)
 applyToSnd f (x, y) = (x, f y)
 
@@ -196,6 +197,11 @@ typeResolver env (AGomList elements) = do
     [] -> throwEvalError "Empty List" []
     [_] -> pure $ AGomTypeList uniqueTypes
     tList -> throwEvalError ("Types mismatch in list, found '" ++ show tList ++ "'") []
+typeResolver env (AGomInternalFunction name args retType) = do
+  func <- envLookupEval env name
+  case func of
+    AGomInternalFunction { aGomInternalReturnType=retType } -> pure retType
+    _ -> throwEvalError ("Identifier '" ++ name ++ "' is not a function") []
 typeResolver env (AGomExpression exprs) = do
   types <- traverse (typeResolver env) exprs
   let uniqueTypes = nub (filter (/= AGomType "Operator") types)
@@ -212,8 +218,12 @@ checkType :: Env -> GomAST -> GomAST -> EvalResult GomAST
 checkType env astA astB = do
   resolvedA <- typeResolver env astA
   resolvedB <- typeResolver env astB
-  if resolvedA == resolvedB
-    then pure resolvedA
+
+  if (resolvedA == resolvedB) || (any (== AGomTypeAny) [resolvedA, resolvedB])
+    then
+      case find (/= AGomTypeAny ) [resolvedA, resolvedB] of
+        Just x -> pure $ x
+        Nothing -> throwEvalError "Type mismatch, cannot compare two Any types." []
     else throwEvalError
       ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
       ++ show resolvedB ++ "'.") []

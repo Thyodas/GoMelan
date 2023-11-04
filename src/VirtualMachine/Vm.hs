@@ -8,7 +8,7 @@
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
     Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
     execHelper, getOperationNbArgs, serializeAndWriteCompiled,
-        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain) where
+        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain, InternalFunction(..), Args(..)) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
@@ -16,6 +16,7 @@ import Safe (toEnumMay)
 import Data.List (find)
 import Ast (GomAST(..), EnumOperator(..))
 
+newtype InternalFunction = InternalFunction (Args -> Either String Val)
 
 data Val = VNum Int
     | VBool Bool
@@ -23,8 +24,15 @@ data Val = VNum Int
     | VList [Val]
     | VOp EnumOperator
     | VFunction Insts
+    | VInternalFunction InternalFunction
     | VNil
     deriving (Eq)
+
+instance Show InternalFunction where
+  show _ = "<Internal Function>"
+
+instance Eq InternalFunction where
+  _ == _ = True
 
 instance Show Val where
     show (VNum x) = show x

@@ -8,7 +8,7 @@
 module VirtualMachine.Compiler (compileAllAst, getCompiledInsts,
     getCompiledEnv) where
 
-import Ast (GomAST(..), EvalResult(..), EvalError(..), InternalFunction(..),
+import Ast (GomAST(..), EvalResult(..), EvalError(..),
     throwEvalError)
 import VirtualMachine.Vm (Instructions(..), Val(..), Stack,
     Insts, Compiled(..), EnumOperator(..), VmEnv(..), getOperationNbArgs)
