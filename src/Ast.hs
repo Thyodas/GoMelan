@@ -170,14 +170,16 @@ typeResolver env (AGomList elements) = do
   case uniqueTypes of
     [] -> throwEvalError "Empty List" []
     [singleType] -> pure $ AGomTypeList uniqueTypes
-    tList -> throwEvalError ("Types mismatch in list, found '" ++ show tList ++ "'") []
+    tList -> throwEvalError ("Types mismatch in list, found '" ++ show tList ++
+      "'") []
 typeResolver env (AGomExpression exprs) = do
   types <- traverse (typeResolver env) exprs
   let uniqueTypes = nub (filter (/= AGomType "Operator") types)
   case uniqueTypes of
     [] -> throwEvalError "Empty expression" []
     [singleType] -> pure singleType
-    tList -> throwEvalError ("Types mismatch in expression, found '" ++ show tList ++ "'") []
+    tList -> throwEvalError ("Types mismatch in expression, found '" ++ show
+      tList ++ "'") []
 typeResolver _ ast = throwEvalError ("Couldn't resolve type for '"
   ++ show ast ++ "'.") []
 
@@ -244,36 +246,29 @@ gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
 precedence :: GomExpr -> Int
 precedence (Operator op) = case op of
-  "+" -> 1
-  "-" -> 1
-  "*" -> 2
-  "/" -> 2
-  "%" -> 2
-  "==" -> 3
-  "!=" -> 3
-  "<=" -> 3
-  ">=" -> 3
-  "<" -> 3
-  ">" -> 3
-  "&&" -> 4
-  "!" -> 5
+  "+" -> 1; "-" -> 1; "*" -> 2; "/" -> 2; "%" -> 2
+  "==" -> 3; "!=" -> 3; "<=" -> 3; ">=" -> 3; "<" -> 3; ">" -> 3
+  "&&" -> 4; "!" -> 5
   _ -> 0
 precedence _ = 0
+
 
 shuntingYard :: [GomExpr] -> [GomExpr]
 shuntingYard expr = reverse $ shuntingYard' expr [] []
 
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
-shuntingYard' [] outputStack operatorStack = outputStack ++ reverse operatorStack
-shuntingYard' (e:expr) outputStack operatorStack =
+shuntingYard' [] outputStack opStack = outputStack ++ reverse
+  opStack
+shuntingYard' (e:expr) outputStack opStack =
   case e of
     op@(Operator _) ->
-      let (oStack, oQueue) = span (\x -> precedence op <= precedence x) operatorStack
+      let (oStack, oQueue) = span (\x -> precedence op <= precedence x) opStack
       in shuntingYard' expr (outputStack ++ oQueue) (op:oStack)
-    (Number _) -> shuntingYard' expr (outputStack ++ [e]) operatorStack
-    other -> shuntingYard' expr (outputStack ++ [other]) operatorStack
+    (Number _) -> shuntingYard' expr (outputStack ++ [e]) opStack
+    other -> shuntingYard' expr (outputStack ++ [other]) opStack
 
-gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
+gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env,
+  [GomAST])
 gomExprListToGomASTListShuntingYard env exprList = do
   let postFixExpr = shuntingYard exprList
   (_, allAst) <- traverse (gomExprToGomAST env) postFixExpr >>= pure . unzip

@@ -151,30 +151,34 @@ parseReturnStatement = do
     return expression
 
 -- | Parse an expression
+parseMultiple :: Parser [GomExpr]
+parseMultiple = do
+    bin <- parseBinaryOperator <?!> ParseError MissingOperator
+        "Expected a binary operator."
+    expr <- parseSubExpression <?!> ParseError MissingExpression
+        "Expected an expression."
+    return [bin, expr]
+
+parseSubExpression :: Parser GomExpr
+parseSubExpression = parseAmongWhitespace (
+    parseFactor <|> parseBetween '(' ')' parseExpression)
+
 parseExpression :: Parser GomExpr
 parseExpression = Expression <$> parseExpression'
     where
         parseExpression' :: Parser [GomExpr]
-        parseExpression' = (:) <$> parseSubExpression <*> (concat <$> parseMany parseMultiple)
+        parseExpression' = (:) <$> parseSubExpression <*>
+            (concat <$> parseMany parseMultiple)
 
-        parseMultiple :: Parser [GomExpr]
-        parseMultiple = do
-            bin <- parseBinaryOperator <?!> ParseError MissingOperator
-                "Expected a binary operator."
-            expr <- parseSubExpression <?!> ParseError MissingExpression
-                "Expected an expression."
-            return [bin, expr]
-
-        parseSubExpression :: Parser GomExpr
-        parseSubExpression = parseAmongWhitespace (
-            parseFactor <|> parseBetween '(' ')' parseExpression)
 
 parseListAssignement :: Parser GomExpr
-parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpression))
+parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ','
+    parseExpression))
 
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseAssignmentPlusPlus <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
+    <|> parseAssignmentPlusPlus <|> parseIdentifier <|> parseLiteral <|>
+    parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -382,7 +386,8 @@ parseAssignmentPlusPlus = do
     id <- parseTypedIdentifier <|> parseIdentifier
     _ <- parseAmongWhitespace $ parseSymbol "++"
     return $ Assignment {assignedIdentifier=id,
-                            assignedExpression=Expression [id, Operator "+", Number 1]}
+                            assignedExpression=Expression [id, Operator "+",
+                            Number 1]}
 
 -- | Parse variable / fonction assigment
 parseAssignent :: Parser GomExpr
