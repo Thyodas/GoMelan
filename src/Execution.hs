@@ -23,8 +23,6 @@ import System.Environment (getArgs)
 import System.Exit ( exitWith, ExitCode (ExitFailure))
 import System.Console.CmdArgs (whenLoud)
 
-import Debug.Trace (trace)
-
 -- TODO: fix this file so that it handles new GomAST
 
 -- runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
@@ -38,11 +36,10 @@ import Debug.Trace (trace)
 -- | Check list
 convertListToAST :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 convertListToAST env [] = pure (env, [])
-convertListToAST env (ast:rest) =
-  trace ("Env: "++show env) (do
+convertListToAST env (ast:rest) = do
         (newEnv, result) <- gomExprToGomAST env ast
         (finalEnv, results) <- convertListToAST (newEnv ++ env) rest
-        pure (finalEnv ++ newEnv, result : results))
+        pure (finalEnv ++ newEnv, result : results)
 
 -- -- | Execute all AST
 -- runAllAst :: Env -> [GomAST] -> Either ErrorMsg (Env, [GomAST])
@@ -58,7 +55,6 @@ codeToAST astEnv code =  do
     result <- case convertListToAST astEnv gomexpr of
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg
-    trace ("Result: "++show (snd result)) (pure result)
     return result
 
 codeToCompiled :: Env -> String -> Either ErrorMsg Compiled

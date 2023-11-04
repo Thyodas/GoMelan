@@ -255,7 +255,7 @@ gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
   (_, argsAst) <- gomExprListToGomASTList env args
   AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)} <-
     getAGomFunctionDefinition env name
-  let funcDegArgsTypes = map aGomIdentifierType funcDefArgs
+  funcDegArgsTypes <- traverse (typeResolver env) funcDefArgs
   _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
   return $ (env, AGomFunctionCall name (AGomParameterList argsAst))
 
@@ -398,8 +398,9 @@ gomExprToGomAST env (Function name args body retType) = do
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
   (newEnv, body') <- gomExprToGomAST (envArgs ++ (name, tempFunction) :  env) body
-  return ((removeNewAssignment env newEnv) ++ [(name, tempFunction)],
-    AGomFunctionDefinition name args' body' retType')
+  let newFunction = AGomFunctionDefinition name args' body' retType'
+  return ((removeNewAssignment env newEnv) ++ [(name, newFunction)],
+    newFunction)
 gomExprToGomAST env (ReturnStatement expr) = do
   (_, expr') <- gomExprToGomAST env expr
   return ([], AGomReturnStatement expr')

@@ -165,7 +165,7 @@ testPushEnvMissingValue = TestCase $ do
         args = [VNum 42, VStr "test", VBool True]
         insts = [PushEnv "variable", Call 1, Ret]
         result = execHelper env args insts insts []
-    assertEqual "PushEnv: missing value in env" (Left "PushEnv: missing value in env") result
+    assertEqual "PushEnv: missing value in env" (Left "PushEnv: missing value in env for key 'variable'.") result
 
 testJumpIfFalse :: Test
 testJumpIfFalse = TestList

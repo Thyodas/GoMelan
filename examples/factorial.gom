@@ -1,6 +1,6 @@
 fn factorial(n: Int) -> Int
 {
-    if (n == 0) {
+    if (n <= 1) {
         return 1;
     } else {
         return n * factorial(n - 1);
@@ -9,5 +9,5 @@ fn factorial(n: Int) -> Int
 
 fn main() -> Int
 {
-    return factorial(20);
+    return factorial(-1);
 }
