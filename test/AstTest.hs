@@ -11,7 +11,7 @@ import Test.HUnit
 import Data.Maybe
 import InternalFunctions (internalEnv)
 import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvValue, EnumOperator(..), GomExprType(..),
-   EvalResult(..), GomExpr(..), gomExprToGomAST, InternalFunction(..),
+   EvalResult(..), GomExpr(..), gomExprToGomAST,
    typeResolver, extractSymbol, applyToSnd, envLookupEval, checkType,
    getAGomFunctionDefinition, throwEvalError, gomExprToAGomFunctionCall,
    operatorToGomAST, getIdDetails, precedence, gomExprToAGomAssignment
