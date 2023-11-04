@@ -216,6 +216,9 @@ parseOperatorPlus = parseSymbol "+"
 parseOperatorMinus :: Parser String
 parseOperatorMinus = parseSymbol "-"
 
+-- parseOperatorAccess :: Parser String
+-- parseOperatorAccess = String <$> parseBetween '[' ']' parseExpression
+
 -- | Parse operator MUL ''
 parseOperatorMultiply :: Parser String
 parseOperatorMultiply = parseSymbol "*"
