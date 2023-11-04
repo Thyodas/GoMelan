@@ -403,10 +403,10 @@ testOperatorToGomAST = TestList
         result13 = operatorToGomAST (Operator "%")
         expected13 = pure (AGomOperator SignModulo)
 
-        result14 = operatorToGomAST (Operator "&" Empty)
+        result14 = operatorToGomAST (Operator "&")
         expected14 = throwEvalError ("Unknown operator '" ++ "&" ++ "'") []
 
-        result15 = operatorToGomAST (Operator "||" Empty)
+        result15 = operatorToGomAST (Operator "||")
         expected15 = pure (AGomOperator SignOr)
 
         result16 = operatorToGomAST (Number 42)
@@ -458,8 +458,8 @@ testprecedence = TestList
     , TestCase $ assertEqual "precedence" 5 (precedence(Operator "!"))
     , TestCase $ assertEqual "precedence" 0 (precedence(Operator "&"))
     , TestCase $ assertEqual "precedence" 0 (precedence(Number 42))
-    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "||" Empty))
-    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "%" Empty))
+    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "||"))
+    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "%"))
     ]
 
 testGomExprToAGomAssignment :: Test

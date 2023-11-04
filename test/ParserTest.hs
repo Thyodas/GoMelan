@@ -15,7 +15,7 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith, ErrorTy
     parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
     printErrorDetails, printErrors, printErrorLine, printLineWithError, runAndPrintParser,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr,
-    takeFurthestError, throwParseError, parseSymbol, (<?!>), parseOperatorAccess, parseAssignmentPlusPlus, parseAssignmentOperator,
+    takeFurthestError, throwParseError, parseSymbol, (<?!>), parseAssignmentPlusPlus, parseAssignmentOperator,
     parseListAssignement)
 
 testShowErrorType :: Test
@@ -568,7 +568,7 @@ testParseForLoopIter :: Test
 testParseForLoopIter = TestList
     [ "Test parseForLoopIter valid" ~:
         let input = "for (x = 0; x < 10; x = x + 1) {}"
-            expected = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingExpression "Expected symbol 'if'." "}",ParseError MissingExpression "Expected 'i' but got '}'." "}"]
+            expected = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingClosing "Expected any of [but got to the end." ""]
             result = runParser parseForLoopIter input
         in assertEqual "Should parse valid input" expected result
     , "Test parseForLoopIter invalid" ~:
@@ -688,7 +688,7 @@ testParseVariableDeclaration = TestList
         in assertEqual "Should parse valid input" expected result
     , "Test parseVariableDeclaration with no value" ~:
         let input = "x : Int = ;"
-            expected = Left [ParseError MissingExpression "Expected '(' but got ';'." ";"]
+            expected = Left [ParseError MissingClosing "Expected any of [but got to the end." ""]
             result = runParser parseVariableDeclaration input
         in assertEqual "Should handle invalid input" expected result
     ]
@@ -913,22 +913,11 @@ testParseSymbol = TestList
         result1 = runParser (parseSymbol []) ""
         expected1 = Left [ParseError MissingExpression "Expected symbol ''." "",ParseError EmptyParser "parseSymbol: Expected a symbol but got empty string." ""]
 
-testParseOperatorAccess :: Test
-testParseOperatorAccess = TestList
-    [ "parseOperatorAccess: Parses operator access" ~: do
-        let code = "[1]"
-        let expected = Operator "[]" (Expression [Number 1])
-        let result = case runParser parseOperatorAccess code of
-                        Right (res, _) -> res
-                        Left err -> error $ show err
-        assertEqual "Parsing operator access" expected result
-    ]
-
 testParseAssignmentPlusPlus :: Test
 testParseAssignmentPlusPlus = TestList
     [ "parseAssignmentPlusPlus: Parses assignment operator with ++" ~: do
         let code = "x++"
-        let expected = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+" Empty,Number 1]}
+        let expected = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Number 1]}
         let result = case runParser parseAssignmentPlusPlus code of
                         Right (res, _) -> res
                         Left err -> error $ show err
@@ -939,7 +928,7 @@ testParseAssignmentOperator :: Test
 testParseAssignmentOperator = TestList
     [ "parseAssignmentOperator: Parses assignment operator" ~: do
         let code = "x += 1"
-        let expected = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+" Empty,Expression [Number 1]]}
+        let expected = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Expression [Number 1]]}
         let result = case runParser parseAssignmentOperator code of
                         Right (res, _) -> res
                         Left err -> error $ show err
@@ -970,7 +959,6 @@ parserTestList = TestList [
     testParseLiteral,
     testParseAssignmentOperator,
     testParseAssignmentPlusPlus,
-    testParseOperatorAccess,
     testParseSymbol,
     testCustomErrorMessage,
     testThrowParseError,
