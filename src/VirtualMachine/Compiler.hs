@@ -69,9 +69,11 @@ compileAst env (AGomAssignment idName expr) = do
     let compiledExprInsts = getCompiledInsts compiledExpr
     return $ Compiled [] (compiledExprInsts ++ [AddEnv name])
 
-compileAst env (AGomFunctionDefinition fnName (AGomParameterList fnArgs) fnBody _) = do
+compileAst env (AGomFunctionDefinition fnName (AGomParameterList fnArgs) fnBody
+    _) = do
     compiledBody <- compileAst env fnBody
-    let args = concat [[PushArg i, AddEnv el] | (i, AGomTypedIdentifier el _) <- zip [0..] fnArgs]
+    let args = concat [[PushArg i, AddEnv el] | (i, AGomTypedIdentifier el _)
+                   <- zip [0..] fnArgs]
     let compiledBodyInsts = args ++ getCompiledInsts compiledBody
     return $ Compiled [(fnName, VFunction compiledBodyInsts)] []
 
@@ -86,7 +88,8 @@ compileAst env (AGomForLoop lInit lCond lUpdate lBody) = do
     let compiledBodyInsts = getCompiledInsts compiledBody
     let compiledBodyEnv = getCompiledEnv compiledBody
     return $ Compiled compiledBodyEnv (compiledInitInsts ++ compiledCondInsts
-            ++ [JumpIfFalse (length compiledBodyInsts + length compiledUpdateInsts + 1)]
+            ++ [JumpIfFalse (length compiledBodyInsts + length
+                            compiledUpdateInsts + 1)]
             ++ compiledBodyInsts ++ compiledUpdateInsts
             ++ [Jump (-(length compiledBodyInsts
             + length compiledUpdateInsts + length compiledCondInsts + 1))])

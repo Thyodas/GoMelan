@@ -18,6 +18,7 @@ internalEnv :: Env
 internalEnv = [
         ("len", AGomInternalFunction
             "len"
-            (AGomParameterList [AGomTypedIdentifier "list" (AGomTypeList [AGomTypeAny])])
+            (AGomParameterList [AGomTypedIdentifier "list" (AGomTypeList
+                [AGomTypeAny])])
             (AGomType "Int"))
     ]

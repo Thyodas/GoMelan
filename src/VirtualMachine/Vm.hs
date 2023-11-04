@@ -156,12 +156,10 @@ readAndDeserializeCompiled filePath = do
 
 main :: IO ()
 main = do
-    let instructions = [Push (VBool True),JumpIfFalse 2,Push (VStr "then"),Jump 1,Push (VStr "else"), Ret]
-    let env = []
-    let compiled = Compiled env instructions
-
+    let instructions = [Push (VBool True),JumpIfFalse 2,Push (VStr "then"),
+                        Jump 1,Push (VStr "else"), Ret]
+    let env = []; compiled = Compiled env instructions
     serializeAndWriteCompiled "compiled.bin" compiled
-
     result <- readAndDeserializeCompiled "compiled.bin"
     case result of
         Left errMsg -> putStrLn $ "Deserialization Error: " ++ errMsg
@@ -240,9 +238,11 @@ exec env args insts stack = execHelper env args insts insts stack
 
 -- | Helper function, please use exec instead
 execHelper :: VmEnv -> Args -> Insts -> Insts -> Stack -> Either String Val
-execHelper env args allInsts ((PushEnv envKey):xs) stack = case vmEnvLookup env envKey of
+execHelper env args allInsts ((PushEnv envKey):xs) stack = case vmEnvLookup env
+                                                            envKey of
     Just value -> execHelper env args allInsts xs (value : stack)
-    Nothing -> Left $ "PushEnv: missing value in env for key '" ++ envKey ++ "'."
+    Nothing -> Left $ "PushEnv: missing value in env for key '" ++ envKey ++
+                "'."
 execHelper env args allInsts ((Push value):xs) stack =
     execHelper env args allInsts xs (value : stack)
 execHelper _ _ _ (Call _:_) [] = Left $ "Call: missing value on stack"
@@ -253,19 +253,22 @@ execHelper env args allInsts (Call x:xs) (call:stack)
 execHelper _ _ _ ((Ret):_) (value:_) = Right $ value
 execHelper _ _ _ ((Ret):_) _ = Left $ "Ret: missing value on stack"
 
-execHelper env args allInsts ((JumpIfFalse _):xs) (VBool True:stack) = execHelper env args allInsts xs stack
+execHelper env args allInsts ((JumpIfFalse _):xs) (VBool True:stack) =
+    execHelper env args allInsts xs stack
 execHelper env args allInsts ((JumpIfFalse shift):xs) (VBool False:stack)
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack
     | otherwise = execHelper env args allInsts (drop shift xs) stack
         where
             nbToDrop = (length allInsts - length xs + 1) + shift
-execHelper env args allInsts ((JumpIfFalse _):xs) (VNum 0:stack) = execHelper env args allInsts xs stack
+execHelper env args allInsts ((JumpIfFalse _):xs) (VNum 0:stack) =
+    execHelper env args allInsts xs stack
 execHelper env args allInsts ((JumpIfFalse shift):xs) (VNum _:stack)
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack
     | otherwise = execHelper env args allInsts (drop shift xs) stack
         where
             nbToDrop = (length allInsts - length xs + 1) + shift
-execHelper _ _ _ ((JumpIfFalse _):_) _ = Left $ "JumpIfFalse: missing or invalid value on stack"
+execHelper _ _ _ ((JumpIfFalse _):_) _ =
+    Left $ "JumpIfFalse: missing or invalid value on stack"
 
 execHelper env args allInsts ((Jump shift):xs) stack
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack

@@ -154,7 +154,8 @@ internalEnv :: Env
 internalEnv = [
         ("len", AGomInternalFunction
             "len"
-            (AGomParameterList [AGomTypedIdentifier "list" (AGomTypeList [AGomTypeAny])])
+            (AGomParameterList
+                [AGomTypedIdentifier "list" (AGomTypeList [AGomTypeAny])])
             (AGomType "Int"))
     ]
 
@@ -198,7 +199,8 @@ typeResolver env (AGomList elements) = do
   case uniqueTypes of
     [] -> throwEvalError "Empty List" []
     [_] -> pure $ AGomTypeList uniqueTypes
-    tList -> throwEvalError ("Types mismatch in list, found '" ++ show tList ++ "'") []
+    tList -> throwEvalError ("Types mismatch in list, found '" ++
+                              show tList ++ "'") []
 typeResolver env (AGomInternalFunction name args retType) = do
   func <- envLookupEval env name
   case func of
@@ -210,7 +212,8 @@ typeResolver env (AGomExpression exprs) = do
   case uniqueTypes of
     [] -> throwEvalError "Empty expression" []
     [singleType] -> pure singleType
-    tList -> throwEvalError ("Types mismatch in expression, found '" ++ show tList ++ "'") []
+    tList -> throwEvalError ("Types mismatch in expression, found '" ++
+                              show tList ++ "'") []
 typeResolver env (AGomAccess list index) = do
   _ <- checkType env index (AGomType "Int")
   subtype <- case typeResolver env list of
@@ -232,7 +235,8 @@ checkType env astA astB = do
     then
       case find (/= AGomTypeAny ) [resolvedA, resolvedB] of
         Just x -> pure $ x
-        Nothing -> throwEvalError "Type mismatch, cannot compare two Any types." []
+        Nothing ->
+            throwEvalError "Type mismatch, cannot compare two Any types." []
     else throwEvalError
       ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
       ++ show resolvedB ++ "'.") []
@@ -310,12 +314,15 @@ shuntingYard :: [GomExpr] -> [GomExpr]
 shuntingYard expr = reverse $ shuntingYard' expr [] []
 
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
-shuntingYard' [] outputStack operatorStack = reverse outputStack ++ operatorStack
+shuntingYard' [] outputStack operatorStack = reverse outputStack ++
+    operatorStack
 shuntingYard' (o@(Operator _):expr) outputStack stack@(o'@(Operator _):_)
   | (precedence o) > (precedence o') = shuntingYard' expr outputStack (o:stack)
   | otherwise = shuntingYard' expr (reverse stack ++ outputStack) [o]
-shuntingYard' (o@(Operator _):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
-shuntingYard' (e:expr) outputStack operatorStack = shuntingYard' expr (e:outputStack) operatorStack
+shuntingYard' (o@(Operator _):expr) outputStack (operatorStack) =
+    shuntingYard' expr outputStack (o:operatorStack)
+shuntingYard' (e:expr) outputStack operatorStack =
+    shuntingYard' expr (e:outputStack) operatorStack
 
 gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 gomExprListToGomASTListShuntingYard env exprList = do
@@ -385,7 +392,8 @@ gomExprToGomAST env (ForLoopIter init cond update block) = do
   (_, cond') <- gomExprToGomAST (env ++ initEnv) cond
   (_, update') <- gomExprToGomAST (env ++ initEnv) update
   (blockEnv, block') <- gomExprToGomAST (env ++ initEnv) block
-  return (removeNewAssignment env (blockEnv ++ initEnv), AGomForLoop init' cond' update' block')
+  return (removeNewAssignment env (blockEnv ++ initEnv),
+        AGomForLoop init' cond' update' block')
 gomExprToGomAST env (Condition cond true false) = do
   (_, cond') <- gomExprToGomAST env cond
   (trueEnv, true') <- gomExprToGomAST env true
@@ -397,7 +405,8 @@ gomExprToGomAST env (Function name args body retType) = do
   envArgs <- traverse aGomTypedIdentifierToEnvEntry argsList
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
-  (newEnv, body') <- gomExprToGomAST (envArgs ++ (name, tempFunction) :  env) body
+  (newEnv, body') <- gomExprToGomAST
+    (envArgs ++ (name, tempFunction) :  env) body
   let newFunction = AGomFunctionDefinition name args' body' retType'
   return ((removeNewAssignment env newEnv) ++ [(name, newFunction)],
     newFunction)
@@ -420,7 +429,8 @@ operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
 operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
 operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)
 operatorToGomAST (Operator ">") = pure (AGomOperator SignSup)
-operatorToGomAST (Operator op) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
+operatorToGomAST (Operator op) = throwEvalError ("Unknown operator '" ++
+    op ++ "'") []
 operatorToGomAST _ = throwEvalError "Expected an Operator" []
 
 extractSymbol :: GomExpr -> Maybe String
