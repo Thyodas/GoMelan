@@ -16,7 +16,6 @@ module Ast (
     EnumOperator(..),
     EnvKey,
     EnvValue,
-    GomExprType(..),
     envInsert,
     throwEvalError,
     envLookup,
@@ -35,7 +34,6 @@ module Ast (
 ) where
 
 import Data.List (deleteBy, find, nub)
-import VirtualMachine.Vm (EnumOperator(..))
 
 data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
@@ -46,7 +44,7 @@ data GomExpr = Number Int
     | Boolean Bool
     | Type GomExprType
     | Statements [GomExpr]
-    | Operator String
+    | Operator String GomExpr -- Opertaor "[]"
     | Term [GomExpr]
     | Expression [GomExpr]
     | List [GomExpr]
@@ -98,6 +96,38 @@ data GomAST =
   | AGomCondition { aGomIfCondition :: GomAST, aGomIfTrue :: GomAST, aGomIfFalse :: GomAST }
   | AGomFunctionDefinition { aGomFnName :: String, aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
   deriving (Show, Eq)
+
+data EnumOperator = SignPlus
+    | SignMinus
+    | SignMultiply
+    | SignDivide
+    | SignModulo
+    | SignEqual
+    | SignNotEqual
+    | SignNot
+    | SignAnd
+    | SignOr
+    | SignInfEqual
+    | SignSupEqual
+    | SignInf
+    | SignSup
+    deriving (Eq, Enum, Bounded)
+
+instance Show EnumOperator where
+  show SignPlus = "+"
+  show SignMinus = "-"
+  show SignMultiply = "*"
+  show SignDivide = "/"
+  show SignModulo = "%"
+  show SignEqual = "=="
+  show SignNotEqual = "!="
+  show SignNot = "!"
+  show SignAnd = "&&"
+  show SignOr = "||"
+  show SignInfEqual = "<="
+  show SignSupEqual = ">="
+  show SignInf = "<"
+  show SignSup = ">"
 
 data EvalError = EvalError String [GomExpr]
   deriving (Eq, Show)
@@ -164,7 +194,7 @@ typeResolver env (AGomList elements) = do
   let uniqueTypes = nub types
   case uniqueTypes of
     [] -> throwEvalError "Empty List" []
-    [singleType] -> pure $ AGomTypeList uniqueTypes
+    [_] -> pure $ AGomTypeList uniqueTypes
     tList -> throwEvalError ("Types mismatch in list, found '" ++ show tList ++ "'") []
 typeResolver env (AGomExpression exprs) = do
   types <- traverse (typeResolver env) exprs
@@ -239,7 +269,7 @@ gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
 gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
 precedence :: GomExpr -> Int
-precedence (Operator op) = case op of
+precedence (Operator op Empty) = case op of
   "||" -> 1
   "&&" -> 1
   "==" -> 2
@@ -262,10 +292,10 @@ shuntingYard expr = reverse $ shuntingYard' expr [] []
 
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
 shuntingYard' [] outputStack operatorStack = reverse outputStack ++ operatorStack
-shuntingYard' (o@(Operator _):expr) outputStack stack@(o'@(Operator _):operatorStack)
+shuntingYard' (o@(Operator _ Empty):expr) outputStack stack@(o'@(Operator _ Empty):_)
   | (precedence o) > (precedence o') = shuntingYard' expr outputStack (o:stack)
   | otherwise = shuntingYard' expr (reverse stack ++ outputStack) [o]
-shuntingYard' (o@(Operator op):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
+shuntingYard' (o@(Operator _ Empty):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
 shuntingYard' (e:expr) outputStack operatorStack = shuntingYard' expr (e:outputStack) operatorStack
 
 gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
@@ -301,8 +331,7 @@ gomExprToGomAST env (Type (TypeList t)) = do
 gomExprToGomAST env (Statements s) = do
   (_, allAst) <- gomExprListToGomASTList env s
   return ([], AGomStatements allAst)
-
-gomExprToGomAST _ op@(Operator _) = do
+gomExprToGomAST _ op@(Operator _ _) = do
   result <- operatorToGomAST op
   return ([], result)
 gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$>
@@ -351,21 +380,21 @@ gomExprToGomAST env (ReturnStatement expr) = do
   return ([], AGomReturnStatement expr')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
-operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)
-operatorToGomAST (Operator "-") = pure (AGomOperator SignMinus)
-operatorToGomAST (Operator "*") = pure (AGomOperator SignMultiply)
-operatorToGomAST (Operator "/") = pure (AGomOperator SignDivide)
-operatorToGomAST (Operator "%") = pure (AGomOperator SignModulo)
-operatorToGomAST (Operator "==") = pure (AGomOperator SignEqual)
-operatorToGomAST (Operator "!=") = pure (AGomOperator SignNotEqual)
-operatorToGomAST (Operator "!") = pure (AGomOperator SignNot)
-operatorToGomAST (Operator "&&") = pure (AGomOperator SignAnd)
-operatorToGomAST (Operator "||") = pure (AGomOperator SignOr)
-operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
-operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
-operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)
-operatorToGomAST (Operator ">") = pure (AGomOperator SignSup)
-operatorToGomAST (Operator op) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
+operatorToGomAST (Operator "+" Empty) = pure (AGomOperator SignPlus)
+operatorToGomAST (Operator "-" Empty) = pure (AGomOperator SignMinus)
+operatorToGomAST (Operator "*" Empty) = pure (AGomOperator SignMultiply)
+operatorToGomAST (Operator "/" Empty) = pure (AGomOperator SignDivide)
+operatorToGomAST (Operator "%" Empty) = pure (AGomOperator SignModulo)
+operatorToGomAST (Operator "==" Empty) = pure (AGomOperator SignEqual)
+operatorToGomAST (Operator "!=" Empty) = pure (AGomOperator SignNotEqual)
+operatorToGomAST (Operator "!" Empty) = pure (AGomOperator SignNot)
+operatorToGomAST (Operator "&&" Empty) = pure (AGomOperator SignAnd)
+operatorToGomAST (Operator "||" Empty) = pure (AGomOperator SignOr)
+operatorToGomAST (Operator "<=" Empty) = pure (AGomOperator SignInfEqual)
+operatorToGomAST (Operator ">=" Empty) = pure (AGomOperator SignSupEqual)
+operatorToGomAST (Operator "<" Empty) = pure (AGomOperator SignInf)
+operatorToGomAST (Operator ">" Empty) = pure (AGomOperator SignSup)
+operatorToGomAST (Operator op Empty) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
 operatorToGomAST _ = throwEvalError "Expected an Operator" []
 
 extractSymbol :: GomExpr -> Maybe String

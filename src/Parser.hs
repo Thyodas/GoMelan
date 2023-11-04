@@ -174,7 +174,7 @@ parseListAssignement = List <$> (parseBetween '[' ']' (parseSep ',' parseExpress
 
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseAssignmentPlusPlus <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
+    <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
@@ -185,14 +185,14 @@ handleOtherCases = Parser $ \str -> Left [
 
 -- | Parse binary operators
 parseBinaryOperator :: Parser GomExpr
-parseBinaryOperator = Operator <$>
+parseBinaryOperator = flip Operator Empty <$>
                 (parseOperatorPlus <|> parseOperatorMinus <|>
                 parseOperatorMultiply <|> parseOperatorDivide <|>
                 parseOperatorModulo <|> parseOperatorEqual <|>
                 parseOperatorNotEqual <|> parseOperatorNot <|>
                 parseOperatorAnd <|> parseOperatorInfEqual <|>
                 parseOperatorSupEqual <|> parseOperatorInf <|>
-                parseOperatorSup)
+                parseOperatorSup) <|> parseOperatorAccess
 
 -- | Parse a given string
 parseSymbol :: String -> Parser String
@@ -216,8 +216,10 @@ parseOperatorPlus = parseSymbol "+"
 parseOperatorMinus :: Parser String
 parseOperatorMinus = parseSymbol "-"
 
--- parseOperatorAccess :: Parser String
--- parseOperatorAccess = String <$> parseBetween '[' ']' parseExpression
+parseOperatorAccess :: Parser GomExpr
+parseOperatorAccess = do
+    expression <-  parseBetween '[' ']' parseExpression
+    return $ Operator "[]" expression
 
 -- | Parse operator MUL ''
 parseOperatorMultiply :: Parser String
@@ -382,10 +384,18 @@ parseIdentifier = Identifier <$> parseToken
 
 parseAssignmentPlusPlus :: Parser GomExpr
 parseAssignmentPlusPlus = do
-    id <- parseTypedIdentifier <|> parseIdentifier
-    _ <- parseAmongWhitespace $ parseSymbol "++"
-    return $ Assignment {assignedIdentifier=id,
-                            assignedExpression=Expression [id, Operator "+", Number 1]}
+    id' <- parseTypedIdentifier <|> parseIdentifier
+    op <- parseAmongWhitespace $ (parseSymbol "++" <|> parseSymbol "--")
+    return $ Assignment {assignedIdentifier=id',
+                            assignedExpression=Expression [id', Operator (take 1 op) Empty, Number 1]}
+
+parseAssignmentOperator :: Parser GomExpr
+parseAssignmentOperator =  do
+    id' <- parseTypedIdentifier <|> parseIdentifier
+    op <- parseAmongWhitespace $ (parseSymbol "+=" <|> parseSymbol "-=" <|> parseSymbol "*=" <|> parseSymbol "/=" <|> parseSymbol "%=")
+    expression <- parseAmongWhitespace $ parseExpression
+    return $ Assignment {assignedIdentifier=id',
+                            assignedExpression=Expression [id', Operator (take 1 op) Empty, expression]}
 
 -- | Parse variable / fonction assigment
 parseAssignent :: Parser GomExpr

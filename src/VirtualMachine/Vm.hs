@@ -13,9 +13,9 @@ module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
 import Safe (toEnumMay)
-
-
 import Data.List (find)
+import Ast (GomAST(..), EnumOperator(..))
+
 
 data Val = VNum Int
     | VBool Bool
@@ -34,38 +34,6 @@ instance Show Val where
     show (VOp x) = show x
     show (VFunction x) = foldl (\ x' xs -> x' ++ show xs) "" x
     show (VNil) = "null"
-
-data EnumOperator = SignPlus
-    | SignMinus
-    | SignMultiply
-    | SignDivide
-    | SignModulo
-    | SignEqual
-    | SignNotEqual
-    | SignNot
-    | SignAnd
-    | SignOr
-    | SignInfEqual
-    | SignSupEqual
-    | SignInf
-    | SignSup
-    deriving (Eq, Enum, Bounded)
-
-instance Show EnumOperator where
-  show SignPlus = "+"
-  show SignMinus = "-"
-  show SignMultiply = "*"
-  show SignDivide = "/"
-  show SignModulo = "%"
-  show SignEqual = "=="
-  show SignNotEqual = "!="
-  show SignNot = "!"
-  show SignAnd = "&&"
-  show SignOr = "||"
-  show SignInfEqual = "<="
-  show SignSupEqual = ">="
-  show SignInf = "<"
-  show SignSup = ">"
 
 data Instructions = Push Val
     | JumpIfFalse Int       -- Jump if false
@@ -97,7 +65,7 @@ data Compiled = Compiled VmEnv Insts
 instance Show Compiled where
   show (Compiled [] insts) = show insts
   show (Compiled [x] insts) = show x ++ ", " ++ show insts
-  show (Compiled (x:xs) insts) = show x ++ ", " ++ show xs
+  show (Compiled (x:xs) _) = show x ++ ", " ++ show xs
 
 instance Binary Val where
     put (VNum num) = putWord8 0 >> put num
@@ -220,6 +188,8 @@ execOperation SignSupEqual (VNum a:VNum b:_) = Right (VBool (a >= b))
 execOperation SignSupEqual _ = Left ("GreaterEq: invalid arguments")
 execOperation SignAnd (VBool a:VBool b:_) = Right (VBool (a && b))
 execOperation SignAnd _ = Left ("And: invalid arguments")
+execOperation SignOr (VBool a:VBool b:_) = Right (VBool (a || b))
+execOperation SignOr _ = Left ("Or: invalid arguments")
 execOperation SignNot (VBool a:_) = Right (VBool (not a))
 execOperation SignNot _ = Left ("Not: invalid arguments")
 execOperation SignModulo (VNum _:VNum 0:_) = Left ("Mod: modulo by zero")
