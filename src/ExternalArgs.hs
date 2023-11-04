@@ -12,48 +12,74 @@ import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Exit
 import Control.Monad (when)
+import System.Environment (getProgName)
+import Execution (execBuild, execRun)
 
-data Options = Run   {}
-    | Build   {}
-    | Interactive   {}
+data Options = Run { src :: FilePath }
+    | Build { src :: FilePath, out :: FilePath }
+    | Interactive { optSrc :: FilePath }
     deriving (Data, Typeable, Show, Eq)
 
+outFlags :: FilePath -> FilePath
+outFlags x = x &= help "Output file" &= typFile
+
+srcFlags :: Int -> FilePath
+srcFlags i = def &= argPos i &= typFile
+
 run :: Options
-run = Run {}
-    &= details  [ "Run Gomelan" ]
+run = Run
+    {src = srcFlags 0
+    }
+    &= help "Run Gomelan"
 
 build :: Options
-build = Build {}
-    &= details  [ "Build Gomelan" ]
+build = Build
+    {src = srcFlags 1
+    ,out = outFlags "out.gomc"
+    }
+    &= help  "Build Gomelan"
 
 interactive :: Options
-interactive = Interactive {}
-    &= details  [ "Run Gomelan in interactive mode" ]
+interactive = Interactive
+    {optSrc = def &= opt "" &= argPos 0 &= typ "FILE"
+    }
+    &= help ("Run Gomelan in interactive mode.")
 
-myModes :: Mode (CmdArgs Options)
-myModes = cmdArgsMode $ modes [run, build, interactive]
-    &= versionArg [explicit, name "version", name "v", summary _PROGRAM_INFO]
+
+myModes = cmdArgsMode $ modes [build, run, interactive]
+    &= versionArg [explicit, name "version", summary _PROGRAM_INFO]
     &= summary (_PROGRAM_INFO ++ ", " ++ _COPYRIGHT)
     &= help _PROGRAM_ABOUT
     &= helpArg [explicit, name "help", name "h"]
     &= program _PROGRAM_NAME
+    &= verbosity
 
-_PROGRAM_NAME = "Gomelan"
+_PROGRAM_NAME :: String
+_PROGRAM_NAME = "gomelan"
+
+_PROGRAM_VERSION :: String
 _PROGRAM_VERSION = "1.0.0"
+
+_PROGRAM_INFO :: String
 _PROGRAM_INFO = _PROGRAM_NAME ++ " version " ++ _PROGRAM_VERSION
-_PROGRAM_ABOUT = "Gomelan programme able to parse and exectute Gomelan programmation language"
-_COPYRIGHT = "(C) Giacomel Marie - Hein Guillaume - Hourtoulle Tristan - Prenteau Thomas - Rossignon Lucas 2011"
+
+_PROGRAM_ABOUT :: String
+_PROGRAM_ABOUT = "Gomelan program able to parse and execute Gomelan programmation language"
+
+_COPYRIGHT :: String
+_COPYRIGHT = "(C) 2023 GIACOMEL Marie - HEIN Guillaume - HOURTOULLE Tristan - PARENTEAU Thomas - ROSSIGNON Lucas"
 
 getGomelanArgs :: IO ()
 getGomelanArgs = do
-    args <- getArgs
-    opts <- (if null args then withArgs ["--help"] else id) $ cmdArgsRun myModes
+    progArgs <- getArgs
+    opts <- (if null progArgs then withArgs ["--help"] else id) $ cmdArgsRun myModes
     optionHandler opts
 
 optionHandler :: Options -> IO ()
-optionHandler opts = exec opts
+optionHandler opts = runArgs opts
 
-exec :: Options -> IO ()
-exec opts@Run = putStrLn $ "Run option !"
-exec opts@Build = putStrLn $ "Build option !"
-exec opts@Interactive = putStrLn $ "Build option !"
+runArgs :: Options -> IO ()
+runArgs opts@Build {src = src, out = out} = execBuild src out
+runArgs opts@Run {src = src} = execRun src
+runArgs opts@Interactive {optSrc = ""} = putStrLn "Interactive option default !" >> print opts
+runArgs opts@Interactive {optSrc = src} = putStrLn "Interactive option !" >> print opts

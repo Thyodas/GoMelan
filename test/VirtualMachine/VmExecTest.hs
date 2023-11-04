@@ -48,15 +48,15 @@ testAbsCodeInEnv = TestCase $ do
 testFactorialCodeInEnv :: Test
 testFactorialCodeInEnv = TestCase $ do
    let env = [("fact", VFunction [
-         Push (VNum 1),
          PushArg 0,
-         Push (VOp SignMinus),
+         Push (VNum 1),
+         Push (VOp SignInfEqual),
          Call 2,
          JumpIfFalse 2,
          Push (VNum 1),
          Ret,
-         Push (VNum 1),
          PushArg 0,
+         Push (VNum 1),
          Push (VOp SignMinus),
          Call 2,
          PushEnv "fact",

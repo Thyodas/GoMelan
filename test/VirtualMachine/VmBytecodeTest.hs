@@ -143,7 +143,7 @@ testExecOperation = TestList [
    TestCase $ assertEqual "Not with valid arguments" (Right (VBool False)) (execOperation SignNot [VBool True]),
    TestCase $ assertEqual "Not with invalid arguments" (Left "Not: invalid arguments") (execOperation SignNot [VNum 5]),
    TestCase $ assertEqual "Modulo with valid arguments" (Right (VNum 1)) (execOperation SignModulo [VNum 5, VNum 2]),
-   TestCase $ assertEqual "Modulo with division by zero" (Left "Mod: modulo by zero") (execOperation SignModulo [VNum 0, VNum 5]),
+   TestCase $ assertEqual "Modulo with division by zero" (Left "Mod: modulo by zero") (execOperation SignModulo [VNum 5, VNum 0]),
    TestCase $ assertEqual "Modulo with invalid arguments" (Left "Mod: invalid arguments") (execOperation SignModulo [VNum 5]),
    TestCase $ assertEqual "Inequality with valid arguments" (Right (VBool True)) (execOperation SignNotEqual [VNum 5, VNum 3]),
    TestCase $ assertEqual "Inequality with invalid number of arguments" (Left "Neq: invalid number of arguments") (execOperation SignNotEqual [VNum 5])

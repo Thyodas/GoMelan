@@ -321,11 +321,11 @@ gomExprToGomAST env (IncludeStatement i m) = do
 gomExprToGomAST env a@(Assignment _ _) = gomExprToAGomAssignment env a
 gomExprToGomAST _ Empty = pure ([], AGomEmpty)
 gomExprToGomAST env (ForLoopIter init cond update block) = do
-  (_, init') <- gomExprToGomAST env init
-  (_, cond') <- gomExprToGomAST env cond
-  (_, update') <- gomExprToGomAST env update
-  (blockEnv, block') <- gomExprToGomAST env block
-  return (removeNewAssignment env blockEnv, AGomForLoop init' cond' update' block')
+  (initEnv, init') <- gomExprToGomAST env init
+  (_, cond') <- gomExprToGomAST (env ++ initEnv) cond
+  (_, update') <- gomExprToGomAST (env ++ initEnv) update
+  (blockEnv, block') <- gomExprToGomAST (env ++ initEnv) block
+  return (removeNewAssignment env (blockEnv ++ initEnv), AGomForLoop init' cond' update' block')
 gomExprToGomAST env (Condition cond true false) = do
   (_, cond') <- gomExprToGomAST env cond
   (trueEnv, true') <- gomExprToGomAST env true
@@ -392,3 +392,6 @@ envLookupEval :: Env -> EnvKey -> EvalResult EnvValue
 envLookupEval env key = case envLookup env key of
   Just val -> pure val
   Nothing -> throwEvalError ("Identifier '" ++ key ++ "' not found in env") []
+
+
+--  exec [] [] [Jump 2, Push (VNum 1), Ret, Jump (-2), Ret] []

@@ -7,7 +7,8 @@
 
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
     Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
-    execHelper, getOperationNbArgs) where
+    execHelper, getOperationNbArgs, serializeAndWriteCompiled,
+        readAndDeserializeCompiled, _ENTRY_POINT_AST) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
@@ -204,7 +205,7 @@ execOperation SignMinus (VNum a:VNum b:_) = Right (VNum (a - b))
 execOperation SignMinus _ = Left ("Sub: invalid arguments")
 execOperation SignMultiply (VNum a:VNum b:_) = Right (VNum (a * b))
 execOperation SignMultiply _ = Left ("Mul: invalid arguments")
-execOperation SignDivide (VNum 0:VNum _:_) = Left ("Div: division by zero")
+execOperation SignDivide (VNum _:VNum 0:_) = Left ("Div: division by zero")
 execOperation SignDivide (VNum a:VNum b:_) = Right (VNum (a `div` b))
 execOperation SignDivide _ = Left ("Div: invalid arguments")
 execOperation SignEqual (a:b:_) = Right (VBool (a == b))
@@ -221,7 +222,7 @@ execOperation SignAnd (VBool a:VBool b:_) = Right (VBool (a && b))
 execOperation SignAnd _ = Left ("And: invalid arguments")
 execOperation SignNot (VBool a:_) = Right (VBool (not a))
 execOperation SignNot _ = Left ("Not: invalid arguments")
-execOperation SignModulo (VNum 0:VNum _:_) = Left ("Mod: modulo by zero")
+execOperation SignModulo (VNum _:VNum 0:_) = Left ("Mod: modulo by zero")
 execOperation SignModulo (VNum a:VNum b:_) = Right (VNum (a `mod` b))
 execOperation SignModulo _ = Left ("Mod: invalid arguments")
 execOperation SignNotEqual (a:b:_) = Right (VBool (a /= b))
@@ -250,6 +251,11 @@ vmEnvLookup env key = find checkKey env >>= Just . snd
     checkKey :: VmEnvEntry -> Bool
     checkKey (sym, _) = sym == key
 
+execWithMain :: VmEnv -> Args -> Insts -> Stack -> Either String Val
+execWithMain env args insts stack = exec env args finalInsts stack
+    where
+        finalInsts = insts ++ _ENTRY_POINT_AST
+
 -- | Execute instructions
 exec :: VmEnv -> Args -> Insts -> Stack -> Either String Val
 exec env args insts stack = execHelper env args insts insts stack
@@ -264,7 +270,7 @@ execHelper env args allInsts ((Push value):xs) stack =
 execHelper _ _ _ (Call _:_) [] = Left $ "Call: missing value on stack"
 execHelper env args allInsts (Call x:xs) (call:stack)
     | x < 0 = Left $ "Call: invalid number of arguments"
-    | otherwise = execCall env (take x stack) call
+    | otherwise = execCall env (reverse $ take x stack) call
         >>= execHelper env args allInsts xs . (: drop x stack)
 execHelper _ _ _ ((Ret):_) (value:_) = Right $ value
 execHelper _ _ _ ((Ret):_) _ = Left $ "Ret: missing value on stack"
@@ -287,7 +293,7 @@ execHelper env args allInsts ((Jump shift):xs) stack
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack
     | otherwise = execHelper env args allInsts (drop shift xs) stack
         where
-            nbToDrop = (length allInsts - length xs + 1) + shift
+            nbToDrop = (length allInsts - length xs - 1) + shift
 
 execHelper env args allInsts ((PushArg i):xs) stack = getIndexEither i args
     "PushArg: invalid index" >>= execHelper env args allInsts xs . (: stack)
@@ -297,3 +303,6 @@ execHelper env args allInsts ((AddEnv key):xs) (value:stack) =
 execHelper _ _ _ ((AddEnv _):_) _ = Left $ "AddEnv: missing value on stack"
 
 execHelper _ _ _ [] _ = Left $ "Missing return instruction"
+
+_ENTRY_POINT_AST :: Insts
+_ENTRY_POINT_AST = [PushEnv "main", Call 0, Ret]

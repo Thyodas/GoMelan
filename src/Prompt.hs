@@ -61,3 +61,7 @@ replLoop env = do
     hFlush stdout
     input <- catch (getLines "") handleEOF
     processInput env input
+
+replExecution :: IO ()
+replExecution = putStrLn "Welcome to GLaDOS!" >> replLoop []
+

@@ -1,0 +1,12 @@
+fn main() -> Int
+{
+    a: Int = 1;
+
+    for (i: Int = 0; i < 10; i = i + 1)
+    {
+        b: Int = 2;
+        a = a * b;
+    }
+
+    return a;
+}

@@ -86,9 +86,9 @@ compileAst env (AGomForLoop lInit lCond lUpdate lBody) = do
     let compiledBodyInsts = getCompiledInsts compiledBody
     let compiledBodyEnv = getCompiledEnv compiledBody
     return $ Compiled compiledBodyEnv (compiledInitInsts ++ compiledCondInsts
-            ++ [JumpIfFalse (length compiledBodyInsts + 1)]
+            ++ [JumpIfFalse (length compiledBodyInsts + length compiledUpdateInsts + 1)]
             ++ compiledBodyInsts ++ compiledUpdateInsts
-            ++ compiledCondInsts ++ [Jump (-(length compiledBodyInsts
+            ++ [Jump (-(length compiledBodyInsts
             + length compiledUpdateInsts + length compiledCondInsts + 1))])
 
 compileAst env (AGomBlock block) = do
