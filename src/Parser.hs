@@ -464,7 +464,7 @@ parseForLoopCondition = parseExpression
 
 -- | Parse a value assigment or nothing (empty)
 parseForLoopUpdate :: Parser GomExpr
-parseForLoopUpdate = parseAssignent <|> pure Empty
+parseForLoopUpdate = parseAssignent <|> parseExpression <|> pure Empty
 
 -- | Print an expression
 --parsePrint :: Parser String

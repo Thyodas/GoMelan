@@ -5,17 +5,14 @@
 -- InternalFunctions
 -}
 
-module InternalFunctions (internalEnv) where
+module InternalFunctions (astInternalEnv) where
 
 import VirtualMachine.Vm (Args(..), Val(..))
 import Ast (GomAST(..), EvalResult(..), Env,
     throwEvalError)
 
-newtype InternalFunction = InternalFunction (Args -> Either String Val)
-
-
-internalEnv :: Env
-internalEnv = [
+astInternalEnv :: Env
+astInternalEnv = [
         ("len", AGomInternalFunction
             "len"
             (AGomParameterList [AGomTypedIdentifier "list" (AGomTypeList

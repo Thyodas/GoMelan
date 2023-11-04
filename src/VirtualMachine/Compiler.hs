@@ -105,6 +105,18 @@ compileAst env (AGomReturnStatement expr) = do
     let compiledExprInsts = getCompiledInsts compiledExpr
     return $ Compiled [] (compiledExprInsts ++ [Ret])
 
+compileAst env (AGomList list) = do
+    compiledList <- compileAllAst env list
+    let compiledListInsts = getCompiledInsts compiledList
+    -- let compiledListEnv = getCompiledEnv compiledList
+    return $ Compiled [] (compiledListInsts ++ [BuildList (length list)])
+
+compileAst env (AGomAccess list index) = do
+    compiledList <- compileAst env list
+    compiledIndex <- compileAst env index
+    let compiledListInsts = getCompiledInsts compiledList
+    let compiledIndexInsts = getCompiledInsts compiledIndex
+    return $ Compiled [] (compiledListInsts ++ compiledIndexInsts ++ [AccessList])
 
 compileAst _ unknown = throwEvalError ("Not implemented yet: '"
     ++ show unknown ++ "'.") []

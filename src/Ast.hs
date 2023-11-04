@@ -5,6 +5,8 @@
 -- Ast
 -}
 
+{-# LANGUAGE DeriveGeneric #-}
+
 module Ast (
     GomExpr(..),
     GomExprType(..),
@@ -33,6 +35,11 @@ module Ast (
 ) where
 
 import Data.List (deleteBy, find, nub)
+
+import Data.Binary
+import qualified Data.ByteString.Lazy as BS
+import Safe (toEnumMay)
+import Generic.Data (Generic, geq)
 
 data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
@@ -90,7 +97,13 @@ data GomAST =
   | AGomForLoop { aGomForLoopInitialization :: GomAST, aGomForLoopCondition :: GomAST, aGomForLoopUpdate :: GomAST, aGomForLoopIterBlock :: GomAST }
   | AGomCondition { aGomIfCondition :: GomAST, aGomIfTrue :: GomAST, aGomIfFalse :: GomAST }
   | AGomFunctionDefinition { aGomFnName :: [Char], aGomFnArguments :: GomAST, aGomFnBody :: GomAST, aGomFnReturnType :: GomAST }
-  deriving (Show, Eq)
+  deriving (Generic, Show)
+
+instance Eq GomAST where
+  -- Setting up of wildcard type 'any'
+  (AGomTypeAny) == _ = True
+  _ == (AGomTypeAny) = True
+  x == y = geq x y
 
 data EnumOperator = SignPlus
     | SignMinus
@@ -107,6 +120,18 @@ data EnumOperator = SignPlus
     | SignInf
     | SignSup
     deriving (Eq, Enum, Bounded)
+
+instance Binary EnumOperator where
+  put op = putWord8 (fromIntegral $ fromEnum op)
+
+  get = do
+      tag <- getWord8
+      get' tag
+          where
+              get' :: Word8 -> Get EnumOperator
+              get' tag = case toEnumMay (fromIntegral tag) of
+                  Just op -> return op
+                  Nothing -> fail "Invalid tag while deserializing Operations"
 
 instance Show EnumOperator where
   show SignPlus = "+"
@@ -150,15 +175,6 @@ instance Monad EvalResult where
   --   EvalResult (Left e) -> EvalResult (Left e)
   --   EvalResult (Right (_, x')) -> EvalResult (Right (env, x'))
 
-internalEnv :: Env
-internalEnv = [
-        ("len", AGomInternalFunction
-            "len"
-            (AGomParameterList
-                [AGomTypedIdentifier "list" (AGomTypeList [AGomTypeAny])])
-            (AGomType "Int"))
-    ]
-
 applyToSnd :: (b -> c) -> (a, b) -> (a, c)
 applyToSnd f (x, y) = (x, f y)
 
@@ -182,6 +198,7 @@ typeResolver env (AGomFunctionCall s _) = do
   func <- envLookupEval env s
   case func of
     AGomFunctionDefinition { aGomFnReturnType=retType } -> pure retType
+    AGomInternalFunction { aGomInternalReturnType=retType } -> pure retType
     _ -> throwEvalError ("Identifier '" ++ s ++ "' is not a function") []
 typeResolver env (AGomIdentifier s) = do
   identifierValue <- envLookupEval env s
@@ -201,11 +218,6 @@ typeResolver env (AGomList elements) = do
     [_] -> pure $ AGomTypeList uniqueTypes
     tList -> throwEvalError ("Types mismatch in list, found '" ++
                               show tList ++ "'") []
-typeResolver env (AGomInternalFunction name args retType) = do
-  func <- envLookupEval env name
-  case func of
-    AGomInternalFunction { aGomInternalReturnType=retType } -> pure retType
-    _ -> throwEvalError ("Identifier '" ++ name ++ "' is not a function") []
 typeResolver env (AGomExpression exprs) = do
   types <- traverse (typeResolver env) exprs
   let uniqueTypes = nub (filter (/= AGomType "Operator") types)
@@ -231,17 +243,12 @@ checkType env astA astB = do
   resolvedA <- typeResolver env astA
   resolvedB <- typeResolver env astB
 
-  if (resolvedA == resolvedB) || (any (== AGomTypeAny) [resolvedA, resolvedB])
-    then
-      case find (/= AGomTypeAny ) [resolvedA, resolvedB] of
-        Just x -> pure $ x
-        Nothing ->
-            throwEvalError "Type mismatch, cannot compare two Any types." []
+  if (resolvedA == resolvedB)
+    then pure $ resolvedA
     else throwEvalError
       ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
       ++ show resolvedB ++ "'.") []
 
--- TODO: finish this function (missing transformation of block and so on)
 getAGomFunctionDefinition :: Env -> String -> EvalResult GomAST
 getAGomFunctionDefinition env name = do
   func <- envLookupEval env name
@@ -253,12 +260,26 @@ getAGomFunctionDefinition env name = do
     _ -> throwEvalError ("Identifier '" ++ name
       ++ "' is not a function") []
 
+getAGomFunctionParameters :: Env -> String -> EvalResult GomAST
+getAGomFunctionParameters env name = do
+  func <- envLookupEval env name
+  case func of
+    AGomFunctionDefinition {aGomFnArguments=(params@(AGomParameterList _))} ->
+        pure params
+    AGomFunctionDefinition {} ->
+      throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
+    AGomInternalFunction {aGomInternalArguments=(params@(AGomParameterList _))} ->
+        pure params
+    AGomInternalFunction {} ->
+      throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
+    _ -> throwEvalError ("Identifier '" ++ name
+      ++ "' is not a function") []
+
 gomExprToAGomFunctionCall :: Env -> GomExpr -> EvalResult (Env, GomAST)
 gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
   (ParameterList args)) = do
   (_, argsAst) <- gomExprListToGomASTList env args
-  AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)} <-
-    getAGomFunctionDefinition env name
+  (AGomParameterList funcDefArgs) <- getAGomFunctionParameters env name
   funcDegArgsTypes <- traverse (typeResolver env) funcDefArgs
   _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
   return $ (env, AGomFunctionCall name (AGomParameterList argsAst))
@@ -412,7 +433,16 @@ gomExprToGomAST env (Function name args body retType) = do
     newFunction)
 gomExprToGomAST env (ReturnStatement expr) = do
   (_, expr') <- gomExprToGomAST env expr
+  (AGomFunctionDefinition {aGomFnReturnType=retType}) <- getLastDefinedFunction
+    env
+  _ <- checkType env expr' retType
   return ([], AGomReturnStatement expr')
+
+getLastDefinedFunction :: Env -> EvalResult GomAST
+getLastDefinedFunction [] = throwEvalError "Return statement with no function"
+  []
+getLastDefinedFunction ((_, fn@(AGomFunctionDefinition {})):_) = pure fn
+getLastDefinedFunction (_:rest) = getLastDefinedFunction rest
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
 operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)

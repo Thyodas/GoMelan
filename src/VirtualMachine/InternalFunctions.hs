@@ -5,14 +5,17 @@
 -- InternalFunctions
 -}
 
-module VirtualMachine.InternalFunctions where
+module VirtualMachine.InternalFunctions (vmInternalEnv) where
 
 import VirtualMachine.Vm (Args(..), Val(..), VmEnv(..), InternalFunction(..))
 import Data.Either (Either(..))
 
-internalEnv :: VmEnv
-internalEnv = [
-        ("len", VInternalFunction (InternalFunction lenOfList))
+import Data.Binary
+import qualified Data.ByteString.Lazy as BS
+
+vmInternalEnv :: VmEnv
+vmInternalEnv = [
+        ("len", VInternalFunction (InternalFunction "len" lenOfList))
     ]
 
 lenOfList :: Args -> Either String Val
