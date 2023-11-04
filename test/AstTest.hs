@@ -55,7 +55,8 @@ testTypeResolver = TestList [
         TestCase $ assertEqual "Testing invald matching pattern" expected9 result9,
         TestCase $ assertEqual "Testing invald matching pattern" expected10 result10,
         TestCase $ assertEqual "Testing empty list" expected11 result11,
-        TestCase $ assertEqual "Testing invalid list type" result12 expected12
+        TestCase $ assertEqual "Testing invalid list type" result12 expected12,
+        TestCase $ assertEqual "Testing invalid, Couldn't resolve type" result13 expected13
     ]
     where
 
@@ -95,6 +96,10 @@ testTypeResolver = TestList [
         result12 = typeResolver [] (AGomList [AGomNumber 1, AGomStringLiteral "test"])
         expected12 = throwEvalError "Types mismatch in list, found '[AGomType \"Int\",AGomType \"String\"]'" []
 
+        result13 = typeResolver [] (AGomEmpty)
+        expected13 = throwEvalError "Couldn't resolve type for 'AGomEmpty'." []
+
+
 testGomExprToGomAST :: Test
 testGomExprToGomAST = TestList [
         TestCase $ assertEqual "Testing Number" expected1 result1,
@@ -119,7 +124,8 @@ testGomExprToGomAST = TestList [
         TestCase $ assertEqual "Testing Function" expected20 result20,
         TestCase $ assertEqual "Testing Shunting Yard" expected21 result21,
         TestCase $ assertEqual "Testing Shunting Yard with function call" expected22 result22,
-        TestCase $ assertEqual "Testing Shunting Yard with massive operators" expected23 result23
+        TestCase $ assertEqual "Testing Shunting Yard with massive operators" expected23 result23,
+        TestCase $ assertEqual "Testing Shunting Yard and return ([], AGomReturnStatement expr')" expected24 result24
     ]
     where
 
@@ -191,6 +197,10 @@ testGomExprToGomAST = TestList [
 
         result23 = gomExprToGomAST [] (Expression [Number 10,Operator "-" Empty,Number 1,Operator "/" Empty,Number 3,Operator "==" Empty,Number 3,Operator "&&" Empty,Number 5,Operator "<=" Empty,Number 34,Operator ">=" Empty,Number 56,Operator "<" Empty,Number 1,Operator ">" Empty,Number 100,Operator "&&" Empty,Number 4,Operator "!" Empty,Number 90,Operator "!=" Empty,Number 70])
         expected23 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomNumber 3,AGomOperator SignDivide,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 56,AGomOperator SignSupEqual,AGomNumber 1,AGomOperator SignInf,AGomNumber 100,AGomOperator SignSup,AGomNumber 4,AGomNumber 90,AGomOperator SignNot,AGomOperator SignAnd,AGomNumber 70,AGomOperator SignNotEqual])
+
+        result24 = gomExprToGomAST [] (ReturnStatement (Number 42))
+        expected24 = EvalResult $ Right $ ([], AGomReturnStatement (AGomNumber 42))
+
 
 
 testEqualType :: Test
@@ -349,6 +359,9 @@ testOperatorToGomAST = TestList
     , TestCase $ assertEqual "Operator to GomAST" expected11 result11
     , TestCase $ assertEqual "Operator to GomAST" expected12 result12
     , TestCase $ assertEqual "Operator to GomAST" expected13 result13
+    , TestCase $ assertEqual "Operator to GomAST" expected14 result14
+    , TestCase $ assertEqual "Operator to GomAST" expected15 result15
+    , TestCase $ assertEqual "Operator to GomAST error" expected16 result16
     ]
     where
         result1 = operatorToGomAST (Operator "+" Empty)
@@ -389,6 +402,15 @@ testOperatorToGomAST = TestList
 
         result13 = operatorToGomAST (Operator "%" Empty)
         expected13 = pure (AGomOperator SignModulo)
+
+        result14 = operatorToGomAST (Operator "&" Empty)
+        expected14 = throwEvalError ("Unknown operator '" ++ "&" ++ "'") []
+
+        result15 = operatorToGomAST (Operator "||" Empty)
+        expected15 = pure (AGomOperator SignOr)
+
+        result16 = operatorToGomAST (Number 42)
+        expected16 = throwEvalError ("Expected an Operator") []
 
 testGetIdDetails :: Test
 testGetIdDetails = TestList
@@ -436,6 +458,8 @@ testprecedence = TestList
     , TestCase $ assertEqual "precedence" 5 (precedence(Operator "!" Empty))
     , TestCase $ assertEqual "precedence" 0 (precedence(Operator "&" Empty))
     , TestCase $ assertEqual "precedence" 0 (precedence(Number 42))
+    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "||" Empty))
+    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "%" Empty))
     ]
 
 testGomExprToAGomAssignment :: Test
@@ -538,6 +562,7 @@ testFromModule = TestCase $ assertEqual "Extract fromModule" expected (fromModul
     from = Identifier "moduleB"
     includeExpr = IncludeStatement include from
     expected = from
+
 
 astTestList :: Test
 astTestList = TestList [
