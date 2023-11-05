@@ -23,15 +23,10 @@ import File (readFileEither)
 import System.Environment()
 import System.Exit ( exitWith, ExitCode (ExitFailure))
 import System.Console.CmdArgs (whenLoud)
-
--- TODO: fix this file so that it handles new GomAST
-
--- runCode :: Env -> String -> Either ErrorMsg (Env, [GomAST])
--- runCode _ _ = Right ([], [AGomIdentifier "runCode is not implemented"])
-
--- convertEnvToVmEnv :: Env -> EvalResult (VmEnv)
--- convertEnvToVmEnv env@((key, value):rest) =
---     (key, value) : convertEnvToVmEnv rest
+import System.FilePath ((</>), takeDirectory)
+import System.Directory (canonicalizePath)
+import Debug.Trace (traceM)
+import Control.Monad (when)
 
 
 -- | Check list
@@ -41,12 +36,6 @@ convertListToAST env (ast:rest) = do
         (newEnv, result) <- gomExprToGomAST env ast
         (finalEnv, results) <- convertListToAST (newEnv ++ env) rest
         pure (finalEnv ++ newEnv, result : results)
-
--- -- | Execute all AST
--- runAllAst :: Env -> [GomAST] -> Either ErrorMsg (Env, [GomAST])
--- runAllAst env asts = case evalList env asts of
---     EvalResult (Right results) -> Right results
---     EvalResult (Left (EvalError msg _)) -> Left msg
 
 codeToAST :: Env -> String -> Either ErrorMsg (Env, [GomAST])
 codeToAST astEnv code =  do
@@ -58,24 +47,63 @@ codeToAST astEnv code =  do
         EvalResult (Left (EvalError msg _)) -> Left msg
     return result
 
-codeToCompiled :: Env -> String -> Either ErrorMsg Compiled
-codeToCompiled astEnv code = do
-    (_, ast) <- codeToAST astEnv code
+codeToCompiled :: Env -> [GomExpr] -> Either ErrorMsg Compiled
+codeToCompiled astEnv gomexpr = do
+    (_, ast) <- case convertListToAST astEnv gomexpr of
+        EvalResult (Right results) -> Right results
+        EvalResult (Left (EvalError msg _)) -> Left msg
     compiled <- case compileAllAst [] ast of
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg
     return compiled
 
-fileExecution :: String -> IO ()
-fileExecution path = do
+resolveIncludePath :: FilePath -> FilePath -> FilePath
+resolveIncludePath currentFilePath includePath =
+    let currentDirectory = takeDirectory currentFilePath
+    in currentDirectory </> includePath
+
+getAllIncludes :: String -> [GomExpr] -> IO [GomExpr]
+getAllIncludes srcPath gomexpr = getAllIncludesHelper srcPath gomexpr [srcPath]
+
+
+getAllIncludesHelper :: String -> [GomExpr] -> [String] -> IO [GomExpr]
+getAllIncludesHelper _ [] _ = pure []
+getAllIncludesHelper srcPath (IncludeStatement _ path:rest) prevInc = do
+    resolvedPath <- canonicalizePath $ resolveIncludePath srcPath path
+    _ <- checkCircularDependency resolvedPath prevInc
+    content <- readFileContent resolvedPath
+    gomexpr <- parseContentToGomExpr content
+    resRec <- getAllIncludesHelper resolvedPath gomexpr (prevInc ++ [resolvedPath])
+    res <- getAllIncludesHelper srcPath rest (prevInc ++ [resolvedPath])
+    return $ resRec ++ res
+getAllIncludesHelper srcPath (current:rest) prevInc = do
+    res <- getAllIncludesHelper srcPath rest prevInc
+    return $ current : res
+
+checkCircularDependency :: String -> [String] -> IO ()
+checkCircularDependency resolvedPath prevInc =
+    when (resolvedPath `elem` prevInc) $ putStrLn ("Circular dependency detected: " ++ resolvedPath) >> exitWith (ExitFailure 84)
+
+readFileContent :: FilePath -> IO String
+readFileContent path = do
     file <- readFileEither path
-    content <- case file of
+    case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right content -> pure content
-    result <- case runCode [] content of
-        Left err -> putStrLn err >> exitWith (ExitFailure 84)
-        Right result -> pure result
-    putStrLn $ show result
+
+parseContentToGomExpr :: String -> IO [GomExpr]
+parseContentToGomExpr content = do
+    case runParser parseCodeToGomExpr content of
+        Left errList -> putStrLn (printErrors content errList) >> exitWith (ExitFailure 84)
+        Right (gomexpr, _) -> pure gomexpr
+
+codeToGomExprWithInclude :: String -> String -> IO ([GomExpr])
+codeToGomExprWithInclude srcPath code = do
+    res <- case runParser parseCodeToGomExpr code of
+        Right other -> return other
+        Left errList -> putStrLn (printErrors code errList) >> exitWith (ExitFailure 84)
+    case res of
+        (gomexpr, _) -> getAllIncludes srcPath gomexpr
 
 execBuild :: String -> String -> IO ()
 execBuild src out = do
@@ -83,7 +111,8 @@ execBuild src out = do
     content <- case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right content -> pure content
-    compiled <- case codeToCompiled astInternalEnv content of
+    gomexpr <- codeToGomExprWithInclude src content
+    compiled <- case codeToCompiled astInternalEnv gomexpr of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right compiled -> pure compiled
     serializeAndWriteCompiled out compiled
@@ -118,20 +147,3 @@ parseCodeToGomExprResult code =
     case runParser parseCodeToGomExpr code of
         Right other -> Right other
         Left errList -> Left $ printErrors code errList
-
--- -- | Check list
--- evalList :: Env -> [GomAST] -> EvalResult (Env, [GomAST])
--- evalList env [] = pure (env, [])
--- evalList env (ast:rest) = do
---   (newEnv, result) <- evalSingle env ast
---   (finalEnv, results) <- evalList newEnv rest
---   pure (finalEnv, result : results)
---     where
---         evalSingle :: Env -> GomAST -> EvalResult (Env, GomAST)
---         evalSingle env' ast' = evalAST env' ast'
-
--- -- | Execute all AST
--- runAllAst :: Env -> [GomAST] -> Either ErrorMsg (Env, [GomAST])
--- runAllAst env asts = case evalList env asts of
---     EvalResult (Right results) -> Right results
---     EvalResult (Left (EvalError msg _)) -> Left msg

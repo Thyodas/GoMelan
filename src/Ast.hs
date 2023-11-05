@@ -64,7 +64,7 @@ data GomExpr = Number Int
     | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
     | FunctionPrototype { fnProtoName :: [Char], fnProtoArguments :: GomExpr, fnProtoReturnType :: GomExpr }
     | TypedIdentifier { identifier :: [Char], identifierType :: GomExpr}
-    | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
+    | IncludeStatement { includeList :: GomExpr, fromModule :: String }
     | Empty
     | Assignment { assignedIdentifier :: GomExpr, assignedExpression :: GomExpr }
     | ForLoopIter { forLoopInitialization :: GomExpr, forLoopCondition :: GomExpr,
@@ -416,10 +416,7 @@ gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall
 gomExprToGomAST env (TypedIdentifier name t) = do
   (_, t') <- gomExprToGomAST env t
   return ([], AGomTypedIdentifier name t')
-gomExprToGomAST env (IncludeStatement i m) = do
-  (_, i') <- gomExprToGomAST env i
-  (_, m') <- gomExprToGomAST env m
-  return ([], AGomIncludeStatement i' m')
+gomExprToGomAST _ (IncludeStatement _ _) = return ([], AGomEmpty)
 gomExprToGomAST env a@(Assignment _ _) = gomExprToAGomAssignment env a
 gomExprToGomAST _ Empty = pure ([], AGomEmpty)
 gomExprToGomAST env (ForLoopIter init cond update block) = do
