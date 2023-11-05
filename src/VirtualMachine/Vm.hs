@@ -8,7 +8,7 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
-    Stack, Insts, Compiled(..), VmEnv(..), execCall, execOperation,
+    Stack, Insts, Compiled(..), VmEnv, execCall, execOperation,
     execHelper, getOperationNbArgs, serializeAndWriteCompiled,
         readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain, InternalFunction(..), Args) where
 
@@ -99,7 +99,7 @@ instance Integral Val where
 
 instance Fractional Val where
     (/) :: Val -> Val -> Val
-    (VNum a) / (VNum b) = VFloatNum (fromIntegral a / fromIntegral b)
+    (VNum a) / (VNum b) = VNum (a `div` b)
     (VFloatNum a) / (VFloatNum b) = VFloatNum (a / b)
     _ / _ = VNil
 

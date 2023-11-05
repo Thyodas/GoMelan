@@ -9,7 +9,7 @@ module VirtualMachine.InternalFunctions (vmInternalEnv) where
 
 import VirtualMachine.Vm (Args, Val(..), VmEnv, InternalFunction(..))
 import Data.Either()
-import Data.Char (isDigit)
+import Data.Char()
 import Data.Binary()
 import Text.Read (readMaybe)
 import qualified Data.ByteString.Lazy as BS

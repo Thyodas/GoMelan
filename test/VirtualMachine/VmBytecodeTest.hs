@@ -8,9 +8,9 @@
 module VirtualMachine.VmBytecodeTest (vmBytecodeTestList) where
 
 import Test.HUnit
-import Execution (runCode)
-import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
-   Insts, exec, execCall, execOperation, execHelper, Compiled(..), VmEnv(..))
+import Execution()
+import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..),
+    execCall, execOperation, execHelper, Compiled(..), Insts)
 import Data.Binary (encode, decode, decodeOrFail)
 import Data.Binary.Get (ByteOffset)
 import qualified Data.ByteString.Lazy as BS
@@ -96,7 +96,7 @@ testExecCallWithFunction = TestCase $ do
    let args = [VNum 5]
    let instructions = [PushArg 0, Push (VNum 2),
                         Push (VOp SignMultiply), Call 2, Ret]
-   let stack = []
+   let _ = []
    let result = execCall env args (VFunction instructions)
    let expected = Right (VNum 10)
    assertEqual "ExecCall with function" expected result
@@ -121,7 +121,7 @@ testExecOperation :: Test
 testExecOperation = TestList [
    TestCase $ assertEqual "Addition with valid arguments" (VNum 8) (execOperation SignPlus [VNum 5, VNum 3]),
    TestCase $ assertEqual "Addition with invalid arguments" (VNil) (execOperation SignPlus [VNum 5]),
-   TestCase $ assertEqual "Subtraction with valid arguments" (VNil) (execOperation SignMinus [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Subtraction with valid arguments" (VNum 2) (execOperation SignMinus [VNum 5, VNum 3]),
    TestCase $ assertEqual "Subtraction with invalid arguments" (VNil) (execOperation SignMinus [VNum 5]),
    TestCase $ assertEqual "Multiplication with valid arguments" (VNum 15) (execOperation SignMultiply [VNum 5, VNum 3]),
    TestCase $ assertEqual "Multiplication with invalid arguments" (VNil) (execOperation SignMultiply [VNum 5]),
