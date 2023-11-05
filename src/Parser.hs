@@ -405,8 +405,8 @@ parseSome parser = (:) <$> parser <*> parseMany parser
 
 
 parseSomeThrowIfNotEnd :: Parser a -> Parser [a]
-parseSomeThrowIfNotEnd parser = (:) <$> parser <*> parseSome parser
-    <|> parseEmptyListIfEnd
+parseSomeThrowIfNotEnd parser = (:) <$> parser <*> (parseSome parser
+    <|> parseEmptyListIfEnd)
 
 
 -- -- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
