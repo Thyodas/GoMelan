@@ -129,10 +129,6 @@ parseBetween open close parser = do
     _ <- parseChar close
     return result
 
--- | Parse characters bewteen " and "
-parseString :: Parser GomExpr
-parseString = GomString <$> (parseChar '"' *> parseUntilAny ['"'])
-
 -- | Parse Statement
 parseStatement :: Parser GomExpr
 parseStatement = parseAmongWhitespace (
@@ -189,9 +185,27 @@ parseAccess = do
                "Expected an expression before []"
         Left _ -> throwParseError MissingExpression "Expected an expression."
 
+-- | Parse characters bewteen " and "
+parseString :: Parser GomExpr
+parseString = do
+    str <- parseChar '"' *> parseUntilAny ['"']
+    return $ stringToCharacterList str
+
+stringToCharacterList :: String -> GomExpr
+stringToCharacterList = List <$> map Character
+
+parseTypeChar :: Parser GomExpr
+parseTypeChar = do
+    _ <- parseChar '\''
+    char <- parseUntilAny "'"
+    case char of
+        [x] -> return $ Character x
+        _ -> throwParseError MissingExpression
+            "Expected a char between ''."
+
 -- | Parse factor
 parseFactor :: Parser GomExpr
-parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
+parseFactor = (Number <$> parseNumber) <|> parseTypeChar <|> parseFunctionCall
     <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseAssignent
     <|> parseAccess  <|> parseIdentifier <|> parseLiteral
     <|> parseListAssignement
@@ -280,14 +294,20 @@ parseOperatorNot = parseSymbol "!"
 parseOperatorAnd :: Parser String
 parseOperatorAnd = parseSymbol "&&"
 
+parseTypeStringToCharList :: Parser GomExprType
+parseTypeStringToCharList = do
+    _ <- parseSymbol "String"
+    return $ TypeList [SingleType "Char"]
+
 -- | Parse all type and even custom type
 parseType :: Parser GomExpr
 parseType = Type <$> parseType' <?> ParseError MissingType "Expected a type."
     where
         parseType' :: Parser GomExprType
         parseType' = SingleType <$> (parseSymbol "Int"
-                <|> parseSymbol "String"
+                <|> parseSymbol "Char"
                 <|> parseSymbol "Bool")
+            <|> parseTypeStringToCharList
             <|> TypeList <$> (: []) <$> parseBetween '[' ']' parseType'
             <|> parseCustomType
 

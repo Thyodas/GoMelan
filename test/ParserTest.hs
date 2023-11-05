@@ -275,10 +275,10 @@ testParseString = TestList
     ]
     where
         result1 = runParser parseString "\"hello world\""
-        expected1 = Right (GomString "hello world", "")
+        expected1 = Right (List [Character 'h',Character 'e',Character 'l',Character 'l',Character 'o',Character ' ',Character 'w',Character 'o',Character 'r',Character 'l',Character 'd'], "")
 
         result2 = runParser parseString "\"hello world\";"
-        expected2 = Right (GomString "hello world", ";")
+        expected2 = Right (List [Character 'h',Character 'e',Character 'l',Character 'l',Character 'o',Character ' ',Character 'w',Character 'o',Character 'r',Character 'l',Character 'd'], ";")
 
 testParseReturnStatement :: Test
 testParseReturnStatement = TestList
@@ -946,7 +946,7 @@ testParseLiteral = TestList
         assertEqual "Parsing a number" expected result
     , "parseLiteral: Parses a string" ~: do
         let code = "\"hello world\""
-        let expected = GomString "hello world"
+        let expected = List [Character 'h',Character 'e',Character 'l',Character 'l',Character 'o',Character ' ',Character 'w',Character 'o',Character 'r',Character 'l',Character 'd']
         let result = case runParser parseLiteral code of
                         Right (res, _) -> res
                         Left err -> error $ show err
