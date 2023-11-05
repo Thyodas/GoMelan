@@ -9,9 +9,9 @@ module AstTest (astTestList) where
 
 import Test.HUnit
 import Data.Maybe
-import InternalFunctions (internalEnv)
+import InternalFunctions (astInternalEnv)
 import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvValue, EnumOperator(..), GomExprType(..),
-   EvalResult(..), GomExpr(..), gomExprToGomAST, InternalFunction(..),
+   EvalResult(..), GomExpr(..), gomExprToGomAST,
    typeResolver, extractSymbol, applyToSnd, envLookupEval, checkType,
    getAGomFunctionDefinition, throwEvalError, gomExprToAGomFunctionCall,
    operatorToGomAST, getIdDetails, precedence, gomExprToAGomAssignment
@@ -20,7 +20,7 @@ import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvVal
 import VirtualMachine.Vm (EnumOperator(..))
 
 testEnv :: Env
-testEnv = internalEnv ++  [
+testEnv = astInternalEnv ++  [
     ("key1", AGomIdentifier "value1"),
     ("key2", AGomIdentifier "value2"),
     ("key3", AGomIdentifier "value3"),
@@ -55,7 +55,8 @@ testTypeResolver = TestList [
         TestCase $ assertEqual "Testing invald matching pattern" expected9 result9,
         TestCase $ assertEqual "Testing invald matching pattern" expected10 result10,
         TestCase $ assertEqual "Testing empty list" expected11 result11,
-        TestCase $ assertEqual "Testing invalid list type" result12 expected12
+        TestCase $ assertEqual "Testing invalid list type" result12 expected12,
+        TestCase $ assertEqual "Testing invalid, Couldn't resolve type" result13 expected13
     ]
     where
 
@@ -95,6 +96,10 @@ testTypeResolver = TestList [
         result12 = typeResolver [] (AGomList [AGomNumber 1, AGomStringLiteral "test"])
         expected12 = throwEvalError "Types mismatch in list, found '[AGomType \"Int\",AGomType \"String\"]'" []
 
+        result13 = typeResolver [] (AGomEmpty)
+        expected13 = throwEvalError "Couldn't resolve type for 'AGomEmpty'." []
+
+
 testGomExprToGomAST :: Test
 testGomExprToGomAST = TestList [
         TestCase $ assertEqual "Testing Number" expected1 result1,
@@ -119,7 +124,8 @@ testGomExprToGomAST = TestList [
         TestCase $ assertEqual "Testing Function" expected20 result20,
         TestCase $ assertEqual "Testing Shunting Yard" expected21 result21,
         TestCase $ assertEqual "Testing Shunting Yard with function call" expected22 result22,
-        TestCase $ assertEqual "Testing Shunting Yard with massive operators" expected23 result23
+        TestCase $ assertEqual "Testing Shunting Yard with massive operators" expected23 result23,
+        TestCase $ assertEqual "Testing Shunting Yard and return ([], AGomReturnStatement expr')" expected24 result24
     ]
     where
 
@@ -162,8 +168,8 @@ testGomExprToGomAST = TestList [
         result13 = gomExprToGomAST [] (ParameterList [TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")},TypedIdentifier {identifier = "y", identifierType = Type (SingleType "Int")}])
         expected13 = pure ([], AGomParameterList  [AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"},AGomTypedIdentifier {aGomIdentifier = "y", aGomIdentifierType = AGomType "Int"}])
 
-        result14 = gomExprToGomAST [("add", AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomFunctionArgument (AGomIdentifier "x") (AGomType "Int")], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })] (FunctionCall { functionName = Identifier "add", functionArguments = ParameterList [Number 42] })
-        expected14 = pure ([("add",AGomFunctionDefinition {aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomFunctionArgument {aGomArgumentName = AGomIdentifier "x", aGomArgumentType = AGomType "Int"}], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int"})],AGomFunctionCall {aGomFunctionName = "add", aGomFunctionArguments = AGomParameterList [AGomNumber 42]})
+        result14 = gomExprToGomAST [("add", AGomFunctionDefinition { aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomTypedIdentifier "x" (AGomType "Int")], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int" })] (FunctionCall { functionName = Identifier "add", functionArguments = ParameterList [Number 42] })
+        expected14 = pure ([("add",AGomFunctionDefinition {aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomTypedIdentifier "x" (AGomType "Int")], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int"})],AGomFunctionCall {aGomFunctionName = "add", aGomFunctionArguments = AGomParameterList [AGomNumber 42]})
 
         result15 = gomExprToGomAST [] (TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")})
         expected15 = pure ([], AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"})
@@ -180,17 +186,24 @@ testGomExprToGomAST = TestList [
         result19 = gomExprToGomAST [] (Condition { gomIfCondition = Expression [Number 42, Operator "<", Number 84], gomIfTrue = Expression [Boolean True], gomIfFalse = Expression [Boolean False] })
         expected19 = pure ([],AGomCondition {aGomIfCondition = AGomExpression [AGomNumber 42,AGomNumber 84,AGomOperator SignInf], aGomIfTrue = AGomExpression [AGomBooleanLiteral True], aGomIfFalse = AGomExpression [AGomBooleanLiteral False]})
 
+        main20 = AGomFunctionDefinition {aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"}], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int"}
         result20 = gomExprToGomAST [] (Function { fnName = "add", fnArguments = ParameterList [TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")}], fnBody = Empty, fnReturnType = Type (SingleType "Int") })
-        expected20 = pure ([],AGomFunctionDefinition {aGomFnName = "add", aGomFnArguments = AGomParameterList [AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"}], aGomFnBody = AGomEmpty, aGomFnReturnType = AGomType "Int"})
+        expected20 = pure ([("add", main20)], main20)
 
         result21 = gomExprToGomAST [] (Expression [Number 1,Operator "+",Number 1,Operator "*",Number 2])
         expected21 = EvalResult $ Right $ ([], AGomExpression [AGomNumber 1,AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus])
 
+        main22 = AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = "main", aGomFunctionArguments = AGomParameterList []},AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus]], aGomFnReturnType = AGomType "Int"}
         result22 = gomExprToGomAST [] (Function {fnName = "main", fnArguments = ParameterList [], fnBody = Block [Expression [FunctionCall {functionName = Identifier "main", functionArguments = ParameterList []},Operator "+",Number 1,Operator "*",Number 2]], fnReturnType = Type (SingleType "Int")})
-        expected22 = EvalResult $ Right $ ([],AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = "main", aGomFunctionArguments = AGomParameterList []},AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus]], aGomFnReturnType = AGomType "Int"})
+        expected22 = EvalResult $ Right $ ([("main", main22)], main22)
 
         result23 = gomExprToGomAST [] (Expression [Number 10,Operator "-",Number 1,Operator "/",Number 3,Operator "==",Number 3,Operator "&&",Number 5,Operator "<=",Number 34,Operator ">=",Number 56,Operator "<",Number 1,Operator ">",Number 100,Operator "&&",Number 4,Operator "!",Number 90,Operator "!=",Number 70])
         expected23 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomNumber 3,AGomOperator SignDivide,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 56,AGomOperator SignSupEqual,AGomNumber 1,AGomOperator SignInf,AGomNumber 100,AGomOperator SignSup,AGomNumber 4,AGomNumber 90,AGomOperator SignNot,AGomOperator SignAnd,AGomNumber 70,AGomOperator SignNotEqual])
+
+        main24 = AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = "main", aGomFunctionArguments = AGomParameterList []},AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus]], aGomFnReturnType = AGomType "Int"}
+        result24 = gomExprToGomAST [("main", main24)] (ReturnStatement (Number 42))
+        expected24 = EvalResult $ Right $ ([], AGomReturnStatement (AGomNumber 42))
+
 
 
 testEqualType :: Test
@@ -349,6 +362,9 @@ testOperatorToGomAST = TestList
     , TestCase $ assertEqual "Operator to GomAST" expected11 result11
     , TestCase $ assertEqual "Operator to GomAST" expected12 result12
     , TestCase $ assertEqual "Operator to GomAST" expected13 result13
+    , TestCase $ assertEqual "Operator to GomAST" expected14 result14
+    , TestCase $ assertEqual "Operator to GomAST" expected15 result15
+    , TestCase $ assertEqual "Operator to GomAST error" expected16 result16
     ]
     where
         result1 = operatorToGomAST (Operator "+")
@@ -389,6 +405,15 @@ testOperatorToGomAST = TestList
 
         result13 = operatorToGomAST (Operator "%")
         expected13 = pure (AGomOperator SignModulo)
+
+        result14 = operatorToGomAST (Operator "&")
+        expected14 = throwEvalError ("Unknown operator '" ++ "&" ++ "'") []
+
+        result15 = operatorToGomAST (Operator "||")
+        expected15 = pure (AGomOperator SignOr)
+
+        result16 = operatorToGomAST (Number 42)
+        expected16 = throwEvalError ("Expected an Operator") []
 
 testGetIdDetails :: Test
 testGetIdDetails = TestList
@@ -436,6 +461,8 @@ testprecedence = TestList
     , TestCase $ assertEqual "precedence" 5 (precedence(Operator "!"))
     , TestCase $ assertEqual "precedence" 0 (precedence(Operator "&"))
     , TestCase $ assertEqual "precedence" 0 (precedence(Number 42))
+    , TestCase $ assertEqual "precedence" 1 (precedence(Operator "||"))
+    , TestCase $ assertEqual "precedence" 4 (precedence(Operator "%"))
     ]
 
 testGomExprToAGomAssignment :: Test
@@ -538,6 +565,7 @@ testFromModule = TestCase $ assertEqual "Extract fromModule" expected (fromModul
     from = Identifier "moduleB"
     includeExpr = IncludeStatement include from
     expected = from
+
 
 astTestList :: Test
 astTestList = TestList [

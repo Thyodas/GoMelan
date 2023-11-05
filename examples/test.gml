@@ -1,11 +1,7 @@
 fn main() -> Int
 {
-    res: Int = 0;
-    res2: Int = 1;
-
-    if (res == 0 && res2 == 1) {
-        return 3;
-    } else {
-        return 0;
-    }
+    list: [[Int]] = [[1, 2], [3, 4]];
+    index: [Int] = list[1];
+    longueur: Int = len(index);
+    return 0;
 }

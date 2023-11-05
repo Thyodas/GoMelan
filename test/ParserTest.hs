@@ -15,6 +15,7 @@ import Parser (parseAnyChar, parseChar, parseOr, parseAnd, parseAndWith, ErrorTy
     parseExpressionList, parseCodeToGomExpr, parseIncludeStatement, parseVariableDeclaration, parseLiteral,
     printErrorDetails, printErrors, printErrorLine, printLineWithError, runAndPrintParser,
     parseOperatorPlus, parseBinaryOperator,parseUntilAny, parseComment, parseGomExpr, parseBetween, parseCodeToGomExpr,
+    takeFurthestError, throwParseError, parseSymbol, (<?!>), parseAssignmentPlusPlus, parseAssignmentOperator,
     parseListAssignement)
 
 testShowErrorType :: Test
@@ -304,6 +305,13 @@ testParseExpression = TestList
         result3 = runParser parseExpression "(1 + 2)"
         expected3 = Right (Expression [Expression [Number 1,Operator "+",Number 2]],"")
 
+
+
+
+
+
+
+
 testParseOperatorEqual :: Test
 testParseOperatorEqual = TestList
     [ TestCase $ assertEqual "parseOperatorEqual valid" expected1 result1
@@ -560,7 +568,7 @@ testParseForLoopIter :: Test
 testParseForLoopIter = TestList
     [ "Test parseForLoopIter valid" ~:
         let input = "for (x = 0; x < 10; x = x + 1) {}"
-            expected = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingExpression "Expected symbol 'if'." "}",ParseError MissingExpression "Expected 'i' but got '}'." "}"]
+            expected = Left [ParseError InvalidBlock "Expected a block" "{}",ParseError MissingClosing "Expected any of [but got to the end." ""]
             result = runParser parseForLoopIter input
         in assertEqual "Should parse valid input" expected result
     , "Test parseForLoopIter invalid" ~:
@@ -680,7 +688,7 @@ testParseVariableDeclaration = TestList
         in assertEqual "Should parse valid input" expected result
     , "Test parseVariableDeclaration with no value" ~:
         let input = "x : Int = ;"
-            expected = Left [ParseError MissingExpression "Expected '(' but got ';'." ";"]
+            expected = Left [ParseError MissingClosing "Expected any of [but got to the end." ""]
             result = runParser parseVariableDeclaration input
         in assertEqual "Should handle invalid input" expected result
     ]
@@ -847,8 +855,114 @@ testPrintLineWithError = TestList
         assertEqual "Printing line with error details" expected result
     ]
 
+testTakeFurthestError :: Test
+testTakeFurthestError = TestList
+    [   TestCase $ assertEqual "Take furthest error with empty stacks" expected1 result1,
+        TestCase $ assertEqual "Take furthest error with one empty stack" expected2 result2,
+        TestCase $ assertEqual "Take furthest error with one empty stack" expected3 result3,
+        TestCase $ assertEqual "Take furthest error with different length message" expected4 result4,
+        TestCase $ assertEqual "Take furthest error with different length message" expected5 result5
+    ]
+    where
+        result1 = takeFurthestError [] []
+        expected1 = []
+
+        result2 = takeFurthestError [] [ParseError MissingIdentifier "Error message" "Remaining code"]
+        expected2 = [ParseError MissingIdentifier "Error message" "Remaining code"]
+
+        result3 = takeFurthestError [ParseError MissingIdentifier "Error message" "Remaining code"] []
+        expected3 = [ParseError MissingIdentifier "Error message" "Remaining code"]
+
+        result4 = takeFurthestError [ParseError MissingIdentifier "Error message" "Remaining code"] [ParseError MissingFunctionName "Error message" "Remaining code"]
+        expected4 = [ParseError MissingFunctionName "Error message" "Remaining code"]
+
+        result5 = takeFurthestError [ParseError MissingClosing "Error 1" "Remaining part 1"] [ParseError MissingIdentifier "Error 2" "Very long remaining part 2"]
+        expected5 = [ParseError MissingClosing "Error 1" "Remaining part 1"]
+
+testThrowParseError :: Test
+testThrowParseError = TestList
+    [ TestCase $ do
+        let expectedError = [ParseError MissingClosing "Missing closing bracket" "Remaining part"]
+        let actualError = case runParser (throwParseError MissingClosing "Missing closing bracket") "Remaining part" of
+                            Left err -> err
+                            Right _ -> []
+
+        assertEqual "Throwing ParseError for MissingClosing" expectedError actualError
+    ]
+
+testCustomErrorMessage :: Test
+testCustomErrorMessage = TestList
+    [ "Custom error message replaces last error in stack" ~: do
+        let code = "let x = 10;"
+        let expected = [ParseError MissingIdentifier "Missing identifier." "let x = 10;"]
+        let result = runParser ((parseSymbol "+" <?!> ParseError MissingOperator "Expected operator.") <?!> ParseError MissingIdentifier "Missing identifier.") code
+        assertEqual "Custom error message replaces last error in stack" (Left expected) result
+    ]
+
+-- testParseSymbol :: Test
+-- testParseSymbol = TestList
+--     [
+
+--     ]
+
+testParseSymbol :: Test
+testParseSymbol = TestList
+    [ TestCase $ assertEqual "parseSymbol: Expected a symbol but got empty string." expected1 result1
+    ]
+    where
+        result1 = runParser (parseSymbol []) ""
+        expected1 = Left [ParseError MissingExpression "Expected symbol ''." "",ParseError EmptyParser "parseSymbol: Expected a symbol but got empty string." ""]
+
+testParseAssignmentPlusPlus :: Test
+testParseAssignmentPlusPlus = TestList
+    [ "parseAssignmentPlusPlus: Parses assignment operator with ++" ~: do
+        let code = "x++"
+        let expected = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Number 1]}
+        let result = case runParser parseAssignmentPlusPlus code of
+                        Right (res, _) -> res
+                        Left err -> error $ show err
+        assertEqual "Parsing assignment operator with ++" expected result
+    ]
+
+testParseAssignmentOperator :: Test
+testParseAssignmentOperator = TestList
+    [ "parseAssignmentOperator: Parses assignment operator" ~: do
+        let code = "x += 1"
+        let expected = Assignment {assignedIdentifier = Identifier "x", assignedExpression = Expression [Identifier "x",Operator "+",Expression [Number 1]]}
+        let result = case runParser parseAssignmentOperator code of
+                        Right (res, _) -> res
+                        Left err -> error $ show err
+        assertEqual "Parsing assignment operator" expected result
+    ]
+
+testParseLiteral :: Test
+testParseLiteral = TestList
+    [ "parseLiteral: Parses a number" ~: do
+        let code = "42"
+        let expected = Number 42
+        let result = case runParser parseLiteral code of
+                        Right (res, _) -> res
+                        Left err -> error $ show err
+        assertEqual "Parsing a number" expected result
+    , "parseLiteral: Parses a string" ~: do
+        let code = "\"hello world\""
+        let expected = GomString "hello world"
+        let result = case runParser parseLiteral code of
+                        Right (res, _) -> res
+                        Left err -> error $ show err
+        assertEqual "Parsing a string" expected result
+    ]
+
+
 parserTestList :: Test
 parserTestList = TestList [
+    testParseLiteral,
+    testParseAssignmentOperator,
+    testParseAssignmentPlusPlus,
+    testParseSymbol,
+    testCustomErrorMessage,
+    testThrowParseError,
+    testTakeFurthestError,
     testPrintLineWithError,
     testPrintErrors,
     testPrintErrorDetails,
@@ -867,7 +981,6 @@ parserTestList = TestList [
     testParseTypedIdentifier,
     testParseForLoopIter,
     testParseAssignent,
-    -- testParseTermWithOperator,
     testParseList,
     testParseReturnType,
     testParseCustomType,
@@ -906,19 +1019,14 @@ parserTestList = TestList [
     testParseManyEmpty,
     testParseSomeValid,
     testParseSomeFail,
-    -- testParseInt,
     testParseIntTwo,
     testParseIntNegative,
     testParseIntFail,
     testParsePair,
     testParsePairFail,
-    -- testParseList,
-    -- testParseListFail,
     testParserTokenChar,
     testparseIdentifier,
-    -- testParseNumber,
     testParseBoolean,
-    -- testParseAtom,
     testParseComment,
     testParseUntilAny,
     testEmpty,
@@ -928,10 +1036,6 @@ parserTestList = TestList [
     testParseOperatorEqual,
     testParseOperatorModulo,
     testParseOperatorInf,
-    -- testParseStatement,
     testParseString,
     testListAssignement
-    -- testParseReturnStatement,
-    -- testParseExpression,
-    -- testParseGomExpr
     ]

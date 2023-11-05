@@ -8,7 +8,6 @@
 module ExecutionTest (executionTestList) where
 
 import Test.HUnit
-import InternalFunctions (internalEnv)
 import Ast (GomAST(..), envInsert)
 import Execution (runCode)
 

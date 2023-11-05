@@ -45,7 +45,7 @@ interactive = Interactive
     }
     &= help ("Run Gomelan in interactive mode.")
 
-
+myModes :: Mode (CmdArgs Options)
 myModes = cmdArgsMode $ modes [build, run, interactive]
     &= versionArg [explicit, name "version", summary _PROGRAM_INFO]
     &= summary (_PROGRAM_INFO ++ ", " ++ _COPYRIGHT)
@@ -64,15 +64,18 @@ _PROGRAM_INFO :: String
 _PROGRAM_INFO = _PROGRAM_NAME ++ " version " ++ _PROGRAM_VERSION
 
 _PROGRAM_ABOUT :: String
-_PROGRAM_ABOUT = "Gomelan program able to parse and execute Gomelan programmation language"
+_PROGRAM_ABOUT = "Gomelan program able to parse and execute " ++
+                "Gomelan programmation language"
 
 _COPYRIGHT :: String
-_COPYRIGHT = "(C) 2023 GIACOMEL Marie - HEIN Guillaume - HOURTOULLE Tristan - PARENTEAU Thomas - ROSSIGNON Lucas"
+_COPYRIGHT = "(C) 2023 GIACOMEL Marie - HEIN Guillaume - HOURTOULLE Tristan -"
+                ++ " PARENTEAU Thomas - ROSSIGNON Lucas"
 
 getGomelanArgs :: IO ()
 getGomelanArgs = do
     progArgs <- getArgs
-    opts <- (if null progArgs then withArgs ["--help"] else id) $ cmdArgsRun myModes
+    opts <- (if null progArgs then withArgs ["--help"] else id) $
+        cmdArgsRun myModes
     optionHandler opts
 
 optionHandler :: Options -> IO ()
@@ -81,5 +84,7 @@ optionHandler opts = runArgs opts
 runArgs :: Options -> IO ()
 runArgs opts@Build {src = src, out = out} = execBuild src out
 runArgs opts@Run {src = src} = execRun src
-runArgs opts@Interactive {optSrc = ""} = putStrLn "Interactive option default !" >> print opts
-runArgs opts@Interactive {optSrc = src} = putStrLn "Interactive option !" >> print opts
+runArgs opts@Interactive {optSrc = ""} = putStrLn
+    "Interactive option default !" >> print opts
+runArgs opts@Interactive {optSrc = src} = putStrLn
+    "Interactive option !" >> print opts

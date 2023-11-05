@@ -8,7 +8,7 @@
 module VirtualMachine.Compiler (compileAllAst, getCompiledInsts,
     getCompiledEnv) where
 
-import Ast (GomAST(..), EvalResult(..), EvalError(..), InternalFunction(..),
+import Ast (GomAST(..), EvalResult(..), EvalError(..),
     throwEvalError)
 import VirtualMachine.Vm (Instructions(..), Val(..), Stack,
     Insts, Compiled(..), EnumOperator(..), VmEnv(..), getOperationNbArgs)
@@ -69,9 +69,11 @@ compileAst env (AGomAssignment idName expr) = do
     let compiledExprInsts = getCompiledInsts compiledExpr
     return $ Compiled [] (compiledExprInsts ++ [AddEnv name])
 
-compileAst env (AGomFunctionDefinition fnName (AGomParameterList fnArgs) fnBody _) = do
+compileAst env (AGomFunctionDefinition fnName (AGomParameterList fnArgs) fnBody
+    _) = do
     compiledBody <- compileAst env fnBody
-    let args = concat [[PushArg i, AddEnv el] | (i, AGomTypedIdentifier el _) <- zip [0..] fnArgs]
+    let args = concat [[PushArg i, AddEnv el] | (i, AGomTypedIdentifier el _)
+                   <- zip [0..] fnArgs]
     let compiledBodyInsts = args ++ getCompiledInsts compiledBody
     return $ Compiled [(fnName, VFunction compiledBodyInsts)] []
 
@@ -86,7 +88,8 @@ compileAst env (AGomForLoop lInit lCond lUpdate lBody) = do
     let compiledBodyInsts = getCompiledInsts compiledBody
     let compiledBodyEnv = getCompiledEnv compiledBody
     return $ Compiled compiledBodyEnv (compiledInitInsts ++ compiledCondInsts
-            ++ [JumpIfFalse (length compiledBodyInsts + length compiledUpdateInsts + 1)]
+            ++ [JumpIfFalse (length compiledBodyInsts + length
+                            compiledUpdateInsts + 1)]
             ++ compiledBodyInsts ++ compiledUpdateInsts
             ++ [Jump (-(length compiledBodyInsts
             + length compiledUpdateInsts + length compiledCondInsts + 1))])
@@ -102,6 +105,20 @@ compileAst env (AGomReturnStatement expr) = do
     let compiledExprInsts = getCompiledInsts compiledExpr
     return $ Compiled [] (compiledExprInsts ++ [Ret])
 
+compileAst env (AGomList list) = do
+    compiledList <- compileAllAst env list
+    let compiledListInsts = getCompiledInsts compiledList
+    -- let compiledListEnv = getCompiledEnv compiledList
+    return $ Compiled [] (compiledListInsts ++ [BuildList (length list)])
+
+compileAst env (AGomAccess list index) = do
+    compiledList <- compileAst env list
+    compiledIndex <- compileAst env index
+    let compiledListInsts = getCompiledInsts compiledList
+    let compiledIndexInsts = getCompiledInsts compiledIndex
+    return $ Compiled [] (compiledListInsts ++ compiledIndexInsts ++ [AccessList])
+
+compileAst _ (AGomFunctionPrototype _ _ _) = pure $ Compiled [] []
 
 compileAst _ unknown = throwEvalError ("Not implemented yet: '"
     ++ show unknown ++ "'.") []

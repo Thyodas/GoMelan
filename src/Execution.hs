@@ -17,13 +17,12 @@ import VirtualMachine.Vm (Compiled(..), VmEnv(..), serializeAndWriteCompiled,
 import Text.Printf (printf)
 import Parser (parseCodeToGomExpr, runParser, printErrors)
 import Ast (GomAST(..), Env, EvalResult(..), EvalError(..), gomExprToGomAST)
-import InternalFunctions (internalEnv)
+import InternalFunctions (astInternalEnv)
+import VirtualMachine.InternalFunctions (vmInternalEnv)
 import File (readFileEither)
 import System.Environment (getArgs)
 import System.Exit ( exitWith, ExitCode (ExitFailure))
 import System.Console.CmdArgs (whenLoud)
-
-import Debug.Trace (trace)
 
 -- TODO: fix this file so that it handles new GomAST
 
@@ -31,18 +30,17 @@ import Debug.Trace (trace)
 -- runCode _ _ = Right ([], [AGomIdentifier "runCode is not implemented"])
 
 -- convertEnvToVmEnv :: Env -> EvalResult (VmEnv)
--- convertEnvToVmEnv env@((key, value):rest) = 
+-- convertEnvToVmEnv env@((key, value):rest) =
 --     (key, value) : convertEnvToVmEnv rest
 
 
 -- | Check list
 convertListToAST :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 convertListToAST env [] = pure (env, [])
-convertListToAST env (ast:rest) =
-  trace ("Env: "++show env) (do
+convertListToAST env (ast:rest) = do
         (newEnv, result) <- gomExprToGomAST env ast
         (finalEnv, results) <- convertListToAST (newEnv ++ env) rest
-        pure (finalEnv ++ newEnv, result : results))
+        pure (finalEnv ++ newEnv, result : results)
 
 -- -- | Execute all AST
 -- runAllAst :: Env -> [GomAST] -> Either ErrorMsg (Env, [GomAST])
@@ -58,7 +56,6 @@ codeToAST astEnv code =  do
     result <- case convertListToAST astEnv gomexpr of
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg
-    trace ("Result: "++show (snd result)) (pure result)
     return result
 
 codeToCompiled :: Env -> String -> Either ErrorMsg Compiled
@@ -86,7 +83,7 @@ execBuild src out = do
     content <- case file of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right content -> pure content
-    compiled <- case codeToCompiled [] content of
+    compiled <- case codeToCompiled astInternalEnv content of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right compiled -> pure compiled
     serializeAndWriteCompiled out compiled
@@ -95,11 +92,11 @@ execBuild src out = do
 execRun :: String -> IO ()
 execRun src = do
     readCompiled <- readAndDeserializeCompiled src
-    (Compiled env compiled) <- case readCompiled of
+    comShow@(Compiled env compiled) <- case readCompiled of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right compiled -> pure compiled
-    whenLoud $ print "Compiled instructions:" >> print env >> print compiled
-    case execWithMain env [] compiled [] of
+    whenLoud $ putStrLn "Compiled instructions:" >> print comShow
+    case execWithMain (env ++ vmInternalEnv) [] compiled [] of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right val -> print val
     return ()

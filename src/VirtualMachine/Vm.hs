@@ -8,14 +8,19 @@
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
     Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
     execHelper, getOperationNbArgs, serializeAndWriteCompiled,
-        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain) where
+        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain, InternalFunction(..), Args(..)) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
-import Safe (toEnumMay)
-
-
 import Data.List (find)
+import Ast (GomAST(..), EnumOperator(..))
+
+data InternalFunction = InternalFunction String (Args -> Either String Val)
+
+-- TODO: implement internal functions
+-- instance Binary InternalFunction where
+--     put _ = putWord8 0
+--     get = return $ InternalFunction (\ _ -> Left "Internal function not implemented")
 
 data Val = VNum Int
     | VBool Bool
@@ -23,49 +28,32 @@ data Val = VNum Int
     | VList [Val]
     | VOp EnumOperator
     | VFunction Insts
+    | VInternalFunction InternalFunction
     | VNil
     deriving (Eq)
+
+instance Show InternalFunction where
+  show (InternalFunction name _) = name
+
+instance Binary InternalFunction where
+    put (InternalFunction name _) = put name
+    get = do
+        name <- get
+        return $ InternalFunction name (\ _ ->
+            Left "Cannot deserialize internal function")
+
+instance Eq InternalFunction where
+  _ == _ = True
 
 instance Show Val where
     show (VNum x) = show x
     show (VBool x) = show x
     show (VStr x) = x
     show (VList x) = show x
-    show (VOp x) = show x
-    show (VFunction x) = foldl (\ x' xs -> x' ++ show xs) "" x
+    show (VOp x) = "<Operator '" ++ show x ++ "'>"
+    show (VFunction x) = foldl (\ x' xs -> x' ++ show xs ++ "\n") "" x
     show (VNil) = "null"
-
-data EnumOperator = SignPlus
-    | SignMinus
-    | SignMultiply
-    | SignDivide
-    | SignModulo
-    | SignEqual
-    | SignNotEqual
-    | SignNot
-    | SignAnd
-    | SignOr
-    | SignInfEqual
-    | SignSupEqual
-    | SignInf
-    | SignSup
-    deriving (Eq, Enum, Bounded)
-
-instance Show EnumOperator where
-  show SignPlus = "+"
-  show SignMinus = "-"
-  show SignMultiply = "*"
-  show SignDivide = "/"
-  show SignModulo = "%"
-  show SignEqual = "=="
-  show SignNotEqual = "!="
-  show SignNot = "!"
-  show SignAnd = "&&"
-  show SignOr = "||"
-  show SignInfEqual = "<="
-  show SignSupEqual = ">="
-  show SignInf = "<"
-  show SignSup = ">"
+    show (VInternalFunction internal) = "<Internal Function '" ++ show internal ++ "'>"
 
 data Instructions = Push Val
     | JumpIfFalse Int       -- Jump if false
@@ -73,20 +61,24 @@ data Instructions = Push Val
     | PushArg Int           -- Push argument n on the stack
     | PushEnv VmEnvKey      -- Push value of key in env on the stack
     | AddEnv VmEnvKey       -- Add value on top of stack to env
-    | Call Int                  -- Call a closure and put n elements in args
+    | Call Int              -- Call a closure and put n elements in args
+    | BuildList Int         -- Pop n elements from stack and build a list
+    | AccessList            -- Access element at index n in list (order in stack: list, index)
     | Ret                   -- Return from a closure
     deriving (Eq)
 
 instance Show Instructions where
-  show (Push x) = "Push " ++ (show x) ++ "\n"
-  show (JumpIfFalse x) = "If false " ++ (show x) ++ "\n"
-  show (Jump x) | x < 0 = "Jump back " ++ (show (-x)) ++ " instructions\n"
-                | otherwise = "Jump " ++ (show x) ++ " instructions\n"
-  show (PushArg x) = "Push to stack, arg " ++ (show x) ++ "\n"
-  show (PushEnv x) = "Push to stack, env key '" ++ (show x) ++ "'\n"
-  show (AddEnv x) = "Add to env " ++ (show x) ++ "\n"
+  show (Push x) = "Push " ++ (show x)
+  show (JumpIfFalse x) = "If false " ++ (show x)
+  show (Jump x) | x < 0 = "Jump back " ++ (show (-x)) ++ " instructions"
+                | otherwise = "Jump " ++ (show x) ++ " instructions"
+  show (PushArg x) = "Push to stack, arg " ++ (show x)
+  show (PushEnv x) = "Push to stack, env key " ++ (show x)
+  show (AddEnv x) = "Add to env " ++ (show x)
   show (Call x) = "Call with " ++ (show x) ++ " args\n"
-  show Ret = "Return\n"
+  show (BuildList x) = "Build list with " ++ (show x) ++ " args"
+  show (AccessList) = "Access list"
+  show Ret = "Return"
 
 type Stack = [Val]
 type Insts = [Instructions]
@@ -94,10 +86,17 @@ type Args = [Val]
 
 data Compiled = Compiled VmEnv Insts
 
+showEnvValue :: VmEnvValue -> String
+showEnvValue (VFunction insts) = foldl (\acc inst -> acc ++ "\t" ++ show inst ++ "\n") "" insts
+showEnvValue other = "\t" ++ show other ++ "\n"
+
+showEnv :: VmEnv -> String
+showEnv [] = ""
+showEnv ((key, val):xs) = key ++ ":\n" ++ (showEnvValue val) ++ "\n" ++ (showEnv xs)
+
 instance Show Compiled where
-  show (Compiled [] insts) = show insts
-  show (Compiled [x] insts) = show x ++ ", " ++ show insts
-  show (Compiled (x:xs) insts) = show x ++ ", " ++ show xs
+  show (Compiled env insts) = (showEnv env) ++ "\n"
+        ++ unlines (map show insts) ++ "\n"
 
 instance Binary Val where
     put (VNum num) = putWord8 0 >> put num
@@ -107,6 +106,7 @@ instance Binary Val where
     put (VOp op) = putWord8 4 >> put op
     put (VFunction insts) = putWord8 5 >> put insts
     put VNil = putWord8 6
+    put (VInternalFunction (InternalFunction n _)) = putWord8 7 >> put n
 
     get = do
         tag <- getWord8
@@ -119,19 +119,8 @@ instance Binary Val where
             get' 4 = VOp <$> get
             get' 5 = VFunction <$> get
             get' 6 = return VNil
+            get' 7 = VInternalFunction <$> get
             get' _ = fail "Invalid tag while deserializing Val"
-
-instance Binary EnumOperator where
-    put op = putWord8 (fromIntegral $ fromEnum op)
-
-    get = do
-        tag <- getWord8
-        get' tag
-            where
-                get' :: Word8 -> Get EnumOperator
-                get' tag = case toEnumMay (fromIntegral tag) of
-                    Just op -> return op
-                    Nothing -> fail "Invalid tag while deserializing Operations"
 
 instance Binary Instructions where
     put (Push val) = putWord8 0 >> put val
@@ -142,6 +131,8 @@ instance Binary Instructions where
     put Ret = putWord8 5
     put (Jump i) = putWord8 6 >> put i
     put (AddEnv key) = putWord8 7 >> put key
+    put (BuildList i) = putWord8 8 >> put i
+    put AccessList = putWord8 9
 
     get = do
         tag <- getWord8
@@ -155,6 +146,8 @@ instance Binary Instructions where
             get' 5 = return Ret
             get' 6 = Jump <$> get
             get' 7 = AddEnv <$> get
+            get' 8 = BuildList <$> get
+            get' 9 = return AccessList
             get' _ = fail "Invalid tag while deserializing Instructions"
 
 instance Eq Compiled where
@@ -180,12 +173,10 @@ readAndDeserializeCompiled filePath = do
 
 main :: IO ()
 main = do
-    let instructions = [Push (VBool True),JumpIfFalse 2,Push (VStr "then"),Jump 1,Push (VStr "else"), Ret]
-    let env = []
-    let compiled = Compiled env instructions
-
+    let instructions = [Push (VBool True),JumpIfFalse 2,Push (VStr "then"),
+                        Jump 1,Push (VStr "else"), Ret]
+    let env = []; compiled = Compiled env instructions
     serializeAndWriteCompiled "compiled.bin" compiled
-
     result <- readAndDeserializeCompiled "compiled.bin"
     case result of
         Left errMsg -> putStrLn $ "Deserialization Error: " ++ errMsg
@@ -220,6 +211,8 @@ execOperation SignSupEqual (VNum a:VNum b:_) = Right (VBool (a >= b))
 execOperation SignSupEqual _ = Left ("GreaterEq: invalid arguments")
 execOperation SignAnd (VBool a:VBool b:_) = Right (VBool (a && b))
 execOperation SignAnd _ = Left ("And: invalid arguments")
+execOperation SignOr (VBool a:VBool b:_) = Right (VBool (a || b))
+execOperation SignOr _ = Left ("Or: invalid arguments")
 execOperation SignNot (VBool a:_) = Right (VBool (not a))
 execOperation SignNot _ = Left ("Not: invalid arguments")
 execOperation SignModulo (VNum _:VNum 0:_) = Left ("Mod: modulo by zero")
@@ -232,6 +225,7 @@ execOperation SignOr _ = Left ("Or: invalid arguments")
 
 execCall :: VmEnv -> Args -> Val -> Either String Val
 execCall env args (VFunction insts) = execHelper env args insts insts []
+execCall _ args (VInternalFunction (InternalFunction _ f)) = f args
 execCall _ args (VOp op) = execOperation op args
 execCall _ _ _ = Left ("Call: invalid arguments")
 
@@ -262,9 +256,11 @@ exec env args insts stack = execHelper env args insts insts stack
 
 -- | Helper function, please use exec instead
 execHelper :: VmEnv -> Args -> Insts -> Insts -> Stack -> Either String Val
-execHelper env args allInsts ((PushEnv envKey):xs) stack = case vmEnvLookup env envKey of
+execHelper env args allInsts ((PushEnv envKey):xs) stack = case vmEnvLookup env
+                                                            envKey of
     Just value -> execHelper env args allInsts xs (value : stack)
-    Nothing -> Left $ "PushEnv: missing value in env for key '" ++ envKey ++ "'."
+    Nothing -> Left $ "PushEnv: missing value in env for key '" ++ envKey ++
+                "'."
 execHelper env args allInsts ((Push value):xs) stack =
     execHelper env args allInsts xs (value : stack)
 execHelper _ _ _ (Call _:_) [] = Left $ "Call: missing value on stack"
@@ -275,19 +271,22 @@ execHelper env args allInsts (Call x:xs) (call:stack)
 execHelper _ _ _ ((Ret):_) (value:_) = Right $ value
 execHelper _ _ _ ((Ret):_) _ = Left $ "Ret: missing value on stack"
 
-execHelper env args allInsts ((JumpIfFalse _):xs) (VBool True:stack) = execHelper env args allInsts xs stack
+execHelper env args allInsts ((JumpIfFalse _):xs) (VBool True:stack) =
+    execHelper env args allInsts xs stack
 execHelper env args allInsts ((JumpIfFalse shift):xs) (VBool False:stack)
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack
     | otherwise = execHelper env args allInsts (drop shift xs) stack
         where
             nbToDrop = (length allInsts - length xs + 1) + shift
-execHelper env args allInsts ((JumpIfFalse _):xs) (VNum 0:stack) = execHelper env args allInsts xs stack
+execHelper env args allInsts ((JumpIfFalse _):xs) (VNum 0:stack) =
+    execHelper env args allInsts xs stack
 execHelper env args allInsts ((JumpIfFalse shift):xs) (VNum _:stack)
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack
     | otherwise = execHelper env args allInsts (drop shift xs) stack
         where
             nbToDrop = (length allInsts - length xs + 1) + shift
-execHelper _ _ _ ((JumpIfFalse _):_) _ = Left $ "JumpIfFalse: missing or invalid value on stack"
+execHelper _ _ _ ((JumpIfFalse _):_) _ =
+    Left $ "JumpIfFalse: missing or invalid value on stack"
 
 execHelper env args allInsts ((Jump shift):xs) stack
     | shift < 0 = execHelper env args allInsts (drop nbToDrop allInsts) stack
@@ -301,6 +300,19 @@ execHelper env args allInsts ((PushArg i):xs) stack = getIndexEither i args
 execHelper env args allInsts ((AddEnv key):xs) (value:stack) =
     execHelper ((key, value) : env) args allInsts xs stack
 execHelper _ _ _ ((AddEnv _):_) _ = Left $ "AddEnv: missing value on stack"
+
+execHelper _ _ _ ((BuildList i):_) stack
+    | i > length stack = Left $ "BuildList: not enough values on stack"
+execHelper env args allInsts ((BuildList i):xs) stack =
+    execHelper env args allInsts xs (VList (reverse $ take i stack)
+        : drop i stack)
+
+execHelper _ _ _ ((AccessList):_) stack
+    | length stack < 2 = Left $ "AccessList: missing value on stack"
+execHelper env args allInsts ((AccessList):xs) (VNum i:VList list:stack)
+    | i >= length list || i < 0 = execHelper env args allInsts xs (VNil:stack)
+    | otherwise = execHelper env args allInsts xs (list !! i : stack)
+execHelper _ _ _ ((AccessList):_) _ = Left $ "AccessList: invalid arguments"
 
 execHelper _ _ _ [] _ = Left $ "Missing return instruction"
 
