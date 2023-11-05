@@ -192,8 +192,9 @@ parseAccess = do
 -- | Parse factor
 parseFactor :: Parser GomExpr
 parseFactor = (Number <$> parseNumber) <|> parseFunctionCall
-    <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseAccess
-    <|> parseIdentifier <|> parseLiteral <|> parseListAssignement
+    <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseAssignent
+    <|> parseAccess  <|> parseIdentifier <|> parseLiteral
+    <|> parseListAssignement
 
 -- | Handle other cases in parse binary operators
 handleOtherCases :: Parser String
