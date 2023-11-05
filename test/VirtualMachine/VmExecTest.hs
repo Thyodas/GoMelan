@@ -8,7 +8,6 @@
 module VirtualMachine.VmExecTest (vmExecTestList) where
 
 import Test.HUnit
-import InternalFunctions (internalEnv)
 import Execution (runCode)
 import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
    Insts, exec)

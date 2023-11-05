@@ -8,7 +8,6 @@
 module VirtualMachine.VmBytecodeTest (vmBytecodeTestList) where
 
 import Test.HUnit
-import InternalFunctions (internalEnv)
 import Execution (runCode)
 import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
    Insts, exec, execCall, execOperation, execHelper, Compiled(..), VmEnv(..))
@@ -229,7 +228,7 @@ testShowVList = TestCase $ do
 testShowVOp :: Test
 testShowVOp = TestCase $ do
     let v = VOp SignPlus
-    assertEqual "Show VOp SignPlus" "+" (show v)
+    assertEqual "Show VOp SignPlus" "<Operator '+'>" (show v)
 
 testShowVFunction :: Test
 testShowVFunction = TestCase $ do
@@ -264,7 +263,7 @@ testShowCompiled = TestCase $ do
     let env = [("x", VNum 5), ("y", VBool True)]
     let instructions = [Push (VNum 1), Push (VNum 2), Push (VOp SignPlus)]
     let compiled = Compiled env instructions
-    let expectedShow =  "(\"x\",5), [(\"y\",True)]"
+    let expectedShow =  "x:\n\t5\n\ny:\n\tTrue\n\n\nPush 1\nPush 2\nPush <Operator '+'>\n\n"
     assertEqual "Show Compiled" expectedShow (show compiled)
 
 testEnumOperatorEq :: Test

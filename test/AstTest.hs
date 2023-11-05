@@ -9,7 +9,7 @@ module AstTest (astTestList) where
 
 import Test.HUnit
 import Data.Maybe
-import InternalFunctions (internalEnv)
+import InternalFunctions (astInternalEnv)
 import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvValue, EnumOperator(..), GomExprType(..),
    EvalResult(..), GomExpr(..), gomExprToGomAST,
    typeResolver, extractSymbol, applyToSnd, envLookupEval, checkType,
@@ -20,7 +20,7 @@ import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvVal
 import VirtualMachine.Vm (EnumOperator(..))
 
 testEnv :: Env
-testEnv = internalEnv ++  [
+testEnv = astInternalEnv ++  [
     ("key1", AGomIdentifier "value1"),
     ("key2", AGomIdentifier "value2"),
     ("key3", AGomIdentifier "value3"),
@@ -200,7 +200,8 @@ testGomExprToGomAST = TestList [
         result23 = gomExprToGomAST [] (Expression [Number 10,Operator "-",Number 1,Operator "/",Number 3,Operator "==",Number 3,Operator "&&",Number 5,Operator "<=",Number 34,Operator ">=",Number 56,Operator "<",Number 1,Operator ">",Number 100,Operator "&&",Number 4,Operator "!",Number 90,Operator "!=",Number 70])
         expected23 = EvalResult $ Right $ ([],AGomExpression [AGomNumber 10,AGomNumber 1,AGomNumber 3,AGomOperator SignDivide,AGomOperator SignMinus,AGomNumber 3,AGomOperator SignEqual,AGomNumber 5,AGomNumber 34,AGomOperator SignInfEqual,AGomOperator SignAnd,AGomNumber 56,AGomOperator SignSupEqual,AGomNumber 1,AGomOperator SignInf,AGomNumber 100,AGomOperator SignSup,AGomNumber 4,AGomNumber 90,AGomOperator SignNot,AGomOperator SignAnd,AGomNumber 70,AGomOperator SignNotEqual])
 
-        result24 = gomExprToGomAST [] (ReturnStatement (Number 42))
+        main24 = AGomFunctionDefinition {aGomFnName = "main", aGomFnArguments = AGomParameterList [], aGomFnBody = AGomBlock [AGomExpression [AGomFunctionCall {aGomFunctionName = "main", aGomFunctionArguments = AGomParameterList []},AGomNumber 1,AGomNumber 2,AGomOperator SignMultiply,AGomOperator SignPlus]], aGomFnReturnType = AGomType "Int"}
+        result24 = gomExprToGomAST [("main", main24)] (ReturnStatement (Number 42))
         expected24 = EvalResult $ Right $ ([], AGomReturnStatement (AGomNumber 42))
 
 

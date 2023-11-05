@@ -51,7 +51,7 @@ instance Show Val where
     show (VStr x) = x
     show (VList x) = show x
     show (VOp x) = "<Operator '" ++ show x ++ "'>"
-    show (VFunction x) = foldl (\ x' xs -> x' ++ show xs) "" x
+    show (VFunction x) = foldl (\ x' xs -> x' ++ show xs ++ "\n") "" x
     show (VNil) = "null"
     show (VInternalFunction internal) = "<Internal Function '" ++ show internal ++ "'>"
 
