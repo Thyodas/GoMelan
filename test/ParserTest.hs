@@ -759,7 +759,7 @@ testParseCodeToGomExpr = TestList
     ]
     where
         result1 = runParser parseCodeToGomExpr "x = 1"
-        expected1 = Left [ParseError MissingExpression "Expected symbol 'fn'." "x = 1",ParseError MissingExpression "Expected 'f' but got 'x'." "x = 1"]
+        expected1 = Left [ParseError MissingExpression "Expected ':' but got '='." "= 1"]
 
 testParseIncludeStatement :: Test
 testParseIncludeStatement = TestList
