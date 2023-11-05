@@ -369,9 +369,37 @@ parseAndWith func parser1 parser2 = func <$> parser1 <*> parser2
 parseMany :: Parser a -> Parser [a]
 parseMany parser = (:) <$> parser <*> parseMany parser <|> pure []
 
+parseEmptyListIfEnd :: Parser [a]
+parseEmptyListIfEnd = Parser $ \str -> case str of
+    [] -> Right ([], [])
+    _ -> Left [ParseError MissingChar "Expected end of string." (str ++ "END")]
+
 -- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
 parseSome :: Parser a -> Parser [a]
 parseSome parser = (:) <$> parser <*> parseMany parser
+-- parseSome parser = Parser $ \str -> case runParser parser str of
+--     Right (result, str') -> case runParser (parseSome parser) str' of
+--         Right (results, str'') -> Right (result:results, str'')
+--         Left err -> Right ([result], str')
+--     Left err -> Left err
+
+
+parseSomeThrowIfNotEnd :: Parser a -> Parser [a]
+parseSomeThrowIfNotEnd parser = (:) <$> parser <*> parseSome parser
+    <|> parseEmptyListIfEnd
+
+
+-- -- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
+-- parseSomeThrowLast :: Parser a -> Parser [a]
+-- parseSomeThrowLast parser = do
+--     first <- parser
+--     rest <- parseMany parser
+--     case rest of
+--         [] -> return [first]
+--         _ -> return (first:rest)
+--     <|> case lastError of
+--         Just err -> throwError err
+--         Nothing -> throwError [ParseError MissingChar "Expected at least one occurrence of the parser." ""]
 
 -- | Parse unsigned integer and return it
 parseUInt :: Parser Int
@@ -645,7 +673,7 @@ parseGomExpr = parseIncludeStatement <|> parseFunctionPrototype
 
 -- | Parse code to return GomExpr
 parseCodeToGomExpr :: Parser [GomExpr]
-parseCodeToGomExpr = parseSome parseGomExpr
+parseCodeToGomExpr = parseSomeThrowIfNotEnd parseGomExpr
 
 printErrorDetails :: String -> ParseError -> Int -> Int -> String
 printErrorDetails code (ParseError errType msg _) lineNum colNum =
