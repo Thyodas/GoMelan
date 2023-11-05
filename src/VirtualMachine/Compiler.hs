@@ -118,6 +118,8 @@ compileAst env (AGomAccess list index) = do
     let compiledIndexInsts = getCompiledInsts compiledIndex
     return $ Compiled [] (compiledListInsts ++ compiledIndexInsts ++ [AccessList])
 
+compileAst _ (AGomFunctionPrototype _ _ _) = pure $ Compiled [] []
+
 compileAst _ unknown = throwEvalError ("Not implemented yet: '"
     ++ show unknown ++ "'.") []
 

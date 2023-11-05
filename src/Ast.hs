@@ -59,6 +59,7 @@ data GomExpr = Number Int
     | ParameterList [GomExpr]
     | ReturnStatement GomExpr
     | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
+    | FunctionPrototype { fnProtoName :: [Char], fnProtoArguments :: GomExpr, fnProtoReturnType :: GomExpr }
     | TypedIdentifier { identifier :: [Char], identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
     | Empty
@@ -90,6 +91,7 @@ data GomAST =
   | AGomInternalFunction { aGomInternalName :: String, aGomInternalArguments :: GomAST, aGomInternalReturnType :: GomAST}
   | AGomReturnStatement GomAST
   | AGomFunctionCall { aGomFunctionName :: [Char], aGomFunctionArguments :: GomAST }
+  | AGomFunctionPrototype { aGomFnProtoName :: [Char], aGomFnProtoArguments :: GomAST, aGomFnProtoReturnType :: GomAST }
   | AGomTypedIdentifier { aGomIdentifier :: [Char], aGomIdentifierType :: GomAST }
   | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
   | AGomEmpty
@@ -103,6 +105,9 @@ instance Eq GomAST where
   -- Setting up of wildcard type 'any'
   (AGomTypeAny) == _ = True
   _ == (AGomTypeAny) = True
+  -- Compare between FunctionProto and FunctionDefinition
+  (AGomFunctionPrototype name args retType) == (AGomFunctionDefinition name' args' body' retType') =
+    name == name' && args == args' && retType == retType'
   x == y = geq x y
 
 data EnumOperator = SignPlus
@@ -194,10 +199,13 @@ gomExprListToGomASTListEnv env (ast:rest) = do
   pure (finalEnv ++ newEnv, result : results)
 
 typeResolver :: Env -> GomAST -> EvalResult GomAST
+typeResolver _ func@(AGomFunctionPrototype _ _ _) = pure func
+typeResolver _ func@(AGomFunctionDefinition _ _ _ _) = pure func
 typeResolver env (AGomFunctionCall s _) = do
   func <- envLookupEval env s
   case func of
     AGomFunctionDefinition { aGomFnReturnType=retType } -> pure retType
+    AGomFunctionPrototype { aGomFnProtoReturnType=retType } -> pure retType
     AGomInternalFunction { aGomInternalReturnType=retType } -> pure retType
     _ -> throwEvalError ("Identifier '" ++ s ++ "' is not a function") []
 typeResolver env (AGomIdentifier s) = do
@@ -249,6 +257,7 @@ checkType env astA astB = do
       ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
       ++ show resolvedB ++ "'.") []
 
+-- TODO: remove this unused function
 getAGomFunctionDefinition :: Env -> String -> EvalResult GomAST
 getAGomFunctionDefinition env name = do
   func <- envLookupEval env name
@@ -272,6 +281,8 @@ getAGomFunctionParameters env name = do
         pure params
     AGomInternalFunction {} ->
       throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
+    AGomFunctionPrototype {aGomFnProtoArguments=(params@(AGomParameterList _))} ->
+        pure params
     _ -> throwEvalError ("Identifier '" ++ name
       ++ "' is not a function") []
 
@@ -385,12 +396,10 @@ gomExprToGomAST env (Term t) = applyToSnd AGomTerm <$>
     gomExprListToGomASTList env t
 gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
     gomExprListToGomASTListShuntingYard env e
-
 gomExprToGomAST env (Access list index) = do
   (_, list') <- gomExprToGomAST env list
   (_, index') <- gomExprToGomAST env index
   return ([], AGomAccess list' index')
-
 gomExprToGomAST env (List l) = applyToSnd AGomList <$>
     gomExprListToGomASTList env l
 gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$>
@@ -421,13 +430,24 @@ gomExprToGomAST env (Condition cond true false) = do
   (falseEnv, false') <- gomExprToGomAST env false
   return (removeNewAssignment env trueEnv ++ removeNewAssignment env falseEnv,
     AGomCondition cond' true' false')
+gomExprToGomAST env tmpFunc@(FunctionPrototype name args retType) = do
+  (_, args'@(AGomParameterList argsList)) <- gomExprToGomAST env args
+  envArgs <- traverse aGomTypedIdentifierToEnvEntry argsList
+  (_, retType') <- gomExprToGomAST env retType
+  let newFunc = AGomFunctionPrototype name args' retType'
+  _ <- case envLookup env name of
+    Just (func@(AGomFunctionDefinition _ _ _ _)) -> checkType env func newFunc
+    Just (func'@(AGomFunctionPrototype _ _ _)) -> checkType env func' newFunc
+    Nothing -> return AGomEmpty
+    _ -> throwEvalError ("Identifier '" ++ name ++ "' is not a function") []
+  return ([(name, newFunc)], newFunc)
 gomExprToGomAST env (Function name args body retType) = do
   (_, args'@(AGomParameterList argsList)) <- gomExprToGomAST env args
   envArgs <- traverse aGomTypedIdentifierToEnvEntry argsList
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
   (newEnv, body') <- gomExprToGomAST
-    (envArgs ++ (name, tempFunction) :  env) body
+    (envArgs ++ (name, tempFunction) : env) body
   let newFunction = AGomFunctionDefinition name args' body' retType'
   return ((removeNewAssignment env newEnv) ++ [(name, newFunction)],
     newFunction)

@@ -574,6 +574,16 @@ parseBlock = do
 
     <?> ParseError InvalidBlock "Expected a block"
 
+-- | Parse function prototype
+parseFunctionPrototype :: Parser GomExpr
+parseFunctionPrototype =  do
+    _ <- parseAmongWhitespace $ parseSymbol "fn"
+    fctName <- parseAmongWhitespace parseToken
+    arguments <- parseFunctionDeclarationArgument
+    returnType <- parseFunctionDeclarationReturnType
+    _ <- parseAmongWhitespace $ parseChar ';'
+    return $ FunctionPrototype {fnProtoName=fctName,
+        fnProtoArguments=arguments, fnProtoReturnType=returnType}
 
 -- | Parse name of functions
 parseFunctionName :: Parser GomExpr
@@ -630,7 +640,8 @@ parseExpressionList = List <$> parseList parseExpression
 
 -- | Ensuite, vous pouvez combiner tous ces parsers pour gérer la structure de votre langage
 parseGomExpr :: Parser GomExpr
-parseGomExpr = parseIncludeStatement <|> parseFunctionDeclaration
+parseGomExpr = parseIncludeStatement <|> parseFunctionPrototype
+    <|> parseFunctionDeclaration
 
 -- | Parse code to return GomExpr
 parseCodeToGomExpr :: Parser [GomExpr]
