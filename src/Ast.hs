@@ -107,7 +107,7 @@ instance Eq GomAST where
   (AGomTypeAny) == _ = True
   _ == (AGomTypeAny) = True
   -- Compare between FunctionProto and FunctionDefinition
-  (AGomFunctionPrototype name args retType) == (AGomFunctionDefinition name' args' body' retType') =
+  (AGomFunctionPrototype name args retType) == (AGomFunctionDefinition name' args' _ retType') =
     name == name' && args == args' && retType == retType'
   x == y = geq x y
 
@@ -371,6 +371,7 @@ aGomTypedIdentifierToEnvEntry _ = throwEvalError "Expected a TypedIdentifier"
 
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
+gomExprToGomAST _ (FloatNumber f) = pure ([], AGomFloatNumber f)
 gomExprToGomAST _ (Character n) = pure ([], AGomCharLiteral n)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
 gomExprToGomAST _ (Boolean b) = pure ([], AGomBooleanLiteral b)
@@ -422,9 +423,9 @@ gomExprToGomAST env (Condition cond true false) = do
   (falseEnv, false') <- gomExprToGomAST env false
   return (removeNewAssignment env trueEnv ++ removeNewAssignment env falseEnv,
     AGomCondition cond' true' false')
-gomExprToGomAST env tmpFunc@(FunctionPrototype name args retType) = do
+gomExprToGomAST env (FunctionPrototype name args retType) = do
   (_, args'@(AGomParameterList argsList)) <- gomExprToGomAST env args
-  envArgs <- traverse aGomTypedIdentifierToEnvEntry argsList
+  _ <- traverse aGomTypedIdentifierToEnvEntry argsList
   (_, retType') <- gomExprToGomAST env retType
   let newFunc = AGomFunctionPrototype name args' retType'
   _ <- case envLookup env name of

@@ -10,14 +10,12 @@ module AstTest (astTestList) where
 import Test.HUnit
 import Data.Maybe
 import InternalFunctions (astInternalEnv)
-import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnvKey, EnvValue, EnumOperator(..), GomExprType(..),
+import Ast (Env, envInsert, envLookup, GomAST(..), EvalError(..), EnumOperator(..), GomExprType(..),
    EvalResult(..), GomExpr(..), gomExprToGomAST,
    typeResolver, extractSymbol, applyToSnd, envLookupEval, checkType,
    getAGomFunctionDefinition, throwEvalError, gomExprToAGomFunctionCall,
    operatorToGomAST, getIdDetails, precedence, gomExprToAGomAssignment
    )
-
-import VirtualMachine.Vm (EnumOperator(..))
 
 testEnv :: Env
 testEnv = astInternalEnv ++  [

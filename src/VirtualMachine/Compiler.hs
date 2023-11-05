@@ -8,10 +8,9 @@
 module VirtualMachine.Compiler (compileAllAst, getCompiledInsts,
     getCompiledEnv) where
 
-import Ast (GomAST(..), EvalResult(..), EvalError(..),
-    throwEvalError)
-import VirtualMachine.Vm (Instructions(..), Val(..), Stack,
-    Insts, Compiled(..), EnumOperator(..), VmEnv(..), getOperationNbArgs)
+import Ast (GomAST(..), EvalResult(..), throwEvalError)
+import VirtualMachine.Vm (Instructions(..), Val(..),
+    Insts, Compiled(..), VmEnv, getOperationNbArgs)
 
 getCompiledEnv :: Compiled -> VmEnv
 getCompiledEnv (Compiled env _) = env

@@ -8,12 +8,12 @@
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
     Stack, Insts, Compiled(..), VmEnv(..), execCall, execOperation,
     execHelper, getOperationNbArgs, serializeAndWriteCompiled,
-        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain, InternalFunction(..), Args(..)) where
+        readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain, InternalFunction(..), Args) where
 
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
 import Data.List (find)
-import Ast (GomAST(..), EnumOperator(..))
+import Ast (EnumOperator(..))
 
 data InternalFunction = InternalFunction String (Args -> Either String Val)
 
@@ -56,7 +56,9 @@ concatVChar _ acc = acc
 
 instance Show Val where
     show (VNum x) = show x
-    show (VBool x) = show x
+    show (VFloatNum x) = show x
+    show (VBool True) = "true"
+    show (VBool False) = "false"
     show (VChar x) = show x
     show (VList l)
         | all isVChar l = "\"" ++ (foldr concatVChar "" l) ++ "\""
@@ -120,6 +122,7 @@ instance Binary Val where
     put (VFunction insts) = putWord8 5 >> put insts
     put VNil = putWord8 6
     put (VInternalFunction (InternalFunction n _)) = putWord8 7 >> put n
+    put (VFloatNum fnum) = putWord8 8 >> put fnum
 
     get = do
         tag <- getWord8
@@ -220,8 +223,6 @@ execOperation SignModulo (VNum a:VNum b:_) = Right (VNum (a `mod` b))
 execOperation SignModulo _ = Left ("Mod: invalid arguments")
 execOperation SignNotEqual (a:b:_) = Right (VBool (a /= b))
 execOperation SignNotEqual _ = Left ("Neq: invalid number of arguments")
-execOperation SignOr (VBool a:VBool b:_) = Right (VBool (a || b))
-execOperation SignOr _ = Left ("Or: invalid arguments")
 
 execCall :: VmEnv -> Args -> Val -> Either String Val
 execCall env args (VFunction insts) = execHelper env args insts insts []

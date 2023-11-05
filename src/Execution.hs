@@ -7,20 +7,20 @@
 
 module Execution (runCode, convertListToAST, execBuild, execRun) where
 
-import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..), ParseError(..),
+import Parser (ErrorMsg, parseCodeToGomExpr, Parser(..),
     printErrors)
-import Ast (GomAST (AGomIdentifier), EvalResult (..), gomExprToGomAST,
+import Ast (GomAST(..), EvalResult (..), gomExprToGomAST,
     EvalError(..), Env, GomExpr(..))
-import VirtualMachine.Compiler (compileAllAst, getCompiledInsts, getCompiledEnv)
-import VirtualMachine.Vm (Compiled(..), VmEnv(..), serializeAndWriteCompiled,
-    readAndDeserializeCompiled, exec, execWithMain)
+import VirtualMachine.Compiler (compileAllAst)
+import VirtualMachine.Vm (Compiled(..), serializeAndWriteCompiled, VmEnv,
+    readAndDeserializeCompiled, execWithMain)
 import Text.Printf (printf)
-import Parser (parseCodeToGomExpr, runParser, printErrors)
-import Ast (GomAST(..), Env, EvalResult(..), EvalError(..), gomExprToGomAST)
+import Parser()
+import Ast()
 import InternalFunctions (astInternalEnv)
 import VirtualMachine.InternalFunctions (vmInternalEnv)
 import File (readFileEither)
-import System.Environment (getArgs)
+import System.Environment()
 import System.Exit ( exitWith, ExitCode (ExitFailure))
 import System.Console.CmdArgs (whenLoud)
 
@@ -60,7 +60,7 @@ codeToAST astEnv code =  do
 
 codeToCompiled :: Env -> String -> Either ErrorMsg Compiled
 codeToCompiled astEnv code = do
-    (newAstEnv, ast) <- codeToAST astEnv code
+    (_, ast) <- codeToAST astEnv code
     compiled <- case compileAllAst [] ast of
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg

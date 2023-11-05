@@ -7,10 +7,10 @@
 
 module VirtualMachine.InternalFunctions (vmInternalEnv) where
 
-import VirtualMachine.Vm (Args(..), Val(..), VmEnv(..), InternalFunction(..))
-import Data.Either (Either(..))
+import VirtualMachine.Vm (Args, Val(..), VmEnv, InternalFunction(..))
+import Data.Either()
 
-import Data.Binary
+import Data.Binary()
 import qualified Data.ByteString.Lazy as BS
 
 vmInternalEnv :: VmEnv

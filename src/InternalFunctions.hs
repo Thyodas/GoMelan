@@ -7,9 +7,7 @@
 
 module InternalFunctions (astInternalEnv) where
 
-import VirtualMachine.Vm (Args(..), Val(..))
-import Ast (GomAST(..), EvalResult(..), Env,
-    throwEvalError)
+import Ast (GomAST(..), Env)
 
 astInternalEnv :: Env
 astInternalEnv = [
