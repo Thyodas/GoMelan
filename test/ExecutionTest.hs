@@ -8,8 +8,8 @@
 module ExecutionTest (executionTestList) where
 
 import Test.HUnit
-import Ast (GomAST(..), envInsert)
-import Execution (runCode)
+-- import Ast (GomAST(..), envInsert)
+-- import Execution (runCode)
 
 -- testRecursiveFunction :: Test
 -- testRecursiveFunction = TestCase $ assertEqual "Recursive function" expected result

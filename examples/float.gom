@@ -1,0 +1,18 @@
+fn sumFloat(a: [Float]) -> Float;
+
+fn main() -> Float
+{
+    a: [Float] = [1.0, 2.0, 3.0, 4.0];
+    return sumFloat(a);
+}
+
+fn sumFloat(a: [Float]) -> Float
+{
+    s: Float = 0.0;
+
+    for (i: Int = 0; i < len(a); i++) {
+        s += a[i];
+    }
+
+    return s;
+}

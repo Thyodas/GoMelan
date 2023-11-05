@@ -8,10 +8,9 @@
 module VirtualMachine.Compiler (compileAllAst, getCompiledInsts,
     getCompiledEnv) where
 
-import Ast (GomAST(..), EvalResult(..), EvalError(..),
-    throwEvalError)
-import VirtualMachine.Vm (Instructions(..), Val(..), Stack,
-    Insts, Compiled(..), EnumOperator(..), VmEnv(..), getOperationNbArgs)
+import Ast (GomAST(..), EvalResult(..), throwEvalError)
+import VirtualMachine.Vm (Instructions(..), Val(..),
+    Insts, Compiled(..), VmEnv, getOperationNbArgs)
 
 getCompiledEnv :: Compiled -> VmEnv
 getCompiledEnv (Compiled env _) = env
@@ -23,6 +22,7 @@ compileAst :: VmEnv -> GomAST -> EvalResult Compiled
 compileAst _ (AGomNumber x) = pure $ Compiled [] [Push (VNum x)]
 compileAst _ (AGomBooleanLiteral x) = pure $ Compiled [] [Push (VBool x)]
 compileAst _ (AGomCharLiteral x) = pure $ Compiled [] [Push (VChar x)]
+compileAst _ (AGomFloatNumber x) = pure $ Compiled [] [Push (VFloatNum x)]
 compileAst _ (AGomEmpty) = pure $ Compiled [] []
 
 compileAst _ (AGomIdentifier name) = pure $ Compiled [] [PushEnv name]

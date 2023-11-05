@@ -8,9 +8,8 @@
 module VirtualMachine.VmExecTest (vmExecTestList) where
 
 import Test.HUnit
-import Execution (runCode)
-import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
-   Insts, exec)
+import Execution()
+import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), exec)
 
 testSimpleVmExec :: Test
 testSimpleVmExec = TestCase $ do
@@ -108,7 +107,7 @@ testDivisionByZero = TestCase $ do
    let instructions = [Push (VNum 10), Push (VNum 0), Push (VOp SignDivide), Call 2, Ret]
    let stack = []
    let result = exec env args instructions stack
-   let expected = Left "Div: division by zero"
+   let expected = Left "/: invalid arguments [10,0]"
    assertEqual "Division by zero error" expected result
 
 testInvalidOperationArguments :: Test
@@ -118,7 +117,7 @@ testInvalidOperationArguments = TestCase $ do
    let instructions = [Push (VBool True), Push (VNum 3), Push (VOp SignPlus), Call 2, Ret]  -- Trying to add a boolean and a number
    let stack = []
    let result = exec env args instructions stack
-   let expected = Left "Add: invalid arguments"
+   let expected = Left "+: invalid arguments [true,3]"
    assertEqual "Invalid operation arguments" expected result
 
 testMissingValueOnStack :: Test

@@ -8,9 +8,9 @@
 module VirtualMachine.VmBytecodeTest (vmBytecodeTestList) where
 
 import Test.HUnit
-import Execution (runCode)
-import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..), Stack,
-   Insts, exec, execCall, execOperation, execHelper, Compiled(..), VmEnv(..))
+import Execution()
+import VirtualMachine.Vm (Val(..), EnumOperator(..), Instructions(..),
+    execCall, execOperation, execHelper, Compiled(..), Insts)
 import Data.Binary (encode, decode, decodeOrFail)
 import Data.Binary.Get (ByteOffset)
 import qualified Data.ByteString.Lazy as BS
@@ -96,7 +96,7 @@ testExecCallWithFunction = TestCase $ do
    let args = [VNum 5]
    let instructions = [PushArg 0, Push (VNum 2),
                         Push (VOp SignMultiply), Call 2, Ret]
-   let stack = []
+   let _ = []
    let result = execCall env args (VFunction instructions)
    let expected = Right (VNum 10)
    assertEqual "ExecCall with function" expected result
@@ -119,33 +119,33 @@ testExecCallWithInvalidArgs = TestCase $ do
 
 testExecOperation :: Test
 testExecOperation = TestList [
-   TestCase $ assertEqual "Addition with valid arguments" (Right (VNum 8)) (execOperation SignPlus [VNum 5, VNum 3]),
-   TestCase $ assertEqual "Addition with invalid arguments" (Left "Add: invalid arguments") (execOperation SignPlus [VNum 5]),
-   TestCase $ assertEqual "Subtraction with valid arguments" (Right (VNum 2)) (execOperation SignMinus [VNum 5, VNum 3]),
-   TestCase $ assertEqual "Subtraction with invalid arguments" (Left "Sub: invalid arguments") (execOperation SignMinus [VNum 5]),
-   TestCase $ assertEqual "Multiplication with valid arguments" (Right (VNum 15)) (execOperation SignMultiply [VNum 5, VNum 3]),
-   TestCase $ assertEqual "Multiplication with invalid arguments" (Left "Mul: invalid arguments") (execOperation SignMultiply [VNum 5]),
-   TestCase $ assertEqual "Division with valid arguments" (Right (VNum 2)) (execOperation SignDivide [VNum 6, VNum 3]),
-   TestCase $ assertEqual "Division with invalid arguments" (Left "Div: invalid arguments") (execOperation SignDivide [VNum 5]),
-   TestCase $ assertEqual "Equality with valid arguments" (Right (VBool True)) (execOperation SignEqual [VNum 5, VNum 5]),
-   TestCase $ assertEqual "Equality with invalid number of arguments" (Left "Eq: invalid number of arguments") (execOperation SignEqual [VNum 5]),
-   TestCase $ assertEqual "Less than with valid arguments" (Right (VBool True)) (execOperation SignInf [VNum 3, VNum 5]),
-   TestCase $ assertEqual "Less than with invalid arguments" (Left "Less: invalid arguments") (execOperation SignInf [VNum 5]),
-   TestCase $ assertEqual "Greater than with valid arguments" (Right (VBool True)) (execOperation SignSup [VNum 5, VNum 3]),
-   TestCase $ assertEqual "Greater than with invalid arguments" (Left "Greater: invalid arguments") (execOperation SignSup [VNum 5]),
-   TestCase $ assertEqual "Less than or equal with valid arguments" (Right (VBool True)) (execOperation SignInfEqual [VNum 3, VNum 5]),
-   TestCase $ assertEqual "Less than or equal with invalid arguments" (Left "LessEq: invalid arguments") (execOperation SignInfEqual [VNum 5]),
-   TestCase $ assertEqual "Greater than or equal with valid arguments" (Right (VBool True)) (execOperation SignSupEqual [VNum 5, VNum 5]),
-   TestCase $ assertEqual "Greater than or equal with invalid arguments" (Left "GreaterEq: invalid arguments") (execOperation SignSupEqual [VNum 5]),
-   TestCase $ assertEqual "And with valid arguments" (Right (VBool True)) (execOperation SignAnd [VBool True, VBool True]),
-   TestCase $ assertEqual "And with invalid arguments" (Left "And: invalid arguments") (execOperation SignAnd [VBool True]),
-   TestCase $ assertEqual "Not with valid arguments" (Right (VBool False)) (execOperation SignNot [VBool True]),
-   TestCase $ assertEqual "Not with invalid arguments" (Left "Not: invalid arguments") (execOperation SignNot [VNum 5]),
-   TestCase $ assertEqual "Modulo with valid arguments" (Right (VNum 1)) (execOperation SignModulo [VNum 5, VNum 2]),
-   TestCase $ assertEqual "Modulo with division by zero" (Left "Mod: modulo by zero") (execOperation SignModulo [VNum 5, VNum 0]),
-   TestCase $ assertEqual "Modulo with invalid arguments" (Left "Mod: invalid arguments") (execOperation SignModulo [VNum 5]),
-   TestCase $ assertEqual "Inequality with valid arguments" (Right (VBool True)) (execOperation SignNotEqual [VNum 5, VNum 3]),
-   TestCase $ assertEqual "Inequality with invalid number of arguments" (Left "Neq: invalid number of arguments") (execOperation SignNotEqual [VNum 5])
+   TestCase $ assertEqual "Addition with valid arguments" (VNum 8) (execOperation SignPlus [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Addition with invalid arguments" (VNil) (execOperation SignPlus [VNum 5]),
+   TestCase $ assertEqual "Subtraction with valid arguments" (VNum 2) (execOperation SignMinus [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Subtraction with invalid arguments" (VNil) (execOperation SignMinus [VNum 5]),
+   TestCase $ assertEqual "Multiplication with valid arguments" (VNum 15) (execOperation SignMultiply [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Multiplication with invalid arguments" (VNil) (execOperation SignMultiply [VNum 5]),
+   TestCase $ assertEqual "Division with valid arguments" (VNum 2) (execOperation SignDivide [VNum 6, VNum 3]),
+   TestCase $ assertEqual "Division with invalid arguments" (VNil) (execOperation SignDivide [VNum 5]),
+   TestCase $ assertEqual "Equality with valid arguments" (VBool True) (execOperation SignEqual [VNum 5, VNum 5]),
+   TestCase $ assertEqual "Equality with invalid number of arguments" (VNil) (execOperation SignEqual [VNum 5]),
+   TestCase $ assertEqual "Less than with valid arguments" (VBool True) (execOperation SignInf [VNum 3, VNum 5]),
+   TestCase $ assertEqual "Less than with invalid arguments" (VNil) (execOperation SignInf [VNum 5]),
+   TestCase $ assertEqual "Greater than with valid arguments" (VBool True) (execOperation SignSup [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Greater than with invalid arguments" (VNil) (execOperation SignSup [VNum 5]),
+   TestCase $ assertEqual "Less than or equal with valid arguments" (VBool True) (execOperation SignInfEqual [VNum 3, VNum 5]),
+   TestCase $ assertEqual "Less than or equal with invalid arguments" (VNil) (execOperation SignInfEqual [VNum 5]),
+   TestCase $ assertEqual "Greater than or equal with valid arguments" (VBool True) (execOperation SignSupEqual [VNum 5, VNum 5]),
+   TestCase $ assertEqual "Greater than or equal with invalid arguments" (VNil) (execOperation SignSupEqual [VNum 5]),
+   TestCase $ assertEqual "And with valid arguments" (VBool True) (execOperation SignAnd [VBool True, VBool True]),
+   TestCase $ assertEqual "And with invalid arguments" (VNil) (execOperation SignAnd [VBool True]),
+   TestCase $ assertEqual "Not with valid arguments" (VBool False) (execOperation SignNot [VBool True]),
+   TestCase $ assertEqual "Not with invalid arguments" (VNil) (execOperation SignNot [VNum 5]),
+   TestCase $ assertEqual "Modulo with valid arguments" (VNum 1) (execOperation SignModulo [VNum 5, VNum 2]),
+   TestCase $ assertEqual "Modulo with division by zero" (VNil) (execOperation SignModulo [VNum 5, VNum 0]),
+   TestCase $ assertEqual "Modulo with invalid arguments" (VNil) (execOperation SignModulo [VNum 5]),
+   TestCase $ assertEqual "Inequality with valid arguments" (VBool True) (execOperation SignNotEqual [VNum 5, VNum 3]),
+   TestCase $ assertEqual "Inequality with invalid number of arguments" (VNil) (execOperation SignNotEqual [VNum 5])
    ]
 
 testExecHelper :: Test
@@ -200,7 +200,7 @@ testJump = TestList
 testValShow :: Test
 testValShow = TestList [
    TestCase $ assertEqual "Show VNum" "5" (show (VNum 5)),
-   TestCase $ assertEqual "Show VBool" "True" (show (VBool True)),
+   TestCase $ assertEqual "Show VBool" "true" (show (VBool True)),
    TestCase $ assertEqual "Show VChar" "'e'" (show (VChar 'e')),
    TestCase $ assertEqual "Show VFunction" "" (show (VFunction []))
    ]
@@ -213,7 +213,7 @@ testShowVNum = TestCase $ do
 testShowVBool :: Test
 testShowVBool = TestCase $ do
     let v = VBool True
-    assertEqual "Show VBool True" "True" (show v)
+    assertEqual "Show VBool True" "true" (show v)
 
 testShowVStr :: Test
 testShowVStr = TestCase $ do
@@ -223,7 +223,7 @@ testShowVStr = TestCase $ do
 testShowVList :: Test
 testShowVList = TestCase $ do
     let v = VList [VNum 1, VChar 'o', VBool True]
-    assertEqual "Show VList" "[1,'o',True]" (show v)
+    assertEqual "Show VList" "[1,'o',true]" (show v)
 
 testShowVOp :: Test
 testShowVOp = TestCase $ do
@@ -263,7 +263,7 @@ testShowCompiled = TestCase $ do
     let env = [("x", VNum 5), ("y", VBool True)]
     let instructions = [Push (VNum 1), Push (VNum 2), Push (VOp SignPlus)]
     let compiled = Compiled env instructions
-    let expectedShow =  "x:\n\t5\n\ny:\n\tTrue\n\n\nPush 1\nPush 2\nPush <Operator '+'>\n\n"
+    let expectedShow =  "x:\n\t5\n\ny:\n\ttrue\n\n\nPush 1\nPush 2\nPush <Operator '+'>\n\n"
     assertEqual "Show Compiled" expectedShow (show compiled)
 
 testEnumOperatorEq :: Test

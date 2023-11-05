@@ -1,13 +1,7 @@
-/* Ceci est un commentaire */
+fn main() -> [String];
 
-b: Int = 5;
-
-fn main() -> Int;
-
-fn main() -> Int
+fn main() -> [String]
 {
-    /*
-    a: Int = b; // mabite
-    str: [String] = ["Olala", "Olala1", "Olala2", "Olala3", "Olala4"]; */
-    return a;
+    str: [String] = ["Olala", "Olala1", "Olala2", "Olala3", "Olala4"];
+    return str;
 }
