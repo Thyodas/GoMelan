@@ -32,7 +32,8 @@ module Ast (
     operatorToGomAST,
     getIdDetails,
     precedence,
-    gomExprToAGomAssignment
+    gomExprToAGomAssignment,
+    lookupTypedIdentifier
 ) where
 
 
