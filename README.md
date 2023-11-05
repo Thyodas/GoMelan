@@ -30,7 +30,7 @@ GLaDOS is a programming language project developed as part of the B5 - Advanced 
 
 Welcome to GLaDOS! This project is an exploration of programming language development in Haskell. The goal is to create a functional language with a Lisp-like core and expand it into a more feature-rich language.
 
-Our language is called GoMelan, it is a typed language similar to Rust. With the latter it is possible to carry out complex scripts using functions, recursion, loops, internal functions, advanced types, functions prototype, include other file. All this with quick-to-understand syntax by using syntaxic sugar.
+Our language is called GoMelan, it is a typed language similar to Rust. With the latter it is possible to carry out complex scripts using functions, recursion, loops, internal functions, advanced types, functions prototype, include other file. All this with quick-to-understand syntax by using Syntactic sugar.
 
 ## Project Overview
 
@@ -176,7 +176,7 @@ The project structure is organized as follows:
 - [x] More data types (Float, List) (bonus)
 - [x] Type inference (bonus)
 - [x] Imperative constructs (bonus)
-- [x] Syntaxic Sugar (bonus)
+- [x] Syntactic Sugar (bonus)
 - [x] Globals variables (bonus)
 - [x] Prototype functions (bonus)
 - [x] Include other files and lib (bonus)
