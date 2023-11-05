@@ -551,11 +551,22 @@ parseUntilAny toFind = Parser $ \str -> case str of
     [] -> Left [ParseError MissingClosing ("Expected any of " ++ toFind ++
                 "but got to the end.") ""]
 
+-- | parse until any of the given string is found
+parseUntilSymbol :: String -> Parser String
+parseUntilSymbol toFind = Parser $ \str -> case str of
+    str'@(x:xs) | (take (length toFind) str') == toFind -> Right ("", drop (length toFind) str')
+         | otherwise -> case runParser (parseUntilSymbol toFind) xs of
+                Right (result, str'') -> Right (x:result, str'')
+                Left err -> Left err
+    [] -> Left [ParseError MissingClosing ("Expected " ++ toFind ++
+                "but got to the end.") ""]
+
 -- | parse comment after // to skip them
-parseComment :: Parser String
+parseComment :: Parser GomExpr
 parseComment = do
-    _ <- parseChar '/' *> parseChar '/'
-    parseUntilAny "\n"
+    _ <- (parseChar '/' *> parseChar '/' *> parseUntilAny "\n") <|> pure []
+    _ <- (parseSymbol "/*" *> parseUntilSymbol "*/") <|> pure []
+    return $ Empty
 
 -- Parse an if statement
 parseCondition :: Parser GomExpr
@@ -687,9 +698,11 @@ parseFunctionCall = do
 
 parseAmongWhitespace :: Parser a -> Parser a
 parseAmongWhitespace parser = do
+    _ <- parseComment
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
     result <- parser
     _ <- parseMany (parseAnyChar parserWhitespaceChar)
+    _ <- parseComment
     return result
 
 parseSemicolumn :: Parser a -> Parser a
