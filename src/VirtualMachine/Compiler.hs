@@ -22,6 +22,7 @@ compileAst :: VmEnv -> GomAST -> EvalResult Compiled
 compileAst _ (AGomNumber x) = pure $ Compiled [] [Push (VNum x)]
 compileAst _ (AGomBooleanLiteral x) = pure $ Compiled [] [Push (VBool x)]
 compileAst _ (AGomCharLiteral x) = pure $ Compiled [] [Push (VChar x)]
+compileAst _ (AGomFloatNumber x) = pure $ Compiled [] [Push (VFloatNum x)]
 compileAst _ (AGomEmpty) = pure $ Compiled [] []
 
 compileAst _ (AGomIdentifier name) = pure $ Compiled [] [PushEnv name]

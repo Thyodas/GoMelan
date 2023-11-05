@@ -226,7 +226,7 @@ parseBinaryOperator = Operator <$>
                 parseOperatorNotEqual <|> parseOperatorNot <|>
                 parseOperatorAnd <|> parseOperatorInfEqual <|>
                 parseOperatorSupEqual <|> parseOperatorInf <|>
-                parseOperatorSup)
+                parseOperatorSup <|> parseOperatorOr)
 
 -- | Parse a given string
 parseSymbol :: String -> Parser String
@@ -292,6 +292,10 @@ parseOperatorNot = parseSymbol "!"
 -- | Parse operator AND '&&'
 parseOperatorAnd :: Parser String
 parseOperatorAnd = parseSymbol "&&"
+
+-- | Parse operator OR '||'
+parseOperatorOr :: Parser String
+parseOperatorOr = parseSymbol "||"
 
 parseTypeStringToCharList :: Parser GomExprType
 parseTypeStringToCharList = do
