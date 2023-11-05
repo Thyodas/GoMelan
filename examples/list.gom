@@ -1,4 +1,4 @@
-fn sum(a: [Int]) -> String;
+fn sum(a: [Int]) -> Int;
 
 fn main() -> Int
 {
