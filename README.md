@@ -30,6 +30,8 @@ GLaDOS is a programming language project developed as part of the B5 - Advanced 
 
 Welcome to GLaDOS! This project is an exploration of programming language development in Haskell. The goal is to create a functional language with a Lisp-like core and expand it into a more feature-rich language.
 
+Our language is called GoMelan, it is a typed language similar to Rust. With the latter it is possible to carry out complex scripts using functions, recursion, loops, internal functions, advanced types, functions prototype, include other file. All this with quick-to-understand syntax by using Syntactic sugar.
+
 ## Project Overview
 
 - **Part 0: The Enrichment Testing Center**: In this mandatory part, we focus on building a robust foundation for the project. This includes setting up a build system, creating unit and integration tests, and implementing a continuous integration and continuous delivery (CI/CD) pipeline.
@@ -61,9 +63,80 @@ To get started with GLaDOS, follow these steps:
    ./glados
    ```
 
+4. Compile a GoMelan script into a binary
+
+   ```bash
+   ./glados build YOUR_FILE
+   ```
+
+5. Then execute the binary
+
+   ```bash
+   ./glados run out.gomc
+   ```
+
+You also can run some unit tests by using the following command
+
+1. Run the tests
+
+   ```bash
+   make tests_run
+   ```
+
 ## Usage
 
-Here are some example usages of GLaDOS:
+### Our language GoMelan
+
+Here is an example of our language reproduicing factorial functions (using recursive):
+
+```rs
+fn factorial(n: Int) -> Int
+{
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+fn main() -> Int
+{
+    return factorial(5);
+}
+```
+`Output: 120`
+
+Our langauge can also use some internal functions like `len` for get a size of a List or conversion functions:
+Here we can use the `len` function to read the List and then sum it, we also use prototype to get the function.
+```rs
+
+fn sum(a: [Int]) -> Int;
+
+fn main() -> Int
+{
+   a: [Int] = [1, 2, 3, 4];
+
+   return sum(a);
+}
+
+fn sum(a: [Int]) -> Int
+{
+      s: Int = 0;
+
+      for (i: Int = 0; i < len(a); i++) {
+         s += a[i];
+      }
+      return s;
+}
+```
+`Output: 10`
+
+You can find more of thoses examples by execute them in the `examples/` folder.
+
+### LISP Usage
+
+Here are some example usages of the first GLaDOS step (work with GLaDOS LISP release):
+
 
 ```glados
 (define (add a b)
@@ -87,21 +160,27 @@ The project structure is organized as follows:
 - `app/`: Contains the main function for the project.
 - `src/`: Contains the source code for the GLaDOS interpreter and compiler.
 - `test/`: Holds unit and integration tests for the project.
+- `examples/`: Contains a list of GoMelan code examples
 
 ## Features
 
 - [x] Lisp Parser
 - [x] Lisp AST
 - [x] Minimal Lisp interpreter
-- [ ] Custom syntax and grammar (Part 2)
-- [ ] Virtual Machine (VM) and Compiler (Part 2)
-- [ ] More data types (bonus)
-- [ ] Side effects (bonus)
-- [ ] Type inference (bonus)
-- [ ] Additional backends (bonus)
-- [ ] Metaprogramming (bonus)
-- [ ] Imperative constructs (bonus)
-- [ ] Optimization (bonus)
+- [x] Custom syntax and grammar (Part 2)
+- [x] Virtual Machine (VM) and Compiler (Part 2)
+- [x] Detailed language grammar (BNF) (Part 2)
+- [x] Displayed outputs (Part 2)
+- [x] Our compiler is able to output it's result as a binary format (bonus) (use -v at the run)
+- [x] VM is able to load a binary and run it (bonus)
+- [x] More data types (Float, List) (bonus)
+- [x] Type inference (bonus)
+- [x] Imperative constructs (bonus)
+- [x] Syntactic Sugar (bonus)
+- [x] Globals variables (bonus)
+- [x] Prototype functions (bonus)
+- [x] Include other files and lib (bonus)
+- [x] Internal functions (len, intToString, stringToInt, floatToInt, intToFloat, floatToString, ...) (bonus)
 
 ## Contributing
 
