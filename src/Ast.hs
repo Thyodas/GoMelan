@@ -17,6 +17,7 @@ module Ast (
     EnumOperator(..),
     EnvKey,
     EnvValue,
+    EnvEntry,
     envInsert,
     throwEvalError,
     envLookup,
@@ -216,7 +217,7 @@ typeResolver _ (AGomTypedIdentifier _ t) = pure t
 typeResolver _ (AGomType t) = pure (AGomType t)
 typeResolver _ (AGomTypeList t) = pure (AGomTypeList t)
 typeResolver _ (AGomBooleanLiteral _) = pure (AGomType "Bool")
-typeResolver _ (AGomFloat _) = pure (AGomType "Float")
+typeResolver _ (AGomFloatNumber _) = pure (AGomType "Float")
 typeResolver _ (AGomNumber _) = pure (AGomType "Int")
 typeResolver _ (AGomCharLiteral _) = pure (AGomType "Char")
 typeResolver _ (AGomOperator _) = pure (AGomType "Operator")

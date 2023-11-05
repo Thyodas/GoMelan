@@ -13,11 +13,14 @@ import Data.Either()
 import Data.Binary()
 import qualified Data.ByteString.Lazy as BS
 
+internalEntry :: String -> (Args -> Either String Val) -> (String, Val)
+internalEntry name func = (name, VInternalFunction (InternalFunction name func))
+
 vmInternalEnv :: VmEnv
 vmInternalEnv = [
-        ("len", VInternalFunction (InternalFunction "len" lenOfList)),
-        ("intToFloat", VInternalFunction (InternalFunction "intToFloat" intToFloat)),
-        ("floatToInt", VInternalFunction (InternalFunction "floatToInt" floatToInt))
+        internalEntry "len" lenOfList,
+        internalEntry "intToFloat" intToFloat,
+        internalEntry "floatToInt" floatToInt
     ]
 
 lenOfList :: Args -> Either String Val

@@ -67,6 +67,7 @@ instance Show Val where
     show (VFunction x) = foldl (\ x' xs -> x' ++ show xs ++ "\n") "" x
     show (VNil) = "null"
     show (VInternalFunction internal) = "<Internal Function '" ++ show internal ++ "'>"
+    show (VFloatNum x) = show x
 
 data Instructions = Push Val
     | JumpIfFalse Int       -- Jump if false
@@ -122,7 +123,7 @@ instance Binary Val where
     put (VFunction insts) = putWord8 5 >> put insts
     put VNil = putWord8 6
     put (VInternalFunction (InternalFunction n _)) = putWord8 7 >> put n
-    put (VFloatNum fnum) = putWord8 8 >> put fnum
+    put (VFloatNum num) = putWord8 8 >> put num
 
     get = do
         tag <- getWord8
@@ -136,6 +137,7 @@ instance Binary Val where
             get' 5 = VFunction <$> get
             get' 6 = return VNil
             get' 7 = VInternalFunction <$> get
+            get' 8 = VFloatNum <$> get
             get' _ = fail "Invalid tag while deserializing Val"
 
 instance Binary Instructions where
@@ -195,32 +197,45 @@ getOperationNbArgs _other = 2
 execOperation :: EnumOperator -> Args -> Either String Val
 execOperation SignPlus (VNum a:VNum b:_) = Right (VNum (a + b))
 execOperation SignPlus _ = Left ("Add: invalid arguments")
+
 execOperation SignMinus (VNum a:VNum b:_) = Right (VNum (a - b))
 execOperation SignMinus _ = Left ("Sub: invalid arguments")
+
 execOperation SignMultiply (VNum a:VNum b:_) = Right (VNum (a * b))
 execOperation SignMultiply _ = Left ("Mul: invalid arguments")
+
 execOperation SignDivide (VNum _:VNum 0:_) = Left ("Div: division by zero")
 execOperation SignDivide (VNum a:VNum b:_) = Right (VNum (a `div` b))
 execOperation SignDivide _ = Left ("Div: invalid arguments")
+
 execOperation SignEqual (a:b:_) = Right (VBool (a == b))
 execOperation SignEqual _ = Left ("Eq: invalid number of arguments")
+
 execOperation SignInf (VNum a:VNum b:_) = Right (VBool (a < b))
 execOperation SignInf _ = Left ("Less: invalid arguments")
+
 execOperation SignSup (VNum a:VNum b:_) = Right (VBool (a > b))
 execOperation SignSup _ = Left ("Greater: invalid arguments")
+
 execOperation SignInfEqual (VNum a:VNum b:_) = Right (VBool (a <= b))
 execOperation SignInfEqual _ = Left ("LessEq: invalid arguments")
+
 execOperation SignSupEqual (VNum a:VNum b:_) = Right (VBool (a >= b))
 execOperation SignSupEqual _ = Left ("GreaterEq: invalid arguments")
+
 execOperation SignAnd (VBool a:VBool b:_) = Right (VBool (a && b))
 execOperation SignAnd _ = Left ("And: invalid arguments")
+
 execOperation SignOr (VBool a:VBool b:_) = Right (VBool (a || b))
 execOperation SignOr _ = Left ("Or: invalid arguments")
+
 execOperation SignNot (VBool a:_) = Right (VBool (not a))
 execOperation SignNot _ = Left ("Not: invalid arguments")
+
 execOperation SignModulo (VNum _:VNum 0:_) = Left ("Mod: modulo by zero")
 execOperation SignModulo (VNum a:VNum b:_) = Right (VNum (a `mod` b))
 execOperation SignModulo _ = Left ("Mod: invalid arguments")
+
 execOperation SignNotEqual (a:b:_) = Right (VBool (a /= b))
 execOperation SignNotEqual _ = Left ("Neq: invalid number of arguments")
 

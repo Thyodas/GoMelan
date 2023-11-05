@@ -7,13 +7,36 @@
 
 module InternalFunctions (astInternalEnv) where
 
-import Ast (GomAST(..), Env)
+import Ast (GomAST(..), Env, EnvEntry)
 
 astInternalEnv :: Env
 astInternalEnv = [
-        ("len", AGomInternalFunction
-            "len"
-            (AGomParameterList [AGomTypedIdentifier "list" (AGomTypeList
-                [AGomTypeAny])])
-            (AGomType "Int"))
+        lenFuncType,
+        intToFloatFuncType,
+        floatToIntFuncType
     ]
+
+lenFuncType :: EnvEntry
+lenFuncType = (name,
+    AGomInternalFunction name (AGomParameterList args) returnType)
+    where
+        name = "len"
+        args = [AGomTypedIdentifier "list" (AGomTypeList [AGomTypeAny])]
+        returnType = AGomType "Int"
+
+intToFloatFuncType :: EnvEntry
+intToFloatFuncType = (name,
+    AGomInternalFunction name (AGomParameterList args) returnType)
+    where
+        name = "intToFloat"
+        args = [AGomTypedIdentifier "int" (AGomType "Int")]
+        returnType = AGomType "Float"
+
+floatToIntFuncType :: EnvEntry
+floatToIntFuncType = (name,
+    AGomInternalFunction name (AGomParameterList args) returnType)
+    where
+        name = "floatToInt"
+        args = [AGomTypedIdentifier "float" (AGomType "Float")]
+        returnType = AGomType "Int"
+

@@ -366,7 +366,8 @@ parseAnyChar toFind = Parser $ \str -> case str of
 
 -- | Parse a literal
 parseLiteral :: Parser GomExpr
-parseLiteral = (Number <$> parseNumber) <|> parseString <|> parseBoolean
+parseLiteral =  (FloatNumber <$> parseFloat) <|> (Number <$> parseNumber)
+    <|> parseString <|> parseBoolean
 
 -- | Takes two parser in arg, try to apply the first one if fail try the second and return a parser if one success
 parseOr :: Parser a -> Parser a -> Parser a
