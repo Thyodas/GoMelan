@@ -1,10 +1,7 @@
-b: Int = 5;
+fn main() -> [String];
 
-fn main() -> Int;
-
-fn main() -> Int
+fn main() -> [String]
 {
-    a: Int = b;
     str: [String] = ["Olala", "Olala1", "Olala2", "Olala3", "Olala4"];
-    return a;
+    return str;
 }

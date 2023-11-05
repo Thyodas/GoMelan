@@ -1,0 +1,6 @@
+fn main() -> String
+{
+    fl: Float = 4.2;
+    i: String = floatToString(fl);
+    return i;
+}

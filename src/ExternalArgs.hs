@@ -10,9 +10,9 @@
 module ExternalArgs (getGomelanArgs) where
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
-import System.Exit
-import Control.Monad (when)
-import System.Environment (getProgName)
+import System.Exit()
+import Control.Monad()
+import System.Environment()
 import Execution (execBuild, execRun)
 
 data Options = Run { src :: FilePath }
@@ -82,9 +82,9 @@ optionHandler :: Options -> IO ()
 optionHandler opts = runArgs opts
 
 runArgs :: Options -> IO ()
-runArgs opts@Build {src = src, out = out} = execBuild src out
-runArgs opts@Run {src = src} = execRun src
+runArgs Build {src = src, out = out} = execBuild src out
+runArgs Run {src = src} = execRun src
 runArgs opts@Interactive {optSrc = ""} = putStrLn
     "Interactive option default !" >> print opts
-runArgs opts@Interactive {optSrc = src} = putStrLn
+runArgs opts@Interactive {optSrc = _} = putStrLn
     "Interactive option !" >> print opts

@@ -9,10 +9,10 @@ module Prompt (replLoop) where
 
 import System.IO
 import System.Exit
-import Ast (Env)
+import Ast()
 import Execution (runCode)
 import Control.Exception (IOException, catch)
-import VirtualMachine.Vm (Compiled(..), VmEnv(..))
+import VirtualMachine.Vm (Compiled(..), VmEnv)
 
 -- | Check if parentheses are close or not and return boolean
 areParenthesesClosed :: String -> Bool
@@ -64,4 +64,3 @@ replLoop env = do
 
 replExecution :: IO ()
 replExecution = putStrLn "Welcome to GLaDOS!" >> replLoop []
-
