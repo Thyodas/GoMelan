@@ -23,6 +23,7 @@ data InternalFunction = InternalFunction String (Args -> Either String Val)
 --     get = return $ InternalFunction (\ _ -> Left "Internal function not implemented")
 
 data Val = VNum Int
+    | VFloatNum Float
     | VBool Bool
     | VChar Char
     | VList [Val]

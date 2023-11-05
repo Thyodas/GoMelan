@@ -46,6 +46,7 @@ data GomExprType = SingleType String | TypeList [GomExprType]
 
 data GomExpr = Number Int
     | Character Char
+    | FloatNumber Float
     | Identifier [Char]
     | Boolean Bool
     | Type GomExprType
@@ -71,8 +72,8 @@ data GomExpr = Number Int
     deriving (Show, Eq)
 
 
-data GomAST =
-    AGomNumber Int
+data GomAST = AGomNumber Int
+  | AGomFloatNumber Float
   | AGomCharLiteral Char
   | AGomIdentifier [Char]
   | AGomBooleanLiteral Bool
