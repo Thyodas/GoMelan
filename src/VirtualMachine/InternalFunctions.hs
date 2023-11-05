@@ -15,7 +15,8 @@ import Text.Read (readMaybe)
 import qualified Data.ByteString.Lazy as BS
 
 internalEntry :: String -> (Args -> Either String Val) -> (String, Val)
-internalEntry name func = (name, VInternalFunction (InternalFunction name func))
+internalEntry name func = (name,
+    VInternalFunction (InternalFunction name func))
 
 vmInternalEnv :: VmEnv
 vmInternalEnv = [
@@ -43,20 +44,20 @@ floatToInt [] = Left "floatToInt: invalid number of arguments"
 floatToInt [VFloatNum x] = Right $ VNum $ round x
 floatToInt _ = Left "floatToInt: invalid argument type expected Int"
 
+concatCharList :: Val -> String
+concatCharList (VList charList) = concatMap extractChar charList
+    where
+        extractChar :: Val -> String
+        extractChar (VChar c) = [c]
+        extractChar _ = ""
+concatCharList _ = ""
+
 stringToInt :: Args -> Either String Val
 stringToInt [] = Left "stringToInt: invalid number of arguments"
 stringToInt [str@(VList (VChar _:_))] = case findInt (concatCharList str) of
     Just num -> Right $ VNum num
     Nothing -> Left $ "stringToInt: no integer found in '" ++ show str ++ "'"
     where
-        concatCharList :: Val -> String
-        concatCharList (VList charList) = concatMap extractChar charList
-        concatCharList _ = ""
-
-        extractChar :: Val -> String
-        extractChar (VChar c) = [c]
-        extractChar _ = ""
-
         findInt :: String -> Maybe Int
         findInt str' = readMaybe str'
 stringToInt _ = Left "stringToInt: invalid argument type expected String"

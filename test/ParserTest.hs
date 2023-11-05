@@ -215,10 +215,10 @@ testParseBoolean = TestList
     , TestCase $ assertEqual "parseBoolean not valid" expected2 result2
     ]
     where
-        result1 = runParser parseBoolean "True"
+        result1 = runParser parseBoolean "true"
         expected1 = Right (Boolean True, "")
 
-        result2 = runParser parseBoolean "False"
+        result2 = runParser parseBoolean "false"
         expected2 = Right (Boolean False, "")
 
 testParseUntilAny :: Test

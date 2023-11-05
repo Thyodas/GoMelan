@@ -205,7 +205,8 @@ parseTypeChar = do
 
 -- | Parse factor
 parseFactor :: Parser GomExpr
-parseFactor = (FloatNumber <$> parseFloat) <|> (Number <$> parseNumber) <|> parseTypeChar <|> parseFunctionCall
+parseFactor = parseBoolean <|> (FloatNumber <$> parseFloat)
+    <|> (Number <$> parseNumber) <|> parseTypeChar <|> parseFunctionCall
     <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseAssignent
     <|> parseAccess  <|> parseIdentifier <|> parseLiteral
     <|> parseListAssignement
@@ -401,29 +402,10 @@ parseEmptyListIfEnd = Parser $ \str -> case str of
 -- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
 parseSome :: Parser a -> Parser [a]
 parseSome parser = (:) <$> parser <*> parseMany parser
--- parseSome parser = Parser $ \str -> case runParser parser str of
---     Right (result, str') -> case runParser (parseSome parser) str' of
---         Right (results, str'') -> Right (result:results, str'')
---         Left err -> Right ([result], str')
---     Left err -> Left err
-
 
 parseSomeThrowIfNotEnd :: Parser a -> Parser [a]
 parseSomeThrowIfNotEnd parser = (:) <$> parser <*> (parseSome parser
     <|> parseEmptyListIfEnd)
-
-
--- -- | Takes a parser in arg and try to apply it at least one time if success return a list of the parsed elements
--- parseSomeThrowLast :: Parser a -> Parser [a]
--- parseSomeThrowLast parser = do
---     first <- parser
---     rest <- parseMany parser
---     case rest of
---         [] -> return [first]
---         _ -> return (first:rest)
---     <|> case lastError of
---         Just err -> throwError err
---         Nothing -> throwError [ParseError MissingChar "Expected at least one occurrence of the parser." ""]
 
 parseUFloat :: Parser Float
 parseUFloat = do
@@ -531,15 +513,11 @@ parseForLoopCondition = parseExpression
 parseForLoopUpdate :: Parser GomExpr
 parseForLoopUpdate = parseAssignent <|> parseExpression <|> pure Empty
 
--- | Print an expression
---parsePrint :: Parser String
---parsePrint = parseGomExprlSymbol "print" *> parseChar '(' *> parseExpression <* parseChar ')'
-
 -- | Parse a boolean and return a GomExpr
 parseBoolean :: Parser GomExpr
 parseBoolean = do
-    parsed <- parseSymbol "True" <|> parseSymbol "False"
-    return (Boolean (parsed == "True"))
+    parsed <- parseSymbol "true" <|> parseSymbol "false"
+    return (Boolean (parsed == "true"))
 
 -- | parse until any of the given characters is found
 parseUntilAny :: String -> Parser String
@@ -554,7 +532,8 @@ parseUntilAny toFind = Parser $ \str -> case str of
 -- | parse until any of the given string is found
 parseUntilSymbol :: String -> Parser String
 parseUntilSymbol toFind = Parser $ \str -> case str of
-    str'@(x:xs) | (take (length toFind) str') == toFind -> Right ("", drop (length toFind) str')
+    str'@(x:xs) | (take (length toFind) str') == toFind -> Right ("",
+            drop (length toFind) str')
          | otherwise -> case runParser (parseUntilSymbol toFind) xs of
                 Right (result, str'') -> Right (x:result, str'')
                 Left err -> Left err

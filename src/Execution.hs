@@ -73,7 +73,8 @@ getAllIncludesHelper srcPath (IncludeStatement _ path:rest) prevInc = do
     _ <- checkCircularDependency resolvedPath prevInc
     content <- readFileContent resolvedPath
     gomexpr <- parseContentToGomExpr content
-    resRec <- getAllIncludesHelper resolvedPath gomexpr (prevInc ++ [resolvedPath])
+    resRec <- getAllIncludesHelper resolvedPath gomexpr (prevInc
+        ++ [resolvedPath])
     res <- getAllIncludesHelper srcPath rest (prevInc ++ [resolvedPath])
     return $ resRec ++ res
 getAllIncludesHelper srcPath (current:rest) prevInc = do
@@ -82,7 +83,10 @@ getAllIncludesHelper srcPath (current:rest) prevInc = do
 
 checkCircularDependency :: String -> [String] -> IO ()
 checkCircularDependency resolvedPath prevInc =
-    when (resolvedPath `elem` prevInc) $ putStrLn ("Circular dependency detected: " ++ resolvedPath) >> exitWith (ExitFailure 84)
+    when (resolvedPath `elem` prevInc) $ putStrLn (
+        "Circular dependency detected: " ++ resolvedPath)
+        >> exitWith (ExitFailure 84
+    )
 
 readFileContent :: FilePath -> IO String
 readFileContent path = do
@@ -92,16 +96,18 @@ readFileContent path = do
         Right content -> pure content
 
 parseContentToGomExpr :: String -> IO [GomExpr]
-parseContentToGomExpr content = do
+parseContentToGomExpr content =
     case runParser parseCodeToGomExpr content of
-        Left errList -> putStrLn (printErrors content errList) >> exitWith (ExitFailure 84)
+        Left errList -> putStrLn (printErrors content errList)
+            >> exitWith (ExitFailure 84)
         Right (gomexpr, _) -> pure gomexpr
 
-codeToGomExprWithInclude :: String -> String -> IO ([GomExpr])
+codeToGomExprWithInclude :: String -> String -> IO [GomExpr]
 codeToGomExprWithInclude srcPath code = do
     res <- case runParser parseCodeToGomExpr code of
         Right other -> return other
-        Left errList -> putStrLn (printErrors code errList) >> exitWith (ExitFailure 84)
+        Left errList -> putStrLn (printErrors code errList)
+            >> exitWith (ExitFailure 84)
     case res of
         (gomexpr, _) -> getAllIncludes srcPath gomexpr
 
@@ -112,11 +118,10 @@ execBuild src out = do
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
         Right content -> pure content
     gomexpr <- codeToGomExprWithInclude src content
-    compiled <- case codeToCompiled astInternalEnv gomexpr of
+    case codeToCompiled astInternalEnv gomexpr of
         Left err -> putStrLn err >> exitWith (ExitFailure 84)
-        Right compiled -> pure compiled
-    serializeAndWriteCompiled out compiled
-    printf "Successfully compiled '%s' to '%s'.\n" src out
+        Right compiled -> serializeAndWriteCompiled out compiled
+            >> printf "Successfully compiled '%s' to '%s'.\n" src out
 
 execRun :: String -> IO ()
 execRun src = do

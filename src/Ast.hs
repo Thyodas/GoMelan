@@ -282,22 +282,24 @@ getAGomFunctionDefinition env name = do
     _ -> throwEvalError ("Identifier '" ++ name
       ++ "' is not a function") []
 
+getAGomFunctionParametersHelper :: String -> GomAST -> EvalResult GomAST
+getAGomFunctionParametersHelper _ (AGomFunctionDefinition {
+  aGomFnArguments=params@(AGomParameterList _)}) = pure params
+getAGomFunctionParametersHelper name (AGomFunctionDefinition {}) =
+  throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
+getAGomFunctionParametersHelper _ (AGomInternalFunction {
+  aGomInternalArguments=params@(AGomParameterList _)}) = pure params
+getAGomFunctionParametersHelper name (AGomInternalFunction {}) =
+  throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
+getAGomFunctionParametersHelper _ (AGomFunctionPrototype {
+  aGomFnProtoArguments=(params@(AGomParameterList _))}) = pure params
+getAGomFunctionParametersHelper name _ = throwEvalError ("Identifier '"
+  ++ name ++ "' is not a function") []
+
 getAGomFunctionParameters :: Env -> String -> EvalResult GomAST
 getAGomFunctionParameters env name = do
   func <- envLookupEval env name
-  case func of
-    AGomFunctionDefinition {aGomFnArguments=(params@(AGomParameterList _))} ->
-        pure params
-    AGomFunctionDefinition {} ->
-      throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
-    AGomInternalFunction {aGomInternalArguments=(params@(AGomParameterList _))} ->
-        pure params
-    AGomInternalFunction {} ->
-      throwEvalError ("Function '" ++ name ++ "' has invalid arguments") []
-    AGomFunctionPrototype {aGomFnProtoArguments=(params@(AGomParameterList _))} ->
-        pure params
-    _ -> throwEvalError ("Identifier '" ++ name
-      ++ "' is not a function") []
+  getAGomFunctionParametersHelper name func
 
 gomExprToAGomFunctionCall :: Env -> GomExpr -> EvalResult (Env, GomAST)
 gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
@@ -360,7 +362,8 @@ shuntingYard' (o@(Operator _):expr) outputStack (operatorStack) =
 shuntingYard' (e:expr) outputStack operatorStack =
     shuntingYard' expr (e:outputStack) operatorStack
 
-gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
+gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env,
+  [GomAST])
 gomExprListToGomASTListShuntingYard env exprList = do
   let postFixExpr = shuntingYard exprList
   (_, allAst) <- traverse (gomExprToGomAST env) postFixExpr >>= pure . unzip
