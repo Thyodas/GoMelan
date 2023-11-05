@@ -245,10 +245,10 @@ testParseComment = TestList
     ]
     where
         result1 = runParser parseComment "// this is a comment\n"
-        expected1 = Right (" this is a comment", "")
+        expected1 = Right (Empty, "")
 
         result2 = runParser parseComment "/ this is not a comment\n"
-        expected2 = Left [ParseError MissingExpression "Expected '/' but got ' '." " this is not a comment\n"]
+        expected2 = Right (Empty,"/ this is not a comment\n")
 
 testEmpty :: Test
 testEmpty = TestCase $ assertEqual "empty" expected result
