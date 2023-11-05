@@ -200,7 +200,7 @@ testJump = TestList
 testValShow :: Test
 testValShow = TestList [
    TestCase $ assertEqual "Show VNum" "5" (show (VNum 5)),
-   TestCase $ assertEqual "Show VBool" "True" (show (VBool True)),
+   TestCase $ assertEqual "Show VBool" "true" (show (VBool True)),
    TestCase $ assertEqual "Show VChar" "'e'" (show (VChar 'e')),
    TestCase $ assertEqual "Show VFunction" "" (show (VFunction []))
    ]
@@ -213,7 +213,7 @@ testShowVNum = TestCase $ do
 testShowVBool :: Test
 testShowVBool = TestCase $ do
     let v = VBool True
-    assertEqual "Show VBool True" "True" (show v)
+    assertEqual "Show VBool True" "true" (show v)
 
 testShowVStr :: Test
 testShowVStr = TestCase $ do
@@ -223,7 +223,7 @@ testShowVStr = TestCase $ do
 testShowVList :: Test
 testShowVList = TestCase $ do
     let v = VList [VNum 1, VChar 'o', VBool True]
-    assertEqual "Show VList" "[1,'o',True]" (show v)
+    assertEqual "Show VList" "[1,'o',true]" (show v)
 
 testShowVOp :: Test
 testShowVOp = TestCase $ do
@@ -263,7 +263,7 @@ testShowCompiled = TestCase $ do
     let env = [("x", VNum 5), ("y", VBool True)]
     let instructions = [Push (VNum 1), Push (VNum 2), Push (VOp SignPlus)]
     let compiled = Compiled env instructions
-    let expectedShow =  "x:\n\t5\n\ny:\n\tTrue\n\n\nPush 1\nPush 2\nPush <Operator '+'>\n\n"
+    let expectedShow =  "x:\n\t5\n\ny:\n\ttrue\n\n\nPush 1\nPush 2\nPush <Operator '+'>\n\n"
     assertEqual "Show Compiled" expectedShow (show compiled)
 
 testEnumOperatorEq :: Test
