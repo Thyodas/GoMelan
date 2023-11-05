@@ -324,22 +324,13 @@ gomExprToAGomAssignment env (Assignment idExpr valExpr) = do
 gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
 precedence :: GomExpr -> Int
-precedence (Operator op) = case op of
-  "||" -> 1
-  "&&" -> 1
-  "==" -> 2
-  "!=" -> 2
-  "<=" -> 2
-  ">=" -> 2
-  "<" -> 2
-  ">" -> 2
-  "+" -> 3
-  "-" -> 3
-  "*" -> 4
-  "/" -> 4
-  "%" -> 4
-  "!" -> 5
-  _ -> 0
+precedence (Operator op)
+  | op `elem` ["||", "&&"] = 1
+  | op `elem` ["==", "!=", "<=", ">=", "<", ">"] = 2
+  | op `elem` ["+", "-"] = 3
+  | op `elem` ["*", "/", "%"] = 4
+  | op `elem` ["!"] = 5
+  | otherwise = 0
 precedence _ = 0
 
 shuntingYard :: [GomExpr] -> [GomExpr]

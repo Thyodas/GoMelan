@@ -152,24 +152,24 @@ parseReturnStatement = do
     return $ ReturnStatement expression
 
 -- | Parse an expression
+parseMultiple :: Parser [GomExpr]
+parseMultiple = do
+    bin <- parseBinaryOperator <?!> ParseError MissingOperator
+        "Expected a binary operator."
+    expr <- parseSubExpression <?!> ParseError MissingExpression
+        "Expected an expression."
+    return [bin, expr]
+
+parseSubExpression :: Parser GomExpr
+parseSubExpression = parseAmongWhitespace (
+    parseFactor <|> parseBetween '(' ')' parseExpression)
+
 parseExpression :: Parser GomExpr
 parseExpression = Expression <$> parseExpression'
     where
         parseExpression' :: Parser [GomExpr]
         parseExpression' =
             (:) <$> parseSubExpression <*> (concat <$> parseMany parseMultiple)
-
-        parseMultiple :: Parser [GomExpr]
-        parseMultiple = do
-            bin <- parseBinaryOperator <?!> ParseError MissingOperator
-                "Expected a binary operator."
-            expr <- parseSubExpression <?!> ParseError MissingExpression
-                "Expected an expression."
-            return [bin, expr]
-
-        parseSubExpression :: Parser GomExpr
-        parseSubExpression = parseAmongWhitespace (
-            parseFactor <|> parseBetween '(' ')' parseExpression)
 
 -- | Parse list assigment on list creation
 parseListAssignement :: Parser GomExpr

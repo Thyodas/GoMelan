@@ -104,9 +104,7 @@ execRun src = do
 -- | Parse GomExpr to annalise the syntaxe
 runCode :: VmEnv -> String -> Either ErrorMsg Compiled
 runCode env code = do
-    (gomexpr, _) <- case runParser parseCodeToGomExpr code of
-        Right other -> Right other
-        Left errList -> Left $ printErrors code errList
+    (gomexpr, _) <- parseCodeToGomExprResult code
     (_, unevaluatedAst) <- case convertListToAST [] gomexpr of
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg
@@ -114,6 +112,12 @@ runCode env code = do
         EvalResult (Right results) -> Right results
         EvalResult (Left (EvalError msg _)) -> Left msg
     return compiled
+
+parseCodeToGomExprResult :: String -> Either ErrorMsg ([GomExpr], String)
+parseCodeToGomExprResult code =
+    case runParser parseCodeToGomExpr code of
+        Right other -> Right other
+        Left errList -> Left $ printErrors code errList
 
 -- -- | Check list
 -- evalList :: Env -> [GomAST] -> EvalResult (Env, [GomAST])
