@@ -688,7 +688,8 @@ parseExpressionList = List <$> parseList parseExpression
 
 -- | Ensuite, vous pouvez combiner tous ces parsers pour gérer la structure de votre langage
 parseGomExpr :: Parser GomExpr
-parseGomExpr = parseIncludeStatement <|> parseFunctionPrototype
+parseGomExpr = parseIncludeStatement <|>
+    parseSemicolumn (parseVariableDeclaration) <|> parseFunctionPrototype
     <|> parseFunctionDeclaration
 
 -- | Parse code to return GomExpr
