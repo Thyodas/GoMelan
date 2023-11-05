@@ -12,6 +12,7 @@ import System.Exit
 import Ast (Env)
 import Execution (runCode)
 import Control.Exception (IOException, catch)
+import VirtualMachine.Vm (Compiled(..), VmEnv(..))
 
 -- | Check if parentheses are close or not and return boolean
 areParenthesesClosed :: String -> Bool
@@ -46,17 +47,21 @@ getLines str = do
 handleEOF :: IOException -> IO String
 handleEOF _ = putStrLn "\nExit..." >> exitSuccess >> pure ""
 
-processInput :: Env -> String -> IO ()
+processInput :: VmEnv -> String -> IO ()
 processInput _ ":q" = putStrLn "Exit..." >> exitSuccess
 processInput env input = case runCode env input of
         Left err -> putStrLn err >> replLoop env
-        Right (newEnv, asts) ->
-            mapM_ (putStrLn . show) asts >> replLoop newEnv
+        Right (Compiled newEnv res) ->
+            mapM_ (putStrLn . show) res >> replLoop newEnv
 
 -- | Loop for prompt mode, takes env in arg
-replLoop :: Env -> IO ()
+replLoop :: VmEnv -> IO ()
 replLoop env = do
     putStr promptString
     hFlush stdout
     input <- catch (getLines "") handleEOF
     processInput env input
+
+replExecution :: IO ()
+replExecution = putStrLn "Welcome to GLaDOS!" >> replLoop []
+

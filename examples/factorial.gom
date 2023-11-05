@@ -1,0 +1,14 @@
+fn factorial(n: Int) -> Int
+{
+    if (n == 0) {
+        return 1;
+    } else {
+        b: Int = n - 1;
+        return n * factorial(b);
+    }
+}
+
+fn main() -> Int
+{
+    return factorial(20);
+}

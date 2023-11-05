@@ -148,7 +148,7 @@ parseReturnStatement :: Parser GomExpr
 parseReturnStatement = do
     _ <- parseSymbol "return"
     expression <- parseAmongWhitespace parseExpression
-    return expression
+    return $ ReturnStatement expression
 
 -- | Parse an expression
 parseExpression :: Parser GomExpr
@@ -566,7 +566,7 @@ parseFunctionDeclaration = do
 parseFunctionCall :: Parser GomExpr
 parseFunctionCall = do
     fctName <- parseIdentifier
-    arguments <- ParameterList <$> parseList parseIdentifier
+    arguments <- ParameterList <$> parseList parseExpression
     return $ FunctionCall {functionName=fctName,
         functionArguments=arguments}
 

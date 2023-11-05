@@ -35,6 +35,7 @@ module Ast (
 ) where
 
 import Data.List (deleteBy, find, nub)
+import VirtualMachine.Vm (EnumOperator(..))
 
 data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
@@ -51,6 +52,7 @@ data GomExpr = Number Int
     | List [GomExpr]
     | Block [GomExpr]
     | ParameterList [GomExpr]
+    | ReturnStatement GomExpr
     | FunctionCall { functionName :: GomExpr, functionArguments :: GomExpr }
     | TypedIdentifier { identifier :: String, identifierType :: GomExpr}
     | IncludeStatement { includeList :: GomExpr, fromModule :: GomExpr }
@@ -70,21 +72,6 @@ instance Show InternalFunction where
 instance Eq InternalFunction where
   _ == _ = True
 
-data EnumOperator = SignPlus
-    | SignMinus
-    | SignMultiply
-    | SignDivide
-    | SignModulo
-    | SignEqual
-    | SignNotEqual
-    | SignNot
-    | SignAnd
-    | SignInfEqual
-    | SignSupEqual
-    | SignInf
-    | SignSup
-    deriving (Show, Eq, Enum)
-
 data GomAST =
     AGomNumber Int
   | AGomIdentifier String
@@ -101,6 +88,7 @@ data GomAST =
   | AGomFunctionArgument { aGomArgumentName :: GomAST, aGomArgumentType :: GomAST}
   | AGomParameterList [GomAST]
   | AGomInternalFunction InternalFunction
+  | AGomReturnStatement GomAST
   | AGomFunctionCall { aGomFunctionName :: String, aGomFunctionArguments :: GomAST }
   | AGomTypedIdentifier { aGomIdentifier :: String, aGomIdentifierType :: GomAST }
   | AGomIncludeStatement { aGomIncludeList :: GomAST, aGomFromModule :: GomAST }
@@ -148,6 +136,13 @@ gomExprListToGomASTList env list = do
   (_, allAst) <- traverse (gomExprToGomAST env) list >>= pure . unzip
   return ([], allAst)
 
+gomExprListToGomASTListEnv :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
+gomExprListToGomASTListEnv env [] = pure (env, [])
+gomExprListToGomASTListEnv env (ast:rest) = do
+  (newEnv, result) <- gomExprToGomAST env ast
+  (finalEnv, results) <- gomExprListToGomASTListEnv (newEnv ++ env) rest
+  pure (finalEnv ++ newEnv, result : results)
+
 typeResolver :: Env -> GomAST -> EvalResult GomAST
 typeResolver env (AGomFunctionCall s _) = do
   func <- envLookupEval env s
@@ -193,6 +188,7 @@ checkType env astA astB = do
       ("Type mismatch, found '" ++ show resolvedA ++ "' but expected '"
       ++ show resolvedB ++ "'.") []
 
+-- TODO: finish this function (missing transformation of block and so on)
 getAGomFunctionDefinition :: Env -> String -> EvalResult GomAST
 getAGomFunctionDefinition env name = do
   func <- envLookupEval env name
@@ -210,9 +206,9 @@ gomExprToAGomFunctionCall env (FunctionCall (Identifier name)
   (_, argsAst) <- gomExprListToGomASTList env args
   AGomFunctionDefinition {aGomFnArguments=(AGomParameterList funcDefArgs)} <-
     getAGomFunctionDefinition env name
-  let funcDegArgsTypes = map aGomArgumentType funcDefArgs
+  let funcDegArgsTypes = map aGomIdentifierType funcDefArgs
   _ <- traverse (uncurry (checkType env)) (zip argsAst funcDegArgsTypes)
-  return $ (env, AGomFunctionCall name (AGomList argsAst))
+  return $ (env, AGomFunctionCall name (AGomParameterList argsAst))
 
 -- | Error handling
 gomExprToAGomFunctionCall _ (FunctionCall (Identifier _) param) =
@@ -244,18 +240,19 @@ gomExprToAGomAssignment _ got = throwEvalError "Expected an Assignment" [got]
 
 precedence :: GomExpr -> Int
 precedence (Operator op) = case op of
-  "+" -> 1
-  "-" -> 1
-  "*" -> 2
-  "/" -> 2
-  "%" -> 2
-  "==" -> 3
-  "!=" -> 3
-  "<=" -> 3
-  ">=" -> 3
-  "<" -> 3
-  ">" -> 3
-  "&&" -> 4
+  "||" -> 1
+  "&&" -> 1
+  "==" -> 2
+  "!=" -> 2
+  "<=" -> 2
+  ">=" -> 2
+  "<" -> 2
+  ">" -> 2
+  "+" -> 3
+  "-" -> 3
+  "*" -> 4
+  "/" -> 4
+  "%" -> 4
   "!" -> 5
   _ -> 0
 precedence _ = 0
@@ -264,20 +261,33 @@ shuntingYard :: [GomExpr] -> [GomExpr]
 shuntingYard expr = reverse $ shuntingYard' expr [] []
 
 shuntingYard' :: [GomExpr] -> [GomExpr] -> [GomExpr] -> [GomExpr]
-shuntingYard' [] outputStack operatorStack = outputStack ++ reverse operatorStack
-shuntingYard' (e:expr) outputStack operatorStack =
-  case e of
-    op@(Operator _) ->
-      let (oStack, oQueue) = span (\x -> precedence op <= precedence x) operatorStack
-      in shuntingYard' expr (outputStack ++ oQueue) (op:oStack)
-    (Number _) -> shuntingYard' expr (outputStack ++ [e]) operatorStack
-    other -> shuntingYard' expr (outputStack ++ [other]) operatorStack
+shuntingYard' [] outputStack operatorStack = reverse outputStack ++ operatorStack
+shuntingYard' (o@(Operator _):expr) outputStack stack@(o'@(Operator _):operatorStack)
+  | (precedence o) > (precedence o') = shuntingYard' expr outputStack (o:stack)
+  | otherwise = shuntingYard' expr (reverse stack ++ outputStack) [o]
+shuntingYard' (o@(Operator op):expr) outputStack (operatorStack) = shuntingYard' expr outputStack (o:operatorStack)
+shuntingYard' (e:expr) outputStack operatorStack = shuntingYard' expr (e:outputStack) operatorStack
 
 gomExprListToGomASTListShuntingYard :: Env -> [GomExpr] -> EvalResult (Env, [GomAST])
 gomExprListToGomASTListShuntingYard env exprList = do
   let postFixExpr = shuntingYard exprList
   (_, allAst) <- traverse (gomExprToGomAST env) postFixExpr >>= pure . unzip
   return ([], reverse allAst)
+
+removeNewAssignment :: Env -> Env -> Env
+removeNewAssignment globalEnv env = filter (not . (isNew globalEnv)) env
+    where
+      isNew :: Env -> EnvEntry -> Bool
+      isNew _ (_, AGomAssignment _ _) = True
+      isNew globalEnv' (key, _) = case envLookup globalEnv' key of
+        Just _ -> False
+        Nothing -> True
+
+aGomTypedIdentifierToEnvEntry :: GomAST -> EvalResult EnvEntry
+aGomTypedIdentifierToEnvEntry val@(AGomTypedIdentifier name _) = pure (name,
+  val)
+aGomTypedIdentifierToEnvEntry _ = throwEvalError "Expected a TypedIdentifier"
+  []
 
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
@@ -302,7 +312,7 @@ gomExprToGomAST env (Expression e) = applyToSnd AGomExpression <$>
 gomExprToGomAST env (List l) = applyToSnd AGomList <$>
     gomExprListToGomASTList env l
 gomExprToGomAST env (Block b) = applyToSnd AGomBlock <$>
-    gomExprListToGomASTList env b
+    gomExprListToGomASTListEnv env b
 gomExprToGomAST env (ParameterList p) = applyToSnd AGomParameterList <$>
     gomExprListToGomASTList env p
 gomExprToGomAST env function@(FunctionCall _ _) = gomExprToAGomFunctionCall
@@ -317,22 +327,28 @@ gomExprToGomAST env (IncludeStatement i m) = do
 gomExprToGomAST env a@(Assignment _ _) = gomExprToAGomAssignment env a
 gomExprToGomAST _ Empty = pure ([], AGomEmpty)
 gomExprToGomAST env (ForLoopIter init cond update block) = do
-  (_, init') <- gomExprToGomAST env init
-  (_, cond') <- gomExprToGomAST env cond
-  (_, update') <- gomExprToGomAST env update
-  (_, block') <- gomExprToGomAST env block
-  return ([], AGomForLoop init' cond' update' block')
+  (initEnv, init') <- gomExprToGomAST env init
+  (_, cond') <- gomExprToGomAST (env ++ initEnv) cond
+  (_, update') <- gomExprToGomAST (env ++ initEnv) update
+  (blockEnv, block') <- gomExprToGomAST (env ++ initEnv) block
+  return (removeNewAssignment env (blockEnv ++ initEnv), AGomForLoop init' cond' update' block')
 gomExprToGomAST env (Condition cond true false) = do
   (_, cond') <- gomExprToGomAST env cond
-  (_, true') <- gomExprToGomAST env true
-  (_, false') <- gomExprToGomAST env false
-  return ([], AGomCondition cond' true' false')
+  (trueEnv, true') <- gomExprToGomAST env true
+  (falseEnv, false') <- gomExprToGomAST env false
+  return (removeNewAssignment env trueEnv ++ removeNewAssignment env falseEnv,
+    AGomCondition cond' true' false')
 gomExprToGomAST env (Function name args body retType) = do
-  (_, args') <- gomExprToGomAST env args
+  (_, args'@(AGomParameterList argsList)) <- gomExprToGomAST env args
+  envArgs <- traverse aGomTypedIdentifierToEnvEntry argsList
   (_, retType') <- gomExprToGomAST env retType
   let tempFunction = AGomFunctionDefinition name args' (AGomBlock []) retType'
-  (newEnv, body') <- gomExprToGomAST ((name, tempFunction) : env) body
-  return (newEnv, AGomFunctionDefinition name args' body' retType')
+  (newEnv, body') <- gomExprToGomAST (envArgs ++ (name, tempFunction) :  env) body
+  return ((removeNewAssignment env newEnv) ++ [(name, tempFunction)],
+    AGomFunctionDefinition name args' body' retType')
+gomExprToGomAST env (ReturnStatement expr) = do
+  (_, expr') <- gomExprToGomAST env expr
+  return ([], AGomReturnStatement expr')
 
 operatorToGomAST :: GomExpr -> EvalResult GomAST
 operatorToGomAST (Operator "+") = pure (AGomOperator SignPlus)
@@ -344,10 +360,13 @@ operatorToGomAST (Operator "==") = pure (AGomOperator SignEqual)
 operatorToGomAST (Operator "!=") = pure (AGomOperator SignNotEqual)
 operatorToGomAST (Operator "!") = pure (AGomOperator SignNot)
 operatorToGomAST (Operator "&&") = pure (AGomOperator SignAnd)
+operatorToGomAST (Operator "||") = pure (AGomOperator SignOr)
 operatorToGomAST (Operator "<=") = pure (AGomOperator SignInfEqual)
 operatorToGomAST (Operator ">=") = pure (AGomOperator SignSupEqual)
 operatorToGomAST (Operator "<") = pure (AGomOperator SignInf)
 operatorToGomAST (Operator ">") = pure (AGomOperator SignSup)
+operatorToGomAST (Operator op) = throwEvalError ("Unknown operator '" ++ op ++ "'") []
+operatorToGomAST _ = throwEvalError "Expected an Operator" []
 
 extractSymbol :: GomExpr -> Maybe String
 extractSymbol (Identifier s) = Just s
@@ -380,3 +399,6 @@ envLookupEval :: Env -> EnvKey -> EvalResult EnvValue
 envLookupEval env key = case envLookup env key of
   Just val -> pure val
   Nothing -> throwEvalError ("Identifier '" ++ key ++ "' not found in env") []
+
+
+--  exec [] [] [Jump 2, Push (VNum 1), Ret, Jump (-2), Ret] []
