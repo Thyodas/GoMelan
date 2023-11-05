@@ -205,7 +205,7 @@ parseTypeChar = do
 
 -- | Parse factor
 parseFactor :: Parser GomExpr
-parseFactor = (Number <$> parseNumber) <|> parseTypeChar <|> parseFunctionCall
+parseFactor = (FloatNumber <$> parseFloat) <|> (Number <$> parseNumber) <|> parseTypeChar <|> parseFunctionCall
     <|> parseAssignmentPlusPlus <|> parseAssignmentOperator <|> parseAssignent
     <|> parseAccess  <|> parseIdentifier <|> parseLiteral
     <|> parseListAssignement
@@ -240,7 +240,6 @@ parseSymbol str = parseSymbol' str <?> ParseError MissingExpression
             a <- (: []) <$> parseChar x
             b <- parseSymbol' xs
             return (a ++ b)
-
 
 -- | Parse operator ADD '+'
 parseOperatorPlus :: Parser String
@@ -420,6 +419,18 @@ parseSomeThrowIfNotEnd parser = (:) <$> parser <*> parseSome parser
 --     <|> case lastError of
 --         Just err -> throwError err
 --         Nothing -> throwError [ParseError MissingChar "Expected at least one occurrence of the parser." ""]
+
+parseUFloat :: Parser Float
+parseUFloat = do
+    nb <- parseSome (parseAnyChar ['0'..'9'])
+    dot <- parseChar '.'
+    dec <- parseSome (parseAnyChar ['0'..'9'])
+    return $ read (nb ++ [dot] ++ dec)
+
+parseFloat :: Parser Float
+parseFloat = negate <$> (parseChar '-' *> parseUFloat)
+    <|> (parseChar '+' *> parseUFloat)
+    <|> parseUFloat
 
 -- | Parse unsigned integer and return it
 parseUInt :: Parser Int
