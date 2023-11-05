@@ -87,12 +87,14 @@ type Args = [Val]
 data Compiled = Compiled VmEnv Insts
 
 showEnvValue :: VmEnvValue -> String
-showEnvValue (VFunction insts) = foldl (\acc inst -> acc ++ "\t" ++ show inst ++ "\n") "" insts
+showEnvValue (VFunction insts) = foldl (\acc inst -> acc ++ "\t" ++
+    show inst ++ "\n") "" insts
 showEnvValue other = "\t" ++ show other ++ "\n"
 
 showEnv :: VmEnv -> String
 showEnv [] = ""
-showEnv ((key, val):xs) = key ++ ":\n" ++ (showEnvValue val) ++ "\n" ++ (showEnv xs)
+showEnv ((key, val):xs) = key ++ ":\n" ++ (showEnvValue val) ++
+    "\n" ++ (showEnv xs)
 
 instance Show Compiled where
   show (Compiled env insts) = (showEnv env) ++ "\n"
@@ -151,7 +153,8 @@ instance Binary Instructions where
             get' _ = fail "Invalid tag while deserializing Instructions"
 
 instance Eq Compiled where
-    (Compiled env1 insts1) == (Compiled env2 insts2) = env1 == env2 && insts1 == insts2
+    (Compiled env1 insts1) == (Compiled env2 insts2) = env1 == env2 &&
+        insts1 == insts2
 
 instance Binary Compiled where
     put (Compiled insts args) = put insts >> put args
@@ -159,9 +162,9 @@ instance Binary Compiled where
 
 -- Serialize Compiled and write it to a file
 serializeAndWriteCompiled :: FilePath -> Compiled -> IO ()
-serializeAndWriteCompiled filePath compiled = do
+serializeAndWriteCompiled filePath compiled =
     let encoded = encode compiled
-    BS.writeFile filePath encoded
+    in BS.writeFile filePath encoded
 
 -- Deserialize Compiled from a file
 readAndDeserializeCompiled :: FilePath -> IO (Either String Compiled)
@@ -172,18 +175,16 @@ readAndDeserializeCompiled filePath = do
         Right (_, _, compiled) -> Right compiled
 
 main :: IO ()
-main = do
-    let instructions = [Push (VBool True),JumpIfFalse 2,Push (VStr "then"),
-                        Jump 1,Push (VStr "else"), Ret]
-    let env = []; compiled = Compiled env instructions
-    serializeAndWriteCompiled "compiled.bin" compiled
-    result <- readAndDeserializeCompiled "compiled.bin"
-    case result of
-        Left errMsg -> putStrLn $ "Deserialization Error: " ++ errMsg
-        Right decodedCompiled@(Compiled newEnv inst) -> print decodedCompiled
-            >> case exec newEnv [] inst [] of
-                Left errMsg -> putStrLn $ "Execution Error: " ++ errMsg
-                Right val -> print val
+main =
+    let inst = [Push (VBool True), JumpIfFalse 2, Push (VStr "then"),
+            Jump 1, Push (VStr "else"), Ret]; env = []; cmp = Compiled env inst
+    in serializeAndWriteCompiled "compiled.bin" cmp >>
+       (readAndDeserializeCompiled "compiled.bin" >>= \result -> case result of
+               Left err -> putStrLn $ "Deserialization Error: " ++ err
+               Right decodedComp@(Compiled newEnv inst) ->
+                   print decodedComp >> (\_ -> case exec newEnv [] inst [] of
+                       Left errMsg -> putStrLn $ "Execution Error: " ++ errMsg
+                       Right val -> print val) ())
 
 getOperationNbArgs :: EnumOperator -> Int
 getOperationNbArgs SignNot = 1

@@ -46,19 +46,14 @@ compileAst env (AGomExpression exprList) = do
     return $ Compiled [] declarations
 
 compileAst env (AGomCondition cond thenExpr elseExpr) = do
-    compiledCond <- compileAst env cond
-    compiledThen <- compileAst env thenExpr
-    compiledElse <- compileAst env elseExpr
-    let compiledCondInsts = getCompiledInsts compiledCond
-    let compiledThenInsts = getCompiledInsts compiledThen
-    let compiledThenEnv = getCompiledEnv compiledThen
-    let compiledElseInsts = getCompiledInsts compiledElse
-    let compiledElseEnv = getCompiledEnv compiledElse
-    let compiledInsts = compiledCondInsts
-            ++ [JumpIfFalse (length compiledThenInsts + 1)]
-            ++ compiledThenInsts ++ [Jump (length compiledElseInsts)]
-            ++ compiledElseInsts
-    return $ Compiled (compiledThenEnv ++ compiledElseEnv) compiledInsts
+    cCond <- compileAst env cond; cThen <- compileAst env thenExpr
+    cElse <- compileAst env elseExpr
+    let cCompI = getCompiledInsts cCond; cThenI = getCompiledInsts cThen
+        cThenE = getCompiledEnv cThen; cElseI = getCompiledInsts cElse
+        cElseE = getCompiledEnv cElse; ciledInsts = cCompI ++ 
+            [JumpIfFalse (length cThenI + 1)] ++ cThenI ++
+            [Jump (length cElseI)] ++ cElseI
+    return $ Compiled (cThenE ++ cElseE) ciledInsts
 
 compileAst env (AGomAssignment idName expr) = do
     name <- case idName of
@@ -78,21 +73,14 @@ compileAst env (AGomFunctionDefinition fnName (AGomParameterList fnArgs) fnBody
     return $ Compiled [(fnName, VFunction compiledBodyInsts)] []
 
 compileAst env (AGomForLoop lInit lCond lUpdate lBody) = do
-    compiledInit <- compileAst env lInit
-    compiledCond <- compileAst env lCond
-    compiledUpdate <- compileAst env lUpdate
-    compiledBody <- compileAst env lBody
-    let compiledInitInsts = getCompiledInsts compiledInit
-    let compiledCondInsts = getCompiledInsts compiledCond
-    let compiledUpdateInsts = getCompiledInsts compiledUpdate
-    let compiledBodyInsts = getCompiledInsts compiledBody
-    let compiledBodyEnv = getCompiledEnv compiledBody
-    return $ Compiled compiledBodyEnv (compiledInitInsts ++ compiledCondInsts
-            ++ [JumpIfFalse (length compiledBodyInsts + length
-                            compiledUpdateInsts + 1)]
-            ++ compiledBodyInsts ++ compiledUpdateInsts
-            ++ [Jump (-(length compiledBodyInsts
-            + length compiledUpdateInsts + length compiledCondInsts + 1))])
+    cInit <- compileAst env lInit; compiledCond <- compileAst env lCond
+    cUp <- compileAst env lUpdate; compiledBody <- compileAst env lBody
+    let cInitI = getCompiledInsts cInit; cCondI = getCompiledInsts compiledCond
+    let cUpdateI = getCompiledInsts cUp; cBodyI = getCompiledInsts compiledBody
+    let cBodyE = getCompiledEnv compiledBody
+    return $ Compiled cBodyE (cInitI ++ cCondI ++ [JumpIfFalse (length cBodyI +
+        length cUpdateI + 1)] ++ cBodyI ++ cUpdateI ++ [Jump (-(length cBodyI
+        + length cUpdateI + length cCondI + 1))])
 
 compileAst env (AGomBlock block) = do
     compiledBlock <- compileAllAst env block
@@ -116,7 +104,8 @@ compileAst env (AGomAccess list index) = do
     compiledIndex <- compileAst env index
     let compiledListInsts = getCompiledInsts compiledList
     let compiledIndexInsts = getCompiledInsts compiledIndex
-    return $ Compiled [] (compiledListInsts ++ compiledIndexInsts ++ [AccessList])
+    return $ Compiled [] (compiledListInsts ++ compiledIndexInsts ++
+        [AccessList])
 
 compileAst _ (AGomFunctionPrototype _ _ _) = pure $ Compiled [] []
 
