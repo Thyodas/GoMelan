@@ -26,7 +26,7 @@ testValBinary :: Test
 testValBinary = TestList [
       testBinaryEncodingDecoding [Push (VNum 42)],
       testBinaryEncodingDecoding [Push (VBool True)],
-      testBinaryEncodingDecoding [Push (VStr "Hello, World!")],
+      testBinaryEncodingDecoding [Push (VChar 'O'), Push (VChar 'K'), BuildList 2],
       testBinaryEncodingDecoding [Push (VList [VNum 1, VNum 2, VNum 3])],
       testBinaryEncodingDecoding [Push (VOp SignPlus)],
       testBinaryEncodingDecoding [Push (VFunction [Push (VNum 5), Push (VNum 3),
@@ -161,7 +161,7 @@ testExecHelper = TestList [
 testPushEnvMissingValue :: Test
 testPushEnvMissingValue = TestCase $ do
     let env = []
-        args = [VNum 42, VStr "test", VBool True]
+        args = [VNum 42, VBool True]
         insts = [PushEnv "variable", Call 1, Ret]
         result = execHelper env args insts insts []
     assertEqual "PushEnv: missing value in env" (Left "PushEnv: missing value in env for key 'variable'.") result
@@ -201,7 +201,7 @@ testValShow :: Test
 testValShow = TestList [
    TestCase $ assertEqual "Show VNum" "5" (show (VNum 5)),
    TestCase $ assertEqual "Show VBool" "True" (show (VBool True)),
-   TestCase $ assertEqual "Show VStr" "hello" (show (VStr "hello")),
+   TestCase $ assertEqual "Show VChar" "'e'" (show (VChar 'e')),
    TestCase $ assertEqual "Show VFunction" "" (show (VFunction []))
    ]
 
@@ -217,13 +217,13 @@ testShowVBool = TestCase $ do
 
 testShowVStr :: Test
 testShowVStr = TestCase $ do
-    let v = VStr "Hello"
-    assertEqual "Show VStr Hello" "Hello" (show v)
+    let v = VChar 'o'
+    assertEqual "Show VChar o" "'o'" (show v)
 
 testShowVList :: Test
 testShowVList = TestCase $ do
-    let v = VList [VNum 1, VStr "two", VBool True]
-    assertEqual "Show VList" "[1,two,True]" (show v)
+    let v = VList [VNum 1, VChar 'o', VBool True]
+    assertEqual "Show VList" "[1,'o',True]" (show v)
 
 testShowVOp :: Test
 testShowVOp = TestCase $ do

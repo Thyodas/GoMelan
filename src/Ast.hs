@@ -45,8 +45,8 @@ data GomExprType = SingleType String | TypeList [GomExprType]
     deriving (Show, Eq)
 
 data GomExpr = Number Int
+    | Character Char
     | Identifier [Char]
-    | GomString [Char]
     | Boolean Bool
     | Type GomExprType
     | Statements [GomExpr]
@@ -73,8 +73,8 @@ data GomExpr = Number Int
 
 data GomAST =
     AGomNumber Int
+  | AGomCharLiteral Char
   | AGomIdentifier [Char]
-  | AGomStringLiteral [Char]
   | AGomBooleanLiteral Bool
   | AGomTypeAny
   | AGomType [Char]
@@ -216,7 +216,7 @@ typeResolver _ (AGomType t) = pure (AGomType t)
 typeResolver _ (AGomTypeList t) = pure (AGomTypeList t)
 typeResolver _ (AGomBooleanLiteral _) = pure (AGomType "Bool")
 typeResolver _ (AGomNumber _) = pure (AGomType "Int")
-typeResolver _ (AGomStringLiteral _) = pure (AGomType "String")
+typeResolver _ (AGomCharLiteral _) = pure (AGomType "Char")
 typeResolver _ (AGomOperator _) = pure (AGomType "Operator")
 typeResolver env (AGomList elements) = do
   types <- traverse (typeResolver env) elements
@@ -370,8 +370,8 @@ aGomTypedIdentifierToEnvEntry _ = throwEvalError "Expected a TypedIdentifier"
 
 gomExprToGomAST :: Env -> GomExpr -> EvalResult ([EnvEntry], GomAST)
 gomExprToGomAST _ (Number n) = pure ([], AGomNumber n)
+gomExprToGomAST _ (Character n) = pure ([], AGomCharLiteral n)
 gomExprToGomAST _ (Identifier s) = pure ([], AGomIdentifier s)
-gomExprToGomAST _ (GomString s) = pure ([], AGomStringLiteral s)
 gomExprToGomAST _ (Boolean b) = pure ([], AGomBooleanLiteral b)
 gomExprToGomAST _ (Type (SingleType t)) = pure ([], AGomType t)
 gomExprToGomAST env (Type (TypeList t)) = do

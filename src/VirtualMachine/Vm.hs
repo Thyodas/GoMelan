@@ -6,7 +6,7 @@
 -}
 
 module VirtualMachine.Vm (exec, Val(..), EnumOperator(..), Instructions(..),
-    Stack, Insts, Compiled(..), VmEnv(..), main, execCall, execOperation,
+    Stack, Insts, Compiled(..), VmEnv(..), execCall, execOperation,
     execHelper, getOperationNbArgs, serializeAndWriteCompiled,
         readAndDeserializeCompiled, _ENTRY_POINT_AST, execWithMain, InternalFunction(..), Args(..)) where
 
@@ -24,7 +24,7 @@ data InternalFunction = InternalFunction String (Args -> Either String Val)
 
 data Val = VNum Int
     | VBool Bool
-    | VStr String
+    | VChar Char
     | VList [Val]
     | VOp EnumOperator
     | VFunction Insts
@@ -45,11 +45,21 @@ instance Binary InternalFunction where
 instance Eq InternalFunction where
   _ == _ = True
 
+isVChar :: Val -> Bool
+isVChar (VChar _) = True
+isVChar _ = False
+
+concatVChar :: Val -> String -> String
+concatVChar (VChar x) acc = x : acc
+concatVChar _ acc = acc
+
 instance Show Val where
     show (VNum x) = show x
     show (VBool x) = show x
-    show (VStr x) = x
-    show (VList x) = show x
+    show (VChar x) = show x
+    show (VList l)
+        | all isVChar l = "\"" ++ (foldr concatVChar "" l) ++ "\""
+        | otherwise = show l
     show (VOp x) = "<Operator '" ++ show x ++ "'>"
     show (VFunction x) = foldl (\ x' xs -> x' ++ show xs ++ "\n") "" x
     show (VNil) = "null"
@@ -103,7 +113,7 @@ instance Show Compiled where
 instance Binary Val where
     put (VNum num) = putWord8 0 >> put num
     put (VBool bool) = putWord8 1 >> put bool
-    put (VStr str) = putWord8 2 >> put str
+    put (VChar char) = putWord8 2 >> put char
     put (VList list) = putWord8 3 >> put list
     put (VOp op) = putWord8 4 >> put op
     put (VFunction insts) = putWord8 5 >> put insts
@@ -116,7 +126,7 @@ instance Binary Val where
         where
             get' 0 = VNum <$> get
             get' 1 = VBool <$> get
-            get' 2 = VStr <$> get
+            get' 2 = VChar <$> get
             get' 3 = VList <$> get
             get' 4 = VOp <$> get
             get' 5 = VFunction <$> get
@@ -173,18 +183,6 @@ readAndDeserializeCompiled filePath = do
     return $ case decodeOrFail encoded of
         Left (_, _, errMsg) -> Left errMsg
         Right (_, _, compiled) -> Right compiled
-
-main :: IO ()
-main =
-    let inst = [Push (VBool True), JumpIfFalse 2, Push (VStr "then"),
-            Jump 1, Push (VStr "else"), Ret]; env = []; cmp = Compiled env inst
-    in serializeAndWriteCompiled "compiled.bin" cmp >>
-       (readAndDeserializeCompiled "compiled.bin" >>= \result -> case result of
-               Left err -> putStrLn $ "Deserialization Error: " ++ err
-               Right decodedComp@(Compiled newEnv inst) ->
-                   print decodedComp >> (\_ -> case exec newEnv [] inst [] of
-                       Left errMsg -> putStrLn $ "Execution Error: " ++ errMsg
-                       Right val -> print val) ())
 
 getOperationNbArgs :: EnumOperator -> Int
 getOperationNbArgs SignNot = 1

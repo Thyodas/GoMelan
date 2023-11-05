@@ -1,7 +1,7 @@
-fn main() -> Int
+fn main() -> [String];
+
+fn main() -> [String]
 {
-    list: [[Int]] = [[1, 2], [3, 4]];
-    index: [Int] = list[1];
-    longueur: Int = len(index);
-    return 0;
+    str: [String] = ["Olala", "Olala1", "Olala2", "Olala3", "Olala4"];
+    return str;
 }

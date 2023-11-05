@@ -75,8 +75,8 @@ testTypeResolver = TestList [
         result5 = typeResolver [] (AGomNumber 42)
         expected5 = pure (AGomType "Int")
 
-        result6 = typeResolver [] (AGomStringLiteral "my_42")
-        expected6 = pure (AGomType "String")
+        result6 = typeResolver [] (AGomCharLiteral 'o')
+        expected6 = pure (AGomType "Char")
 
         result7 = typeResolver [] (AGomList [AGomNumber 1, AGomNumber 2, AGomNumber 3])
         expected7 = pure (AGomTypeList [AGomType "Int"])
@@ -93,8 +93,8 @@ testTypeResolver = TestList [
         result11 = typeResolver [] (AGomList [])
         expected11 = throwEvalError "Empty List" []
 
-        result12 = typeResolver [] (AGomList [AGomNumber 1, AGomStringLiteral "test"])
-        expected12 = throwEvalError "Types mismatch in list, found '[AGomType \"Int\",AGomType \"String\"]'" []
+        result12 = typeResolver [] (AGomList [AGomNumber 1, AGomCharLiteral 'e'])
+        expected12 = throwEvalError "Types mismatch in list, found '[AGomType \"Int\",AGomType \"Char\"]'" []
 
         result13 = typeResolver [] (AGomEmpty)
         expected13 = throwEvalError "Couldn't resolve type for 'AGomEmpty'." []
@@ -135,8 +135,8 @@ testGomExprToGomAST = TestList [
         result2 = gomExprToGomAST [] (Identifier "quarante_deux")
         expected2 = pure ([], AGomIdentifier "quarante_deux")
 
-        result3 = gomExprToGomAST [] (GomString "Quarante deux ?!")
-        expected3 = pure ([], AGomStringLiteral "Quarante deux ?!")
+        result3 = gomExprToGomAST [] (Character 'o')
+        expected3 = pure ([], AGomCharLiteral 'o')
 
         result4 = gomExprToGomAST [] (Boolean True)
         expected4 = pure ([], AGomBooleanLiteral True)
@@ -217,8 +217,8 @@ testEqualType = TestList [
             result1 = typeResolver [] (AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomNumber 2,AGomOperator SignMultiply])
             expected1 = pure (AGomType "Int")
 
-            result2 = typeResolver [] (AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomStringLiteral "SALUT",AGomOperator SignMultiply])
-            expected2 = throwEvalError "Types mismatch in expression, found '[AGomType \"Int\",AGomType \"String\"]'" []
+            result2 = typeResolver [] (AGomExpression [AGomNumber 1,AGomNumber 1,AGomOperator SignPlus,AGomCharLiteral 'e',AGomOperator SignMultiply])
+            expected2 = throwEvalError "Types mismatch in expression, found '[AGomType \"Int\",AGomType \"Char\"]'" []
 
             result3 = typeResolver [] (AGomExpression [])
             expected3 = throwEvalError "Empty expression" []
@@ -344,8 +344,8 @@ testGomExprToAGomFunctionCall = TestList [
         result6 = gomExprToAGomFunctionCall env (FunctionCall (Identifier "foo") (ParameterList [Identifier "bar", Identifier "baz"]))
         expected6 = EvalResult $ Right (env, AGomFunctionCall ("foo") (AGomParameterList [AGomIdentifier "bar", AGomIdentifier "baz"]))
 
-        result7 = gomExprToAGomFunctionCall env (FunctionCall (GomString "name") Empty)
-        expected7 = EvalResult {unEvalResult = Left (EvalError "Expected an Identifier" [GomString "name"])}
+        result7 = gomExprToAGomFunctionCall env (FunctionCall (List [Character 'n', Character 'a', Character 'm', Character 'e']) Empty)
+        expected7 = EvalResult {unEvalResult = Left (EvalError "Expected an Identifier" [List [Character 'n', Character 'a', Character 'm', Character 'e']])}
 
 testOperatorToGomAST :: Test
 testOperatorToGomAST = TestList
@@ -484,8 +484,8 @@ testGomExprToAGomAssignment = TestList [
         result1 = gomExprToAGomAssignment env (Assignment (Identifier "x") (Number 10))
         expected1 = EvalResult {unEvalResult = Right ([("x",AGomNumber 10)],AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 10})}
 
-        result2 = gomExprToAGomAssignment env2 (Assignment (Identifier "y") (GomString "hello"))
-        expected2 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomType \"String\"' but expected 'AGomType \"Int\"'." [])}
+        result2 = gomExprToAGomAssignment env2 (Assignment (Identifier "y") (List [Character 'h', Character 'e', Character 'l', Character 'l', Character 'o']))
+        expected2 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomTypeList [AGomType \"Char\"]' but expected 'AGomType \"Int\"'." [])}
 
         result3 = gomExprToAGomAssignment env3 (Assignment (Identifier "z") (Boolean True))
         expected3 = EvalResult {unEvalResult = Left (EvalError "Type mismatch, found 'AGomType \"Bool\"' but expected 'AGomType \"Int\"'." [])}
