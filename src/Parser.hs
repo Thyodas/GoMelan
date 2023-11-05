@@ -600,11 +600,11 @@ parseIncludeStatement = do
     _ <- parseAmongWhitespace (parseSymbol "from") <?>
         ParseError MissingIdentifier
         "Expected an identifier or a list of identifiers"
-    moduleName <- parseModule
+    moduleName <- parseAmongWhitespace parseModule
     return $ IncludeStatement {includeList=include, fromModule=moduleName}
 
-parseModule :: Parser GomExpr
-parseModule = parseIdentifier
+parseModule :: Parser String
+parseModule = parseChar '"' *> parseUntilAny ['"']
 
 parseImportIdentifier :: Parser GomExpr
 parseImportIdentifier = parseIdentifier <|> Identifier <$> parseSymbol "*"

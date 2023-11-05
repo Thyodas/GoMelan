@@ -481,16 +481,6 @@ testParseFunctionName = TestList
         result1 = runParser parseFunctionName "myFunction"
         expected1 = Right (Identifier "myFunction", "")
 
-
-testParseModule :: Test
-testParseModule = TestList
-    [ TestCase $ assertEqual "parseModule valid" expected1 result1
-    ]
-    where
-        result1 = runParser parseModule "module MyModule where"
-        expected1 = Right (Identifier "module"," MyModule where")
-
-
 testParseImportIdentifier :: Test
 testParseImportIdentifier = TestList
     [ TestCase $ assertEqual "parseImportIdentifier valid" expected1 result1
@@ -764,13 +754,13 @@ testParseCodeToGomExpr = TestList
 testParseIncludeStatement :: Test
 testParseIncludeStatement = TestList
     [ "Test parseIncludeStatement with import all" ~:
-        let input = "include * from Bar"
-            expected = Right (IncludeStatement (Identifier "*") (Identifier "Bar"), "")
+        let input = "include * from \"Bar\""
+            expected = Right (IncludeStatement (Identifier "*") ("Bar"), "")
             result = runParser parseIncludeStatement input
         in assertEqual "Should parse valid input" expected result
     , "Test parseIncludeStatement with include list" ~:
-        let input = "include (Foo, Bar) from Baz"
-            expected = Right (IncludeStatement {includeList = List [Identifier "Foo",Identifier "Bar"], fromModule = Identifier "Baz"},"")
+        let input = "include (Foo, Bar) from \"Baz\""
+            expected = Right (IncludeStatement {includeList = List [Identifier "Foo",Identifier "Bar"], fromModule = "Baz"},"")
             result = runParser parseIncludeStatement input
         in assertEqual "Should parse valid input" expected result
     , "Test parseIncludeStatement without identifier" ~:
@@ -985,7 +975,6 @@ parserTestList = TestList [
     testParseReturnType,
     testParseCustomType,
     testParseImportIdentifier,
-    testParseModule,
     testParseFunctionName,
     testParseSemicolumn,
     testHandleOtherCases,

@@ -1,18 +1,7 @@
-fn sum(a: [Int]) -> Int;
+include * from "./sum.gom"
 
 fn main() -> Int
 {
     a: [Int] = [1, 2, 3, 4];
     return sum(a);
-}
-
-fn sum(a: [Int]) -> Int
-{
-    s: Int = 0;
-
-    for (i: Int = 0; i < len(a); i++) {
-        s += a[i];
-    }
-
-    return s;
 }

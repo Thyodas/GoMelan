@@ -172,8 +172,8 @@ testGomExprToGomAST = TestList [
         result15 = gomExprToGomAST [] (TypedIdentifier {identifier = "x", identifierType = Type (SingleType "Int")})
         expected15 = pure ([], AGomTypedIdentifier {aGomIdentifier = "x", aGomIdentifierType = AGomType "Int"})
 
-        result16 = gomExprToGomAST [] (IncludeStatement { includeList = Identifier "*", fromModule = Identifier "myModule" })
-        expected16 = pure ([], AGomIncludeStatement { aGomIncludeList = AGomIdentifier "*", aGomFromModule = AGomIdentifier "myModule" })
+        result16 = gomExprToGomAST [] (IncludeStatement { includeList = Identifier "*", fromModule = "myModule" })
+        expected16 = pure ([], AGomEmpty)
 
         result17 = gomExprToGomAST [("x", AGomNumber 41)] (Assignment { assignedIdentifier = Identifier "x", assignedExpression = Number 42 })
         expected17 = pure ([("x", AGomNumber 42)], AGomAssignment {aGomAssignedIdentifier = AGomIdentifier "x", aGomAssignedExpression = AGomNumber 42})
@@ -554,20 +554,11 @@ testIncludeList = TestList
     ]
     where
         include = Identifier "moduleA"
-        includeExpr = IncludeStatement include (Identifier "moduleB")
-
-testFromModule :: Test
-testFromModule = TestCase $ assertEqual "Extract fromModule" expected (fromModule includeExpr)
-  where
-    include = Identifier "moduleA"
-    from = Identifier "moduleB"
-    includeExpr = IncludeStatement include from
-    expected = from
+        includeExpr = IncludeStatement include "moduleB"
 
 
 astTestList :: Test
 astTestList = TestList [
-    testFromModule,
     testIdentifierType,
     testIncludeList,
     testFunctionArguments,

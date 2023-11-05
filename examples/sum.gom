@@ -1,0 +1,11 @@
+
+fn sum(a: [Int]) -> Int
+{
+    s: Int = 0;
+
+    for (i: Int = 0; i < len(a); i++) {
+        s += a[i];
+    }
+
+    return s;
+}

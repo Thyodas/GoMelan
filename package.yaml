@@ -25,6 +25,8 @@ dependencies:
 - safe
 - cmdargs
 - generic-data
+- filepath
+- directory
 
 ghc-options:
 - -Wall
