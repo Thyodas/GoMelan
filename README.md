@@ -4,6 +4,9 @@
 
 GLaDOS is a programming language project developed as part of the B5 - Advanced Functional Programming course (B-FUN-500). It's designed to be a minimalist Lisp interpreter initially but can be extended into a more advanced language with a custom syntax, evaluation, and compilation.
 
+> **Note**
+> Here is the full documentation for GoMelan: https://glados.guillaume-hein.fr/
+
 ## Table of Contents
 
 - [GLaDOS - Generic Language and Data Operand Syntax](#glados---generic-language-and-data-operand-syntax)
